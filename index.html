@@ -380,54 +380,42 @@
         .hidden {
             display: none !important;
         }
-
+        
         @media (max-width: 768px) {
-            #title {
-                font-size: 20px;
-            }
+    #title {
+        font-size: 20px;
+    }
 
-            #subtitle {
-                font-size: 12px;
-            }
+    #subtitle {
+        font-size: 12px;
+    }
 
-            .gesture-name,
-            .gesture-value,
-            .cc-display {
-                width: auto;
-                flex: 1 1 auto;
-                text-align: left;
-            }
+    .gesture-name,
+    .gesture-value,
+    .cc-display {
+        width: auto;
+        flex: 1 1 auto;
+        text-align: left;
+    }
+    .toggle-button,
+    .mode-button {
+        padding: 6px 10px;
+        font-size: 14px;
+    }
 
-            .gesture-row {
-                flex-direction: column;
-                align-items: flex-start;
-            }
+    .input-range {
+        width: 100%;
+        max-width: 60px;
+    }
 
-            .toggle-button,
-            .mode-button {
-                padding: 6px 10px;
-                font-size: 14px;
-            }
+    .dropdown {
+        width: 100%;
+    }
 
-            .input-range {
-                width: 100%;
-                max-width: 60px;
-            }
-
-            .dropdown {
-                width: 100%;
-            }
-
-            .envelope-row {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .slider {
-                width: 100%;
-            }
-        }
-
+    .slider {
+        width: 100%;
+    }
+}
         .presentation-active #videoContainer,
         .presentation-active canvas {
             width: 100vw;
@@ -444,8 +432,8 @@
     </div>
     <br>
     <select id="languageSwitcher" class="dropdown">
-        <option value="es" selected>Español</option>
-        <option value="en">English</option>
+        <option value="es" selected data-i18n="languageSwitcher.es">Español</option>
+        <option value="en" data-i18n="languageSwitcher.en">English</option>
     </select>
     <br><br>
 
@@ -493,7 +481,7 @@
                     <option value="guitar" data-i18n="midiInstrumentSelect.guitar">Guitarra</option>
                     <option value="strings" data-i18n="midiInstrumentSelect.strings">Strings</option>
                     <option value="stringSpicatto" data-i18n="midiInstrumentSelect.stringSpicatto">S. Spicatto</option>
-                    <option value="musicBox" data-i18n="midiInstrumentSelect.musicBox">Music Box</option>
+                    <option value="musicBox" data-i18n="midiInstrumentSelect.musicBox">Caja de Música</option>
                     <option value="flauta" data-i18n="midiInstrumentSelect.flauta">Flauta</option>
                     <option value="pad" data-i18n="midiInstrumentSelect.pad">Pad</option>
                     <option value="marimba" data-i18n="midiInstrumentSelect.marimba">Marimba</option>
@@ -501,7 +489,7 @@
                     <option value="bass" data-i18n="midiInstrumentSelect.bass">Bajo</option>
                     <option value="choir" data-i18n="midiInstrumentSelect.choir">Voz</option>
                     <option value="synthesizer" data-i18n="midiInstrumentSelect.synthesizer">Sintetizador</option>
-                    <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Harmonic</option>
+                    <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Armónico</option>
                 </select>
             </div>
         </div>
@@ -513,9 +501,9 @@
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="mouthOpen">Boca</div>
             <div class="gesture-value" id="mouthOpenValue">0</div>
-            <input type="number" id="mouthOpenMinChange" class="input-range" placeholder="Min Camb">
-            <input type="number" id="mouthOpenMin" class="input-range" placeholder="Min">
-            <input type="number" id="mouthOpenMax" class="input-range" placeholder="Max">
+            <input type="number" id="mouthOpenMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+            <input type="number" id="mouthOpenMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+            <input type="number" id="mouthOpenMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
             <button class="toggle-button" id="mouthOpenScaling" data-i18n="scaling">Escalar</button>
             <button class="toggle-button" id="mouthOpenMute" data-i18n="mute">Mute</button>
             <button class="toggle-button active" id="mouthOpenSolo" data-i18n="solo">Solo</button>
@@ -523,17 +511,16 @@
             <div class="cc-display" id="mouthOpenCC"></div>
             <button class="toggle-button active" id="mouthOpenNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="mouthOpenDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="mouthOpenUmbral" class="input-range" placeholder="Umbral">
+            <input type="number" id="mouthOpenUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
-
         
         <!-- Sonrisa -->
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="smile">Sonrisa</div>
             <div class="gesture-value" id="smileValue">0</div>
-            <input type="number" id="smileMinChange" class="input-range" placeholder="Min Camb" data-i18n="minChangePlaceholder">
-            <input type="number" id="smileMin" class="input-range" placeholder="Min" data-i18n="minPlaceholder">
-            <input type="number" id="smileMax" class="input-range" placeholder="Max" data-i18n="maxPlaceholder">
+            <input type="number" id="smileMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+            <input type="number" id="smileMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+            <input type="number" id="smileMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
             <button class="toggle-button" id="smileScaling" data-i18n="scaling">Escalar</button>
             <button class="toggle-button" id="smileMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="smileSolo" data-i18n="solo">Solo</button>
@@ -541,16 +528,16 @@
             <div class="cc-display" id="smileCC"></div>
             <button class="toggle-button active" id="smileNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="smileDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="smileUmbral" class="input-range" placeholder="Umbral" data-i18n="thresholdPlaceholder">
+            <input type="number" id="smileUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
-    
+
         <!-- Guiño Izq. -->
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="leftWink">Guiño Izq.</div>
             <div class="gesture-value" id="leftWinkValue">0</div>
-            <input type="number" id="leftWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n="minChangePlaceholder">
-            <input type="number" id="leftWinkMin" class="input-range" placeholder="Min" data-i18n="minPlaceholder">
-            <input type="number" id="leftWinkMax" class="input-range" placeholder="Max" data-i18n="maxPlaceholder">
+            <input type="number" id="leftWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+            <input type="number" id="leftWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+            <input type="number" id="leftWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
             <button class="toggle-button" id="leftWinkScaling" data-i18n="scaling">Escalar</button>
             <button class="toggle-button" id="leftWinkMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="leftWinkSolo" data-i18n="solo">Solo</button>
@@ -558,16 +545,16 @@
             <div class="cc-display" id="leftWinkCC"></div>
             <button class="toggle-button active" id="leftWinkNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="leftWinkDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="leftWinkUmbral" class="input-range" placeholder="Umbral" data-i18n="thresholdPlaceholder">
+            <input type="number" id="leftWinkUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
-    
+
         <!-- Guiño Der. -->
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="rightWink">Guiño Der.</div>
             <div class="gesture-value" id="rightWinkValue">0</div>
-            <input type="number" id="rightWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n="minChangePlaceholder">
-            <input type="number" id="rightWinkMin" class="input-range" placeholder="Min" data-i18n="minPlaceholder">
-            <input type="number" id="rightWinkMax" class="input-range" placeholder="Max" data-i18n="maxPlaceholder">
+            <input type="number" id="rightWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+            <input type="number" id="rightWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+            <input type="number" id="rightWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
             <button class="toggle-button" id="rightWinkScaling" data-i18n="scaling">Escalar</button>
             <button class="toggle-button" id="rightWinkMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="rightWinkSolo" data-i18n="solo">Solo</button>
@@ -575,16 +562,16 @@
             <div class="cc-display" id="rightWinkCC"></div>
             <button class="toggle-button active" id="rightWinkNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="rightWinkDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="rightWinkUmbral" class="input-range" placeholder="Umbral" data-i18n="thresholdPlaceholder">
+            <input type="number" id="rightWinkUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
-    
+
         <!-- Nariz X -->
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="noseX">Nariz X</div>
             <div class="gesture-value" id="noseXValue">0</div>
-            <input type="number" id="noseXMinChange" class="input-range" placeholder="Min Camb" data-i18n="minChangePlaceholder">
-            <input type="number" id="noseXMin" class="input-range" placeholder="Min" data-i18n="minPlaceholder">
-            <input type="number" id="noseXMax" class="input-range" placeholder="Max" data-i18n="maxPlaceholder">
+            <input type="number" id="noseXMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+            <input type="number" id="noseXMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+            <input type="number" id="noseXMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
             <button class="toggle-button" id="noseXScaling" data-i18n="scaling">Escalar</button>
             <button class="toggle-button" id="noseXMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="noseXSolo" data-i18n="solo">Solo</button>
@@ -592,16 +579,16 @@
             <div class="cc-display" id="noseXCC"></div>
             <button class="toggle-button active" id="noseXNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="noseXDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="noseXUmbral" class="input-range" placeholder="Umbral" data-i18n="thresholdPlaceholder">
+            <input type="number" id="noseXUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
-    
+
         <!-- Nariz Y -->
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="noseY">Nariz Y</div>
             <div class="gesture-value" id="noseYValue">0</div>
-            <input type="number" id="noseYMinChange" class="input-range" placeholder="Min Camb" data-i18n="minChangePlaceholder">
-            <input type="number" id="noseYMin" class="input-range" placeholder="Min" data-i18n="minPlaceholder">
-            <input type="number" id="noseYMax" class="input-range" placeholder="Max" data-i18n="maxPlaceholder">
+            <input type="number" id="noseYMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+            <input type="number" id="noseYMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+            <input type="number" id="noseYMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
             <button class="toggle-button" id="noseYScaling" data-i18n="scaling">Escalar</button>
             <button class="toggle-button" id="noseYMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="noseYSolo" data-i18n="solo">Solo</button>
@@ -609,41 +596,42 @@
             <div class="cc-display" id="noseYCC"></div>
             <button class="toggle-button active" id="noseYNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="noseYDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="noseYUmbral" class="input-range" placeholder="Umbral" data-i18n="thresholdPlaceholder">
+            <input type="number" id="noseYUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
+
         <!-- Controles de Escalas -->
         <div class="scale-controls">
             <div class="scale-label" data-i18n="scale">Escala:</div>
             <select id="scaleSelect" class="dropdown">
-                <option value="major" selected data-i18n="scale.major">Major</option>
-                <option value="minor" data-i18n="scale.minor">Minor</option>
-                <option value="dorian" data-i18n="scale.dorian">Dorian</option>
-                <option value="phrygian" data-i18n="scale.phrygian">Phrygian</option>
-                <option value="lydian" data-i18n="scale.lydian">Lydian</option>
-                <option value="mixolydian" data-i18n="scale.mixolydian">Mixolydian</option>
-                <option value="aeolian" data-i18n="scale.aeolian">Aeolian</option>
-                <option value="locrian" data-i18n="scale.locrian">Locrian</option>
-                <option value="pentatonic" data-i18n="scale.pentatonic">Pentatonic</option>
-                <option value="blues" data-i18n="scale.blues">Blues</option>
-                <option value="bebop" data-i18n="scale.bebop">Bebop</option>
-                <option value="harmonic_minor" data-i18n="scale.harmonic_minor">Harmonic Minor</option>
-                <option value="melodic_minor" data-i18n="scale.melodic_minor">Melodic Minor</option>
-                <option value="chromatic" data-i18n="scale.chromatic">Chromatic</option>
-            </select>        
+                <option value="major" selected data-i18n="scaleOptions.major">Mayor</option>
+                <option value="minor" data-i18n="scaleOptions.minor">Menor</option>
+                <option value="dorian" data-i18n="scaleOptions.dorian">Dórico</option>
+                <option value="phrygian" data-i18n="scaleOptions.phrygian">Frigio</option>
+                <option value="lydian" data-i18n="scaleOptions.lydian">Lidio</option>
+                <option value="mixolydian" data-i18n="scaleOptions.mixolydian">Mixolidio</option>
+                <option value="aeolian" data-i18n="scaleOptions.aeolian">Eólico</option>
+                <option value="locrian" data-i18n="scaleOptions.locrian">Locrio</option>
+                <option value="pentatonic" data-i18n="scaleOptions.pentatonic">Pentatónica</option>
+                <option value="blues" data-i18n="scaleOptions.blues">Blues</option>
+                <option value="bebop" data-i18n="scaleOptions.bebop">Bebop</option>
+                <option value="harmonic_minor" data-i18n="scaleOptions.harmonic_minor">Menor Armónica</option>
+                <option value="melodic_minor" data-i18n="scaleOptions.melodic_minor">Menor Melódica</option>
+                <option value="chromatic" data-i18n="scaleOptions.chromatic">Cromática</option>
+            </select>
             <div class="scale-label" data-i18n="fundamental">Fundamental:</div>
             <select id="rootNoteSelect" class="dropdown">
-                <option value="C" data-i18n="rootNote.C">Do</option>
-                <option value="C#" data-i18n="rootNote.C_sharp">Do#</option>
-                <option value="D" data-i18n="rootNote.D">Re</option>
-                <option value="D#" data-i18n="rootNote.D_sharp">Re#</option>
-                <option value="E" data-i18n="rootNote.E">Mi</option>
-                <option value="F" data-i18n="rootNote.F">Fa</option>
-                <option value="F#" data-i18n="rootNote.F_sharp">Fa#</option>
-                <option value="G" data-i18n="rootNote.G">Sol</option>
-                <option value="G#" data-i18n="rootNote.G_sharp">Sol#</option>
-                <option value="A" data-i18n="rootNote.A">La</option>
-                <option value="A#" data-i18n="rootNote.A_sharp">La#</option>
-                <option value="B" data-i18n="rootNote.B">Si</option>
+                <option value="C" data-i18n="rootNoteOptions.C">Do</option>
+                <option value="C#" data-i18n="rootNoteOptions.C_sharp">Do#</option>
+                <option value="D" data-i18n="rootNoteOptions.D">Re</option>
+                <option value="D#" data-i18n="rootNoteOptions.D_sharp">Re#</option>
+                <option value="E" data-i18n="rootNoteOptions.E">Mi</option>
+                <option value="F" data-i18n="rootNoteOptions.F">Fa</option>
+                <option value="F#" data-i18n="rootNoteOptions.F_sharp">Fa#</option>
+                <option value="G" data-i18n="rootNoteOptions.G">Sol</option>
+                <option value="G#" data-i18n="rootNoteOptions.G_sharp">Sol#</option>
+                <option value="A" data-i18n="rootNoteOptions.A">La</option>
+                <option value="A#" data-i18n="rootNoteOptions.A_sharp">La#</option>
+                <option value="B" data-i18n="rootNoteOptions.B">Si</option>
             </select>
         </div>
 
@@ -689,7 +677,7 @@
             <button class="toggle-button" id="sustainDurationSolo" data-i18n="solo">Solo</button>
             <button class="toggle-button" id="sustainDurationControl" data-i18n="control">Control</button>
             <div class="cc-display" id="sustainDurationCC"></div>
-        </div>        
+        </div>
         <!-- Release -->
         <div class="envelope-row">
             <div class="gesture-name" data-i18n="release">Release</div>
@@ -700,7 +688,7 @@
             <button class="toggle-button" id="releaseControl" data-i18n="control">Control</button>
             <div class="cc-display" id="releaseCC"></div>
         </div>
-    </div>    
+    </div>
 </div>
 
     <!-- MIDI Output Selector -->
@@ -720,60 +708,60 @@
     <div id="instructionModal">
         <div id="instructionModalContent">
             <button id="closeModalButton">&times;</button>
-            <h2 data-i18n="instructions_title">Instrucciones de Uso</h2>
-            <p data-i18n="instructions_description">
+            <h2 data-i18n="instructionsModal.title">Instrucciones de Uso</h2>
+            <p data-i18n="instructionsModal.description">
                 Este controlador web permite utilizar gestos faciales para generar señales MIDI y controlar instrumentos virtuales, así como generar sonido directamente en el navegador.
             </p>
-            <h3 data-i18n="usage_modes">Modos de Uso:</h3>
-            <h4 data-i18n="theremin_and_percussion_mode">Modo Theremin y Percusión</h4>
-            <p data-i18n="theremin_and_percussion_description">
+            <h3 data-i18n="instructionsModal.usageModes.title">Modos de Uso:</h3>
+            <h4 data-i18n="instructionsModal.usageModes.thereminAndPercussion.title">Modo Theremin y Percusión</h4>
+            <p data-i18n="instructionsModal.usageModes.thereminAndPercussion.description">
                 En estos modos, puedes escuchar el resultado sonoro directamente en el navegador utilizando la lógica de los gestos.
             </p>
-            <h5 data-i18n="theremin_mode">Theremin:</h5>
-            <p data-i18n="theremin_description">
+            <h5 data-i18n="instructionsModal.usageModes.thereminAndPercussion.theremin.title">Theremin:</h5>
+            <p data-i18n="instructionsModal.usageModes.thereminAndPercussion.theremin.description">
                 Al activar el modo Theremin, puedes elegir entre dos opciones:
             </p>
             <ul>
-                <li data-i18n="theremin_synth_description"><strong>Synth:</strong> Utiliza un oscilador. Puedes seleccionar la forma de onda (sinusoidal, cuadrada, sierra, triangular) y controlar la frecuencia con abriendo y cerrando la boca y cambiar la dinámica con la apertura de ojos.</li>
-                <li data-i18n="theremin_notes_description"><strong>Notas:</strong> Activa automáticamente el botón Notas del gesto Boca. Puedes seleccionar un instrumento MIDI para escuchar. Este modo utiliza la salida MIDI de notas generada por la boca y reproduce los sonidos directamente en el navegador.</li>
+                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.theremin.synth"><strong>Synth:</strong> Utiliza un oscilador. Puedes seleccionar la forma de onda (sinusoidal, cuadrada, sierra, triangular) y controlar la frecuencia abriendo y cerrando la boca, y cambiar la dinámica con la apertura de ojos.</li>
+                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.theremin.notes"><strong>Notas:</strong> Activa automáticamente el botón Notas del gesto Boca. Puedes seleccionar un instrumento MIDI para escuchar. Este modo utiliza la salida MIDI de notas generada por la boca y reproduce los sonidos directamente en el navegador.</li>
             </ul>
-            <h5 data-i18n="percussion_mode">Percusión:</h5>
-            <p data-i18n="percussion_description">
+            <h5 data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.title">Percusión:</h5>
+            <p data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.description">
                 Al activar el modo Percusión, todos los botones de Disparador se activan automáticamente. Puedes elegir entre dos modos:
             </p>
             <ul>
-                <li data-i18n="percussion_threshold_mode"><strong>Umbral:</strong> Utiliza el valor configurado en el umbral para activar el disparador de cada gesto.</li>
-                <li data-i18n="percussion_automatic_mode"><strong>Automático:</strong> Detecta cambios repentinos en los valores para activar los sonidos de percusión.</li>
+                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.threshold"><strong>Umbral:</strong> Utiliza el valor configurado en el umbral para activar el disparador de cada gesto.</li>
+                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.automatic"><strong>Automático:</strong> Detecta cambios repentinos en los valores para activar los sonidos de percusión.</li>
             </ul>
-            <h4 data-i18n="midi_output_section">Salida MIDI</h4>
-            <p data-i18n="midi_output_description">
+            <h4 data-i18n="instructionsModal.usageModes.midiOutput.title">Salida MIDI</h4>
+            <p data-i18n="instructionsModal.usageModes.midiOutput.description">
                 Si no están activados los modos Theremin o Percusión, el sistema funciona como un controlador MIDI. Puedes utilizar los gestos para enviar señales MIDI de Control, Notas o Disparadores según las configuraciones establecidas.
             </p>
-            <p data-i18n="midi_customization">
-                Ajusta los parámetros de <em data-i18n="min_change">Cambio Mínimo</em>, <em data-i18n="scale">Escala</em>, y <em data-i18n="fundamental">Fundamental</em> para personalizar la respuesta del sistema.
+            <p data-i18n="instructionsModal.midiCustomization">
+                Ajusta los parámetros de <em data-i18n="minChangePlaceholder">Cambio Mínimo</em>, <em data-i18n="scale">Escala</em> y <em data-i18n="fundamental">Fundamental</em> para personalizar la respuesta del sistema.
             </p>
-            <h3 data-i18n="gesture_functions">Funciones de los Gestos:</h3>
+            <h3 data-i18n="instructionsModal.gestureFunctions.title">Funciones de los Gestos:</h3>
             <ul>
-                <li data-i18n="gesture_notes_function"><strong>Notas:</strong> Toca notas discretas basadas en el gesto y la escala seleccionada. Las notas se activan al cruzar umbrales ascendentes y se desactivan al descender.</li>
-                <li data-i18n="gesture_control_function"><strong>Control:</strong> Envía valores continuos MIDI CC basados en el gesto.</li>
-                <li data-i18n="gesture_trigger_function"><strong>Disparador:</strong> Activa eventos cuando el gesto cruza un umbral específico.</li>
+                <li data-i18n="instructionsModal.gestureFunctions.notes"><strong>Notas:</strong> Toca notas discretas basadas en el gesto y la escala seleccionada. Las notas se activan al cruzar umbrales ascendentes y se desactivan al descender.</li>
+                <li data-i18n="instructionsModal.gestureFunctions.control"><strong>Control:</strong> Envía valores continuos MIDI CC basados en el gesto.</li>
+                <li data-i18n="instructionsModal.gestureFunctions.trigger"><strong>Disparador:</strong> Activa eventos cuando el gesto cruza un umbral específico.</li>
             </ul>
-            <h3 data-i18n="value_and_sensitivity_adjustment">Ajuste de Valores y Sensibilidad:</h3>
-            <p data-i18n="adjustment_description">
-                Puedes ajustar el <em data-i18n="min_change">Cambio Mínimo</em> para controlar la sensibilidad de los gestos. Modifica los valores <em data-i18n="min">Min</em> y <em data-i18n="max">Max</em> para calibrar el rango de detección según tus características faciales.
+            <h3 data-i18n="instructionsModal.valueAdjustment.title">Ajuste de Valores y Sensibilidad:</h3>
+            <p data-i18n="instructionsModal.valueAdjustment.description">
+                Puedes ajustar el <em data-i18n="minChangePlaceholder">Cambio Mínimo</em> para controlar la sensibilidad de los gestos. Modifica los valores <em data-i18n-placeholder="minPlaceholder">Min</em> y <em data-i18n-placeholder="maxPlaceholder">Max</em> para calibrar el rango de detección según tus características faciales.
             </p>
-            <h3 data-i18n="note_activation_logic">Lógica de Activación de Notas:</h3>
-            <p data-i18n="note_activation_description">
+            <h3 data-i18n="instructionsModal.noteActivationLogic.title">Lógica de Activación de Notas:</h3>
+            <p data-i18n="instructionsModal.noteActivationLogic.description">
                 En modo Notas, las notas se activan cuando el valor del gesto cruza un umbral en sentido ascendente y se desactivan al descender. Por ejemplo, si el Cambio Mínimo es 10:
             </p>
             <ul>
-                <li data-i18n="first_note_activation">Valor sube de 0 a 11: se activa la primera nota.</li>
-                <li data-i18n="next_note_activation">Valor sube de 11 a 23: se activa la siguiente nota en la escala.</li>
-                <li data-i18n="note_deactivation">Valor desciende por debajo del umbral: la nota se desactiva.</li>
+                <li data-i18n="instructionsModal.noteActivationLogic.example1">Valor sube de 0 a 11: se activa la primera nota.</li>
+                <li data-i18n="instructionsModal.noteActivationLogic.example2">Valor sube de 11 a 23: se activa la siguiente nota en la escala.</li>
+                <li data-i18n="instructionsModal.noteActivationLogic.example3">Valor desciende por debajo del umbral: la nota se desactiva.</li>
             </ul>
             <p>
-                <em data-i18n="credits">Idea, diseño y programación: Ricardo Arbiza, 2024</em><br>
-                <span data-i18n="contact">Contacto:</span> <a href="mailto:ricardoarbizaroverano@gmail.com">ricardoarbizaroverano at gmail.com</a>
+                <em data-i18n="instructionsModal.credits">Idea, diseño y programación: Ricardo Arbiza, 2024</em><br>
+                <span data-i18n="instructionsModal.contact">Contacto:</span> <a href="mailto:ricardoarbizaroverano@gmail.com">ricardoarbizaroverano at gmail.com</a>
             </p>
         </div>
     </div>
@@ -786,15 +774,15 @@
 
     <!-- Include Libraries and Your Script -->
     <script src="p5.js"></script>
-    <script src="face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="camera_utils.js"></script>
     <script src="Tone.min.js"></script>    
-    <script src="script.js"></script>
+   
 
     <!-- Translation Script -->
     <script>
         let translations = {};
-        let currentLanguage = 'es'; // Default language
+        let currentLanguage = 'es'; // Idioma predeterminado
 
         // Fetch the translations JSON file
         fetch('translations.json')
@@ -806,23 +794,32 @@
 
         // Function to apply translations based on the selected language
         function applyTranslations(language) {
-            document.querySelectorAll('[data-i18n]').forEach(element => {
-                const key = element.getAttribute('data-i18n');
-                const text = translations[language][key];
-                if (text) element.textContent = text;
-            });
-            // Handle placeholders
-            document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-                const key = element.getAttribute('data-i18n-placeholder');
-                const text = translations[language][key];
-                if (text) element.setAttribute('placeholder', text);
-            });
-            // Handle option elements
-            document.querySelectorAll('option[data-i18n]').forEach(element => {
-                const key = element.getAttribute('data-i18n');
-                const text = translations[language][key];
-                if (text) element.textContent = text;
-            });
+    document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        const text = getNestedTranslation(translations[language], key);
+        if (text) {
+            element.innerHTML = text;
+        }
+    });
+    // Manejar placeholders
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        const text = getNestedTranslation(translations[language], key);
+        if (text) element.setAttribute('placeholder', text);
+    });
+    // Manejar elementos option
+    document.querySelectorAll('option[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        const text = getNestedTranslation(translations[language], key);
+        if (text) {
+            element.textContent = text;
+        }
+    });
+}
+
+
+        function getNestedTranslation(obj, key) {
+            return key.split('.').reduce((o, i) => o ? o[i] : null, obj);
         }
 
         // Event listener for the language switcher
@@ -831,6 +828,7 @@
             applyTranslations(currentLanguage);
         });
     </script>
+     <script src="script.js"></script>
 
 </body>
 
