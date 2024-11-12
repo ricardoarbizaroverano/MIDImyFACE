@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=1024, initial-scale=1.0, user-scalable=no">
     <title data-i18n="title">MIDImyFACE - Interfaz gestural web</title>
     <style>
         body {
@@ -407,7 +407,7 @@
     <!-- Controles de Modo -->
     <div class="mode-controls">
         <button id="percussionToggle" class="mode-button" data-i18n="percussionToggle">Percusión</button>
-        <button id="thereminToggle" class="mode-button" data-i18n="thereminToggle">Theremin</button>
+        <button id="thereminToggle" class="mode-button active" data-i18n="thereminToggle">Theremin</button>
     </div>
 
     <!-- Opciones de Percusión -->
@@ -435,13 +435,13 @@
             </div>
         </div>
         <div class="theremin-option">
-            <input type="radio" id="thereminNotesOption" name="thereminOption" value="notas">
+            <input type="radio" id="thereminNotesOption" name="thereminOption" value="notas" checked>
             <label for="thereminNotesOption" data-i18n="thereminNotesOption">Notas</label>
             <!-- Subopciones de Notas -->
             <div id="thereminNotesOptions" class="theremin-suboptions">
                 <label for="midiInstrumentSelect" data-i18n="midiInstrumentSelect.label">Instrumento MIDI:</label>
                 <select id="midiInstrumentSelect" class="dropdown">
-                    <option value="piano" data-i18n="midiInstrumentSelect.piano">Piano</option>
+                    <option value="piano" data-i18n="midiInstrumentSelect.piano" selected>Piano</option>
                     <option value="guitar" data-i18n="midiInstrumentSelect.guitar">Guitarra</option>
                     <option value="strings" data-i18n="midiInstrumentSelect.strings">Strings</option>
                     <option value="stringSpicatto" data-i18n="midiInstrumentSelect.stringSpicatto">S. Spicatto</option>
