@@ -911,6 +911,204 @@ function setupModeControls() {
     let dynamicsWithWinkButton;
     let dynamicsWithMouthButton;
 
+    // Funciones auxiliares para activar modos
+    function activateThereminNotesMode() {
+        thereminOption = 'notas';
+        if (thereminSynthOptions) thereminSynthOptions.style.display = 'none';
+        if (thereminNotesOptions) thereminNotesOptions.style.display = 'block';
+        notasGestures['mouthOpen'] = true;
+        if (mouthOpenNotasButton) mouthOpenNotasButton.classList.add('active');
+
+        // Detener el oscilador del theremin si está activo
+        if (isThereminPlaying) {
+            thereminOscillator.stop();
+            isThereminPlaying = false;
+        }
+
+        // Mostrar botones de dinámica
+        showDynamicsButtons();
+
+        console.log('Opción Theremin Notas seleccionada');
+    }
+
+    function activateThereminSynthMode() {
+        thereminOption = 'synth';
+        if (thereminSynthOptions) thereminSynthOptions.style.display = 'block';
+        if (thereminNotesOptions) thereminNotesOptions.style.display = 'none';
+        notasGestures['mouthOpen'] = false;
+        if (mouthOpenNotasButton) mouthOpenNotasButton.classList.remove('active');
+
+        // Detener el sampler si está activo
+        if (polySampler) {
+            polySampler.releaseAll();
+        }
+
+        // Ocultar botones de dinámica
+        hideDynamicsButtons();
+
+        console.log('Opción Theremin Synth seleccionada');
+    }
+
+    // Función para mostrar los botones de dinámica
+    function showDynamicsButtons() {
+        // Crear o mostrar el botón dynamicsWithWinkButton
+        if (!dynamicsWithWinkButton) {
+            dynamicsWithWinkButton = document.createElement('button');
+            dynamicsWithWinkButton.id = 'dynamicsWithWinkButton';
+            dynamicsWithWinkButton.classList.add('toggle-button');
+            // Asignar atributo data-i18n y texto traducido
+            dynamicsWithWinkButton.setAttribute('data-i18n', 'dynamicsWithWink');
+            dynamicsWithWinkButton.innerText = getNestedTranslation(translations[currentLanguage], 'dynamicsWithWink');
+            if (thereminNotesOptions) thereminNotesOptions.appendChild(dynamicsWithWinkButton);
+
+            // Aplicar traducciones
+            applyTranslations(currentLanguage);
+
+            dynamicsWithWinkButton.addEventListener('click', () => {
+                dynamicsWithWink = !dynamicsWithWink;
+                dynamicsWithWinkButton.classList.toggle('active', dynamicsWithWink);
+
+                if (dynamicsWithWink) {
+                    dynamicsWithMouth = false;
+                    if (dynamicsWithMouthButton) dynamicsWithMouthButton.classList.remove('active');
+
+                    // Desmutear los gestos leftWink y rightWink
+                    muteGestures['leftWink'] = false;
+                    muteGestures['rightWink'] = false;
+
+                    // Desactivar el modo Notas de ambos gestos
+                    notasGestures['leftWink'] = false;
+                    notasGestures['rightWink'] = false;
+
+                    // Actualizar los botones de mute para leftWink y rightWink
+                    const leftWinkMuteButton = document.getElementById('leftWinkMute');
+                    const rightWinkMuteButton = document.getElementById('rightWinkMute');
+                    if (leftWinkMuteButton) leftWinkMuteButton.classList.remove('active');
+                    if (rightWinkMuteButton) rightWinkMuteButton.classList.remove('active');
+
+                    // Actualizar los botones de Notas para leftWink y rightWink
+                    const leftWinkNotasButton = document.getElementById('leftWinkNotas');
+                    const rightWinkNotasButton = document.getElementById('rightWinkNotas');
+                    if (leftWinkNotasButton) leftWinkNotasButton.classList.remove('active');
+                    if (rightWinkNotasButton) rightWinkNotasButton.classList.remove('active');
+
+                    console.log(`Dinámica con Guiño activada, gestos leftWink y rightWink desmuteados y modo Notas desactivado.`);
+                } else {
+                    // Mutear los gestos leftWink y rightWink
+                    muteGestures['leftWink'] = true;
+                    muteGestures['rightWink'] = true;
+
+                    // Activar el modo Notas de ambos gestos
+                    notasGestures['leftWink'] = true;
+                    notasGestures['rightWink'] = true;
+
+                    // Actualizar los botones de mute para leftWink y rightWink
+                    const leftWinkMuteButton = document.getElementById('leftWinkMute');
+                    const rightWinkMuteButton = document.getElementById('rightWinkMute');
+                    if (leftWinkMuteButton) leftWinkMuteButton.classList.add('active');
+                    if (rightWinkMuteButton) rightWinkMuteButton.classList.add('active');
+
+                    // Actualizar los botones de Notas para leftWink y rightWink
+                    const leftWinkNotasButton = document.getElementById('leftWinkNotas');
+                    const rightWinkNotasButton = document.getElementById('rightWinkNotas');
+                    if (leftWinkNotasButton) leftWinkNotasButton.classList.add('active');
+                    if (rightWinkNotasButton) rightWinkNotasButton.classList.add('active');
+
+                    console.log(`Dinámica con Guiño desactivada, gestos leftWink y rightWink muteados y modo Notas activado.`);
+                }
+
+                console.log(`Dinámica con Guiño: ${dynamicsWithWink ? 'activada' : 'desactivada'}`);
+            });
+        } else {
+            dynamicsWithWinkButton.style.display = 'inline-block';
+        }
+
+        // Crear o mostrar el botón dynamicsWithMouthButton
+        if (!dynamicsWithMouthButton) {
+            dynamicsWithMouthButton = document.createElement('button');
+            dynamicsWithMouthButton.id = 'dynamicsWithMouthButton';
+            dynamicsWithMouthButton.classList.add('toggle-button');
+            // Asignar atributo data-i18n y texto traducido
+            dynamicsWithMouthButton.setAttribute('data-i18n', 'dynamicsWithMouth');
+            dynamicsWithMouthButton.innerText = getNestedTranslation(translations[currentLanguage], 'dynamicsWithMouth');
+            if (thereminNotesOptions) thereminNotesOptions.appendChild(dynamicsWithMouthButton);
+
+            // Aplicar traducciones
+            applyTranslations(currentLanguage);
+
+            dynamicsWithMouthButton.addEventListener('click', () => {
+                dynamicsWithMouth = !dynamicsWithMouth;
+                dynamicsWithMouthButton.classList.toggle('active', dynamicsWithMouth);
+
+                if (dynamicsWithMouth) {
+                    dynamicsWithWink = false;
+                    if (dynamicsWithWinkButton) dynamicsWithWinkButton.classList.remove('active');
+
+                    // Desmutear el gesto mouthOpen si estaba muteado
+                    muteGestures['mouthOpen'] = false;
+                    const mouthOpenMuteButton = document.getElementById('mouthOpenMute');
+                    if (mouthOpenMuteButton) mouthOpenMuteButton.classList.remove('active');
+
+                    // Desactivar el modo Notas del gesto mouthOpen
+                    notasGestures['mouthOpen'] = false;
+                    if (mouthOpenNotasButton) mouthOpenNotasButton.classList.remove('active');
+
+                    console.log(`Dinámica con Boca activada, gesto mouthOpen desmuteado y modo Notas desactivado.`);
+                } else {
+                    // Mutear el gesto mouthOpen
+                    muteGestures['mouthOpen'] = true;
+                    const mouthOpenMuteButton = document.getElementById('mouthOpenMute');
+                    if (mouthOpenMuteButton) mouthOpenMuteButton.classList.add('active');
+
+                    // Reactivar el modo Notas del gesto mouthOpen
+                    notasGestures['mouthOpen'] = true;
+                    if (mouthOpenNotasButton) mouthOpenNotasButton.classList.add('active');
+
+                    console.log(`Dinámica con Boca desactivada, gesto mouthOpen muteado y modo Notas activado.`);
+                }
+
+                console.log(`Dinámica con Boca: ${dynamicsWithMouth ? 'activada' : 'desactivada'}`);
+            });
+        } else {
+            dynamicsWithMouthButton.style.display = 'inline-block';
+        }
+    }
+
+    // Función para ocultar los botones de dinámica
+    function hideDynamicsButtons() {
+        if (dynamicsWithWinkButton) dynamicsWithWinkButton.style.display = 'none';
+        if (dynamicsWithMouthButton) dynamicsWithMouthButton.style.display = 'none';
+    }
+
+    // Inicialización al cargar la página
+    isThereminActive = true;
+    thereminOption = 'notas'; // Seleccionar la opción Notas
+    midiInstrument = 'piano'; // Seleccionar Piano como instrumento predeterminado
+
+    if (thereminToggle) thereminToggle.classList.add('active');
+    if (thereminModeOptions) thereminModeOptions.classList.add('active');
+    if (thereminNotesOptions) thereminNotesOptions.style.display = 'block';
+    if (thereminSynthOptions) thereminSynthOptions.style.display = 'none';
+
+    // Asegurarse de que el radio button de Notas esté seleccionado
+    if (thereminNotesOption) thereminNotesOption.checked = true;
+    if (thereminSynthOption) thereminSynthOption.checked = false;
+
+    // Actualizar el botón Notas del gesto mouthOpen
+    notasGestures['mouthOpen'] = true;
+    const mouthOpenNotasButton = document.getElementById('mouthOpenNotas');
+    if (mouthOpenNotasButton) mouthOpenNotasButton.classList.add('active');
+
+    // Configurar el instrumento MIDI seleccionado en el selector
+    if (midiInstrumentSelect) midiInstrumentSelect.value = midiInstrument;
+
+    // Llamar a initializeSampler para cargar el instrumento
+    initializeSampler();
+
+    // Mostrar los botones de dinámica
+    showDynamicsButtons();
+
+    // Listener para thereminToggle
     if (thereminToggle) {
         thereminToggle.addEventListener('click', () => {
             isThereminActive = !isThereminActive;
@@ -922,6 +1120,14 @@ function setupModeControls() {
                 if (Tone.context.state !== 'running') {
                     Tone.context.resume();
                 }
+
+                // Restaurar la opción seleccionada (Notas o Synth)
+                if (thereminNotesOption && thereminNotesOption.checked) {
+                    activateThereminNotesMode();
+                } else if (thereminSynthOption && thereminSynthOption.checked) {
+                    activateThereminSynthMode();
+                }
+
             } else {
                 if (thereminModeOptions) thereminModeOptions.classList.remove('active');
                 thereminOption = '';
@@ -930,205 +1136,36 @@ function setupModeControls() {
                     isThereminPlaying = false;
                 }
                 notasGestures['mouthOpen'] = false;
-                const mouthOpenNotasButton = document.getElementById('mouthOpenNotas');
                 if (mouthOpenNotasButton) mouthOpenNotasButton.classList.remove('active');
 
                 // Ocultar botones de dinámica si estaban visibles
-                if (dynamicsWithWinkButton) dynamicsWithWinkButton.style.display = 'none';
-                if (dynamicsWithMouthButton) dynamicsWithMouthButton.style.display = 'none';
+                hideDynamicsButtons();
             }
         });
     } else {
         console.error("thereminToggle element not found");
     }
 
-    if (thereminSynthOption) {
-        thereminSynthOption.addEventListener('click', () => {
-            thereminOption = 'synth';
-            if (thereminSynthOptions) thereminSynthOptions.style.display = 'block';
-            if (thereminNotesOptions) thereminNotesOptions.style.display = 'none';
-            notasGestures['mouthOpen'] = false;
-            const mouthOpenNotasButton = document.getElementById('mouthOpenNotas');
-            if (mouthOpenNotasButton) mouthOpenNotasButton.classList.remove('active');
-
-            // Reiniciar el estado del oscilador
-            if (isThereminPlaying) {
-                thereminOscillator.stop();
-                isThereminPlaying = false;
-            }
-
-            // Ocultar botones de dinámica si estaban visibles
-            if (dynamicsWithWinkButton) dynamicsWithWinkButton.style.display = 'none';
-            if (dynamicsWithMouthButton) dynamicsWithMouthButton.style.display = 'none';
-
-            console.log('Opción Theremin Synth seleccionada');
-        });
-    } else {
-        console.error("thereminSynthOption not found");
-    }
-
+    // Listener para thereminNotesOption
     if (thereminNotesOption) {
-        thereminNotesOption.addEventListener('click', () => {
-            thereminOption = 'notas';
-            if (thereminSynthOptions) thereminSynthOptions.style.display = 'none';
-            if (thereminNotesOptions) thereminNotesOptions.style.display = 'block';
-            notasGestures['mouthOpen'] = true;
-            const mouthOpenNotasButton = document.getElementById('mouthOpenNotas');
-            if (mouthOpenNotasButton) mouthOpenNotasButton.classList.add('active');
-
-            // Asegurarse de que el oscilador del theremin se detenga
-            if (isThereminPlaying) {
-                thereminOscillator.stop();
-                isThereminPlaying = false;
+        thereminNotesOption.addEventListener('change', () => {
+            if (thereminNotesOption.checked) {
+                activateThereminNotesMode();
             }
-
-            console.log('Opción Theremin Notas seleccionada');
-
-            // Crear o mostrar el botón dynamicsWithWinkButton
-            if (!dynamicsWithWinkButton) {
-                dynamicsWithWinkButton = document.createElement('button');
-                dynamicsWithWinkButton.id = 'dynamicsWithWinkButton';
-                dynamicsWithWinkButton.classList.add('toggle-button');
-                // Asignar atributo data-i18n y texto traducido
-                dynamicsWithWinkButton.setAttribute('data-i18n', 'dynamicsWithWink');
-                dynamicsWithWinkButton.innerText = getNestedTranslation(window.translations[window.currentLanguage], 'dynamicsWithWink');
-                if (thereminNotesOptions) thereminNotesOptions.appendChild(dynamicsWithWinkButton);
-
-                // Aplicar traducciones
-                applyTranslations(window.currentLanguage);
-
-                dynamicsWithWinkButton.addEventListener('click', () => {
-                    dynamicsWithWink = !dynamicsWithWink;
-                    dynamicsWithWinkButton.classList.toggle('active', dynamicsWithWink);
-
-                    if (dynamicsWithWink) {
-                        dynamicsWithMouth = false;
-                        if (dynamicsWithMouthButton) dynamicsWithMouthButton.classList.remove('active');
-
-                        // Desmutear los gestos leftWink y rightWink
-                        muteGestures['leftWink'] = false;
-                        muteGestures['rightWink'] = false;
-
-                        // Desactivar el modo Notas de ambos gestos
-                        notasGestures['leftWink'] = false;
-                        notasGestures['rightWink'] = false;
-
-                        // Actualizar los botones de mute para leftWink y rightWink
-                        const leftWinkMuteButton = document.getElementById('leftWinkMute');
-                        const rightWinkMuteButton = document.getElementById('rightWinkMute');
-                        if (leftWinkMuteButton) leftWinkMuteButton.classList.remove('active');
-                        if (rightWinkMuteButton) rightWinkMuteButton.classList.remove('active');
-
-                        // Actualizar los botones de Notas para leftWink y rightWink
-                        const leftWinkNotasButton = document.getElementById('leftWinkNotas');
-                        const rightWinkNotasButton = document.getElementById('rightWinkNotas');
-                        if (leftWinkNotasButton) leftWinkNotasButton.classList.remove('active');
-                        if (rightWinkNotasButton) rightWinkNotasButton.classList.remove('active');
-
-                        console.log(`Dinámica con Guiño activada, gestos leftWink y rightWink desmuteados y modo Notas desactivado.`);
-                    } else {
-                        // Mutear los gestos leftWink y rightWink
-                        muteGestures['leftWink'] = true;
-                        muteGestures['rightWink'] = true;
-
-                        // Activar el modo Notas de ambos gestos
-                        notasGestures['leftWink'] = true;
-                        notasGestures['rightWink'] = true;
-
-                        // Actualizar los botones de mute para leftWink y rightWink
-                        const leftWinkMuteButton = document.getElementById('leftWinkMute');
-                        const rightWinkMuteButton = document.getElementById('rightWinkMute');
-                        if (leftWinkMuteButton) leftWinkMuteButton.classList.add('active');
-                        if (rightWinkMuteButton) rightWinkMuteButton.classList.add('active');
-
-                        // Actualizar los botones de Notas para leftWink y rightWink
-                        const leftWinkNotasButton = document.getElementById('leftWinkNotas');
-                        const rightWinkNotasButton = document.getElementById('rightWinkNotas');
-                        if (leftWinkNotasButton) leftWinkNotasButton.classList.add('active');
-                        if (rightWinkNotasButton) rightWinkNotasButton.classList.add('active');
-
-                        console.log(`Dinámica con Guiño desactivada, gestos leftWink y rightWink muteados y modo Notas activado.`);
-                    }
-
-                    console.log(`Dinámica con Guiño: ${dynamicsWithWink ? 'activada' : 'desactivada'}`);
-                });
-            } else {
-                dynamicsWithWinkButton.style.display = 'inline-block';
-            }
-
-            // Crear o mostrar el botón dynamicsWithMouthButton
-            if (!dynamicsWithMouthButton) {
-                dynamicsWithMouthButton = document.createElement('button');
-                dynamicsWithMouthButton.id = 'dynamicsWithMouthButton';
-                dynamicsWithMouthButton.classList.add('toggle-button');
-                // Asignar atributo data-i18n y texto traducido
-                dynamicsWithMouthButton.setAttribute('data-i18n', 'dynamicsWithMouth');
-                dynamicsWithMouthButton.innerText = getNestedTranslation(window.translations[window.currentLanguage], 'dynamicsWithMouth');
-                if (thereminNotesOptions) thereminNotesOptions.appendChild(dynamicsWithMouthButton);
-
-                // Aplicar traducciones
-                applyTranslations(window.currentLanguage);
-
-                dynamicsWithMouthButton.addEventListener('click', () => {
-                    dynamicsWithMouth = !dynamicsWithMouth;
-                    dynamicsWithMouthButton.classList.toggle('active', dynamicsWithMouth);
-
-                    if (dynamicsWithMouth) {
-                        dynamicsWithWink = false;
-                        if (dynamicsWithWinkButton) dynamicsWithWinkButton.classList.remove('active');
-
-                        // Desactivar el modo Notas del gesto mouthOpen
-                        notasGestures['mouthOpen'] = false;
-                        const mouthOpenNotasButton = document.getElementById('mouthOpenNotas');
-                        if (mouthOpenNotasButton) mouthOpenNotasButton.classList.remove('active');
-
-                        // Desmutear el gesto mouthOpen si estaba muteado
-                        muteGestures['mouthOpen'] = false;
-                        const mouthOpenMuteButton = document.getElementById('mouthOpenMute');
-                        if (mouthOpenMuteButton) mouthOpenMuteButton.classList.remove('active');
-
-                        console.log(`Dinámica con Boca activada, gesto mouthOpen desmuteado y modo Notas desactivado.`);
-                    } else {
-                        // Mutear el gesto mouthOpen
-                        muteGestures['mouthOpen'] = true;
-                        const mouthOpenMuteButton = document.getElementById('mouthOpenMute');
-                        if (mouthOpenMuteButton) mouthOpenMuteButton.classList.add('active');
-
-                        // Reactivar el modo Notas del gesto mouthOpen
-                        notasGestures['mouthOpen'] = true;
-                        const mouthOpenNotasButton = document.getElementById('mouthOpenNotas');
-                        if (mouthOpenNotasButton) mouthOpenNotasButton.classList.add('active');
-
-                        console.log(`Dinámica con Boca desactivada, gesto mouthOpen muteado y modo Notas activado.`);
-                    }
-
-                    console.log(`Dinámica con Boca: ${dynamicsWithMouth ? 'activada' : 'desactivada'}`);
-                });
-            } else {
-                dynamicsWithMouthButton.style.display = 'inline-block';
-            }
-
-            // Asegurarse de que amplitudeEnvelope esté inicializado
-            if (!amplitudeEnvelope) {
-                amplitudeEnvelope = new Tone.AmplitudeEnvelope({
-                    attack: attack / 1000,
-                    decay: decay / 1000,
-                    sustain: sustain,
-                    release: release / 1000
-                });
-
-                // Crear el nodo velocityGain
-                velocityGain = new Tone.Gain(1).toDestination();
-
-                // Conectar amplitudeEnvelope a velocityGain
-                amplitudeEnvelope.connect(velocityGain);
-            }
-
-            // Conectar thereminInstrument a amplitudeEnvelope
-            //thereminInstrument.connect(amplitudeEnvelope);
         });
     } else {
         console.error("thereminNotesOption not found");
+    }
+
+    // Listener para thereminSynthOption
+    if (thereminSynthOption) {
+        thereminSynthOption.addEventListener('change', () => {
+            if (thereminSynthOption.checked) {
+                activateThereminSynthMode();
+            }
+        });
+    } else {
+        console.error("thereminSynthOption not found");
     }
 
     // Selección de instrumento MIDI
