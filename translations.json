@@ -2,7 +2,6 @@
   "en": {
     "title": "MIDImyFACE",
     "subtitle": "by ricardoarbiza 2024 | ricardoarbiza.com",
-    "videoContainerText": "Your video will appear here.",
     "percussionToggle": "Percussion",
     "thereminToggle": "Theremin",
     "percussionModeSelect": {
@@ -55,13 +54,14 @@
     "envelope": "Envelope",
     "attack": "Attack",
     "decay": "Decay",
-    "sustain": "Sustain",
+    "sustain": "Sustain Level",
+    "sustainDuration": "Sustain Duration",
     "release": "Release",
     "midi_output": "MIDI Output:",
     "midi_select_placeholder": "Select MIDI Output...",
     "instructionButton": "Instructions",
     "presentationModeButton": "Presentation Mode",
-    "instructions_title": "Instructions",
+    "advancedOptions": "Advanced Options",
     "languageSwitcher": {
       "es": "Spanish",
       "en": "English"
@@ -75,26 +75,26 @@
         "title": "Usage Modes:",
         "thereminAndPercussion": {
           "title": "Theremin and Percussion Mode",
-          "description": "In these modes, you can hear the sound result directly in the browser using gesture logic.",
+          "description": "In these modes, you can hear the sound directly in the browser using gesture logic.",
           "theremin": {
             "title": "Theremin:",
             "description": "When activating the Theremin mode, you can choose between two options:",
-            "synth": "<strong>Synth:</strong> Use an oscillator. Select the waveform (sine, square, sawtooth, triangle) and control the frequency by opening and closing the mouth, and change dynamics with eye opening.",
+            "synth": "<strong>Synth:</strong> Uses an oscillator. Select the waveform (sine, square, sawtooth, triangle) and control the frequency by opening and closing your mouth, and change dynamics with eye opening.",
             "notes": "<strong>Notes:</strong> Automatically activates the Mouth Notes button. Select a MIDI instrument to listen to. This mode uses mouth-generated MIDI notes and plays sounds directly in the browser."
           },
           "percussion": {
             "title": "Percussion:",
-            "description": "All Trigger buttons are activated automatically. Choose between two modes:",
-            "threshold": "<strong>Threshold:</strong> Uses the configured threshold value to activate each gesture's trigger.",
+            "description": "When activating the Percussion mode, all Trigger buttons are automatically activated. You can choose between two modes:",
+            "threshold": "<strong>Threshold:</strong> Uses the configured threshold value to activate the trigger of each gesture.",
             "automatic": "<strong>Automatic:</strong> Detects sudden changes in values to activate percussion sounds."
           }
         },
         "midiOutput": {
           "title": "MIDI Output",
-          "description": "If Theremin or Percussion modes are not activated, the system functions as a MIDI controller. Use gestures to send MIDI Control, Notes, or Trigger signals based on the established configurations."
+          "description": "If Theremin or Percussion modes are not activated, the system functions as a MIDI controller. You can use gestures to send MIDI Control, Notes, or Trigger signals based on the established configurations."
         }
       },
-      "midiCustomization": "Adjust the parameters of <em data-i18n=\\\"minChangePlaceholder\\\">Min Change</em>, <em data-i18n=\\\"scale\\\">Scale</em>, and <em data-i18n=\\\"fundamental\\\">Root</em> to customize the system's response.",
+      "midiCustomization": "Adjust the parameters of <em>Min Change</em>, <em>Scale</em>, and <em>Root</em> to customize the system's response.",
       "gestureFunctions": {
         "title": "Gesture Functions:",
         "notes": "<strong>Notes:</strong> Plays discrete notes based on the gesture and selected scale. Notes activate when crossing upward thresholds and deactivate when descending.",
@@ -103,16 +103,16 @@
       },
       "valueAdjustment": {
         "title": "Value Adjustment and Sensitivity:",
-        "description": "Adjust <em data-i18n=\\\"minChangePlaceholder\\\">Min Change</em> to control gesture sensitivity. Modify <em data-i18n-placeholder=\\\"minPlaceholder\\\">Min</em> and <em data-i18n-placeholder=\\\"maxPlaceholder\\\">Max</em> values to calibrate the detection range based on your facial characteristics."
+        "description": "You can adjust the <em>Min Change</em> to control gesture sensitivity. Modify the <em>Min</em> and <em>Max</em> values to calibrate the detection range according to your facial characteristics."
       },
       "noteActivationLogic": {
         "title": "Note Activation Logic:",
-        "description": "In Notes mode, notes activate when the gesture value crosses an upward threshold and deactivate when descending. For example, if the Minimum Change is 10:",
+        "description": "In Notes mode, notes activate when the gesture value crosses an upward threshold and deactivate when descending. For example, if the Min Change is 10:",
         "example1": "Value rises from 0 to 11: the first note activates.",
         "example2": "Value rises from 11 to 23: the next note in the scale activates.",
         "example3": "Value descends below the threshold: the note deactivates."
       },
-      "credits": "Idea, design, and programming: Ricardo Arbiza, 2024.<br><span data-i18n=\\\"instructionsModal.contact\\\">Contact:</span> <a href=\\\"mailto:ricardoarbizaroverano@gmail.com\\\">ricardoarbizaroverano at gmail.com</a>",
+      "credits": "<em>Idea, design, and programming: Ricardo Arbiza, 2024.</em>",
       "contact": "Contact:"
     },
     "scaleOptions": {
@@ -147,150 +147,150 @@
     }
   },
   "es": {
-      "title": "MIDImyFACE",
-      "subtitle": "por ricardoarbiza 2024 | ricardoarbiza.com",
-      "videoContainerText": "Tu video aparecerá aquí.",
-      "percussionToggle": "Percusión",
-      "thereminToggle": "Theremin",
-      "percussionModeSelect": {
-          "threshold": "Umbral",
-          "automatic": "Automático"
-      },
-      "thereminSynthOption": "Synth",
-      "thereminNotesOption": "Notas",
-      "waveformSelect": {
-          "label": "Forma de Onda:",
-          "sine": "Sinusoidal",
-          "square": "Cuadrada",
-          "sawtooth": "Sierra",
-          "triangle": "Triangular"
-      },
-      "midiInstrumentSelect": {
-          "label": "Instrumento MIDI:",
-          "piano": "Piano",
-          "guitar": "Guitarra",
-          "strings": "Cuerdas",
-          "stringSpicatto": "Cuerda Spiccato",
-          "musicBox": "Caja de Música",
-          "flauta": "Flauta",
-          "pad": "Pad",
-          "marimba": "Marimba",
-          "trumpet": "Trompeta",
-          "bass": "Bajo",
-          "choir": "Coro",
-          "synthesizer": "Sintetizador",
-          "harmonic": "Armónico"
-      },
-      "mouthOpen": "Boca",
-      "smile": "Sonrisa",
-      "leftWink": "Guiño Izq.",
-      "rightWink": "Guiño Der.",
-      "noseX": "Nariz X",
-      "noseY": "Nariz Y",
-      "minChangePlaceholder": "Min Cambio",
-      "minPlaceholder": "Min",
-      "maxPlaceholder": "Max",
-      "scaling": "Escalar",
-      "mute": "Mute",
-      "solo": "Solo",
-      "control": "Control",
-      "notes": "Notas",
-      "trigger": "Disparador",
-      "thresholdPlaceholder": "Umbral",
-      "scale": "Escala:",
-      "fundamental": "Fundamental:",
-      "envelope": "Envolvente",
-      "attack": "Attack",
-      "decay": "Decay",
-      "sustain": "Sustain",
-      "release": "Release",
-      "midi_output": "Salida MIDI:",
-      "midi_select_placeholder": "Selecciona la salida MIDI...",
-      "instructionButton": "Instrucciones de Uso",
-      "presentationModeButton": "Modo Presentación",
-      "instructions_title": "Instrucciones de Uso",
-      "languageSwitcher": {
-          "es": "Español",
-          "en": "Inglés"
-      },
-      "dynamicsWithWink": "Dinámica con Guiño",
-      "dynamicsWithMouth": "Dinámica con Boca",
-      "instructionsModal": {
-          "title": "Instrucciones de Uso",
-          "description": "Este controlador web permite utilizar gestos faciales para generar señales MIDI y controlar instrumentos virtuales, así como generar sonido directamente en el navegador.",
-          "usageModes": {
-              "title": "Modos de Uso:",
-              "thereminAndPercussion": {
-                  "title": "Modo Theremin y Percusión",
-                  "description": "En estos modos, puedes escuchar el resultado sonoro directamente en el navegador utilizando la lógica de los gestos.",
-                  "theremin": {
-                      "title": "Theremin:",
-                      "description": "Al activar el modo Theremin, puedes elegir entre dos opciones:",
-                      "synth": "<strong>Synth:</strong> Utiliza un oscilador. Puedes seleccionar la forma de onda (sinusoidal, cuadrada, sierra, triangular) y controlar la frecuencia abriendo y cerrando la boca, y cambiar la dinámica con la apertura de ojos.",
-                      "notes": "<strong>Notas:</strong> Activa automáticamente el botón Notas del gesto Boca. Puedes seleccionar un instrumento MIDI para escuchar. Este modo utiliza la salida MIDI de notas generada por la boca y reproduce los sonidos directamente en el navegador."
-                  },
-                  "percussion": {
-                      "title": "Percusión:",
-                      "description": "Al activar el modo Percusión, todos los botones de Disparador se activan automáticamente. Puedes elegir entre dos modos:",
-                      "threshold": "<strong>Umbral:</strong> Utiliza el valor configurado en el umbral para activar el disparador de cada gesto.",
-                      "automatic": "<strong>Automático:</strong> Detecta cambios repentinos en los valores para activar los sonidos de percusión."
-                  }
-              },
-              "midiOutput": {
-                  "title": "Salida MIDI",
-                  "description": "Si no están activados los modos Theremin o Percusión, el sistema funciona como un controlador MIDI. Puedes utilizar los gestos para enviar señales MIDI de Control, Notas o Disparadores según las configuraciones establecidas."
-              }
+    "title": "MIDImyFACE",
+    "subtitle": "por ricardoarbiza 2024 | ricardoarbiza.com",
+    "percussionToggle": "Percusión",
+    "thereminToggle": "Theremin",
+    "percussionModeSelect": {
+      "threshold": "Umbral",
+      "automatic": "Automático"
+    },
+    "thereminSynthOption": "Synth",
+    "thereminNotesOption": "Notas",
+    "waveformSelect": {
+      "label": "Forma de Onda:",
+      "sine": "Sinusoidal",
+      "square": "Cuadrada",
+      "sawtooth": "Sierra",
+      "triangle": "Triangular"
+    },
+    "midiInstrumentSelect": {
+      "label": "Instrumento MIDI:",
+      "piano": "Piano",
+      "guitar": "Guitarra",
+      "strings": "Cuerdas",
+      "stringSpicatto": "Cuerda Spiccato",
+      "musicBox": "Caja de Música",
+      "flauta": "Flauta",
+      "pad": "Pad",
+      "marimba": "Marimba",
+      "trumpet": "Trompeta",
+      "bass": "Bajo",
+      "choir": "Coro",
+      "synthesizer": "Sintetizador",
+      "harmonic": "Armónico"
+    },
+    "mouthOpen": "Boca",
+    "smile": "Sonrisa",
+    "leftWink": "Guiño Izq.",
+    "rightWink": "Guiño Der.",
+    "noseX": "Nariz X",
+    "noseY": "Nariz Y",
+    "minChangePlaceholder": "Min Cambio",
+    "minPlaceholder": "Min",
+    "maxPlaceholder": "Max",
+    "scaling": "Escalar",
+    "mute": "Mute",
+    "solo": "Solo",
+    "control": "Control",
+    "notes": "Notas",
+    "trigger": "Disparador",
+    "thresholdPlaceholder": "Umbral",
+    "scale": "Escala:",
+    "fundamental": "Fundamental:",
+    "envelope": "Envolvente",
+    "attack": "Attack",
+    "decay": "Decay",
+    "sustain": "Nivel de Sustain",
+    "sustainDuration": "Duración del Sustain",
+    "release": "Release",
+    "midi_output": "Salida MIDI:",
+    "midi_select_placeholder": "Selecciona la salida MIDI...",
+    "instructionButton": "Instrucciones de Uso",
+    "presentationModeButton": "Modo Presentación",
+    "advancedOptions": "Opciones Avanzadas",
+    "languageSwitcher": {
+      "es": "Español",
+      "en": "Inglés"
+    },
+    "dynamicsWithWink": "Dinámica con Guiño",
+    "dynamicsWithMouth": "Dinámica con Boca",
+    "instructionsModal": {
+      "title": "Instrucciones de Uso",
+      "description": "Este controlador web permite utilizar gestos faciales para generar señales MIDI y controlar instrumentos virtuales, así como generar sonido directamente en el navegador.",
+      "usageModes": {
+        "title": "Modos de Uso:",
+        "thereminAndPercussion": {
+          "title": "Modo Theremin y Percusión",
+          "description": "En estos modos, puedes escuchar el sonido directamente en el navegador utilizando la lógica de los gestos.",
+          "theremin": {
+            "title": "Theremin:",
+            "description": "Al activar el modo Theremin, puedes elegir entre dos opciones:",
+            "synth": "<strong>Synth:</strong> Utiliza un oscilador. Puedes seleccionar la forma de onda (sinusoidal, cuadrada, sierra, triangular) y controlar la frecuencia abriendo y cerrando la boca, y cambiar la dinámica con la apertura de ojos.",
+            "notes": "<strong>Notas:</strong> Activa automáticamente el botón Notas del gesto Boca. Puedes seleccionar un instrumento MIDI para escuchar. Este modo utiliza la salida MIDI de notas generada por la boca y reproduce los sonidos directamente en el navegador."
           },
-          "midiCustomization": "Adjust the parameters of <em data-i18n=\\\"minChangePlaceholder\\\">Min Change</em>, <em data-i18n=\\\"scale\\\">Scale</em>, and <em data-i18n=\\\"fundamental\\\">Root</em> to customize the system's response.",
-          "gestureFunctions": {
-              "title": "Funciones de los Gestos:",
-              "notes": "<strong>Notas:</strong> Toca notas discretas basadas en el gesto y la escala seleccionada. Las notas se activan al cruzar umbrales ascendentes y se desactivan al descender.",
-              "control": "<strong>Control:</strong> Envía valores continuos MIDI CC basados en el gesto.",
-              "trigger": "<strong>Disparador:</strong> Activa eventos cuando el gesto cruza un umbral específico."
-          },
-          "valueAdjustment": {
-              "title": "Ajuste de Valores y Sensibilidad:",
-              "description": "Puedes ajustar el <em data-i18n=\"minChangePlaceholder\">Cambio Mínimo</em> para controlar la sensibilidad de los gestos. Modifica los valores <em data-i18n-placeholder=\"minPlaceholder\">Min</em> y <em data-i18n-placeholder=\"maxPlaceholder\">Max</em> para calibrar el rango de detección según tus características faciales."
-          },
-          "noteActivationLogic": {
-              "title": "Lógica de Activación de Notas:",
-              "description": "En modo Notas, las notas se activan cuando el valor del gesto cruza un umbral en sentido ascendente y se desactivan al descender. Por ejemplo, si el Cambio Mínimo es 10:",
-              "example1": "Valor sube de 0 a 11: se activa la primera nota.",
-              "example2": "Valor sube de 11 a 23: se activa la siguiente nota en la escala.",
-              "example3": "Valor desciende por debajo del umbral: la nota se desactiva."
-          },
-          "credits": "Idea, diseño y programación: Ricardo Arbiza, 2024.<br><span data-i18n=\"instructionsModal.contact\">Contacto:</span> <a href=\"mailto:ricardoarbizaroverano@gmail.com\">ricardoarbizaroverano at gmail.com</a>",
-          "contact": "Contacto:"
+          "percussion": {
+            "title": "Percusión:",
+            "description": "Al activar el modo Percusión, todos los botones de Disparador se activan automáticamente. Puedes elegir entre dos modos:",
+            "threshold": "<strong>Umbral:</strong> Utiliza el valor configurado en el umbral para activar el disparador de cada gesto.",
+            "automatic": "<strong>Automático:</strong> Detecta cambios repentinos en los valores para activar los sonidos de percusión."
+          }
+        },
+        "midiOutput": {
+          "title": "Salida MIDI",
+          "description": "Si no están activados los modos Theremin o Percusión, el sistema funciona como un controlador MIDI. Puedes utilizar los gestos para enviar señales MIDI de Control, Notas o Disparadores según las configuraciones establecidas."
+        }
       },
-      "scaleOptions": {
-          "major": "Mayor",
-          "minor": "Menor",
-          "dorian": "Dórico",
-          "phrygian": "Frigio",
-          "lydian": "Lidio",
-          "mixolydian": "Mixolidio",
-          "aeolian": "Eólico",
-          "locrian": "Locrio",
-          "pentatonic": "Pentatónica",
-          "blues": "Blues",
-          "bebop": "Bebop",
-          "harmonic_minor": "Menor Armónica",
-          "melodic_minor": "Menor Melódica",
-          "chromatic": "Cromática"
+      "midiCustomization": "Ajusta los parámetros de <em>Cambio Mínimo</em>, <em>Escala</em> y <em>Fundamental</em> para personalizar la respuesta del sistema.",
+      "gestureFunctions": {
+        "title": "Funciones de los Gestos:",
+        "notes": "<strong>Notas:</strong> Toca notas discretas basadas en el gesto y la escala seleccionada. Las notas se activan al cruzar umbrales ascendentes y se desactivan al descender.",
+        "control": "<strong>Control:</strong> Envía valores continuos MIDI CC basados en el gesto.",
+        "trigger": "<strong>Disparador:</strong> Activa eventos cuando el gesto cruza un umbral específico."
       },
-      "rootNoteOptions": {
-          "C": "Do",
-          "C#": "Do#",
-          "D": "Re",
-          "D#": "Re#",
-          "E": "Mi",
-          "F": "Fa",
-          "F#": "Fa#",
-          "G": "Sol",
-          "G#": "Sol#",
-          "A": "La",
-          "A#": "La#",
-          "B": "Si"
-      }
+      "valueAdjustment": {
+        "title": "Ajuste de Valores y Sensibilidad:",
+        "description": "Puedes ajustar el <em>Cambio Mínimo</em> para controlar la sensibilidad de los gestos. Modifica los valores <em>Min</em> y <em>Max</em> para calibrar el rango de detección según tus características faciales."
+      },
+      "noteActivationLogic": {
+        "title": "Lógica de Activación de Notas:",
+        "description": "En modo Notas, las notas se activan cuando el valor del gesto cruza un umbral en sentido ascendente y se desactivan al descender. Por ejemplo, si el Cambio Mínimo es 10:",
+        "example1": "Valor sube de 0 a 11: se activa la primera nota.",
+        "example2": "Valor sube de 11 a 23: se activa la siguiente nota en la escala.",
+        "example3": "Valor desciende por debajo del umbral: la nota se desactiva."
+      },
+      "credits": "<em>Idea, diseño y programación: Ricardo Arbiza, 2024.</em>",
+      "contact": "Contacto:"
+    },
+    "scaleOptions": {
+      "major": "Mayor",
+      "minor": "Menor",
+      "dorian": "Dórico",
+      "phrygian": "Frigio",
+      "lydian": "Lidio",
+      "mixolydian": "Mixolidio",
+      "aeolian": "Eólico",
+      "locrian": "Locrio",
+      "pentatonic": "Pentatónica",
+      "blues": "Blues",
+      "bebop": "Bebop",
+      "harmonic_minor": "Menor Armónica",
+      "melodic_minor": "Menor Melódica",
+      "chromatic": "Cromática"
+    },
+    "rootNoteOptions": {
+      "C": "Do",
+      "C#": "Do#",
+      "D": "Re",
+      "D#": "Re#",
+      "E": "Mi",
+      "F": "Fa",
+      "F#": "Fa#",
+      "G": "Sol",
+      "G#": "Sol#",
+      "A": "La",
+      "A#": "La#",
+      "B": "Si"
+    }
   }
 }
