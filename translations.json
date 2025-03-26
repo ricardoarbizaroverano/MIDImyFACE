@@ -1,7 +1,7 @@
 {
   "en": {
     "title": "MIDImyFACE",
-    "subtitle": "by TBA AFTER ICMC 2024 | tba.com",
+    "subtitle": "by Ricardo Arbiza | ricardoarbiza.com",
     "percussionToggle": "Percussion",
     "thereminToggle": "Theremin",
     "percussionModeSelect": {
@@ -112,8 +112,8 @@
         "example2": "Value rises from 11 to 23: the next note in the scale activates.",
         "example3": "Value descends below the threshold: the note deactivates."
       },
-      "credits": "<em>Idea, design, and programming: TBA after ICMC, 2024.</em>",
-      "contact": "Contact:"
+      "credits": "<em>Idea, design, and programming: Ricardo Arbiza, 2024.</em>",
+      "contact": "Contact: ricardoarbizaroverano@gmail.com"
     },
     "scaleOptions": {
       "major": "Major",
@@ -148,7 +148,7 @@
   },
   "es": {
     "title": "MIDImyFACE",
-    "subtitle": "por TBA after ICMC 2024 | TBA.com",
+    "subtitle": "por Ricardo Arbiza | ricardoarbiza.com",
     "percussionToggle": "Percusión",
     "thereminToggle": "Theremin",
     "percussionModeSelect": {
@@ -259,7 +259,7 @@
         "example2": "Valor sube de 11 a 23: se activa la siguiente nota en la escala.",
         "example3": "Valor desciende por debajo del umbral: la nota se desactiva."
       },
-      "credits": "<em>Idea, diseño y programación: TBA after ICMC, 2024.</em>",
+      "credits": "<em>Idea, diseño y programación: Ricardo Arbiza, 2024.</em>",
       "contact": "Contacto:"
     },
     "scaleOptions": {
