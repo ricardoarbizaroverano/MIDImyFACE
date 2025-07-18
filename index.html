@@ -528,7 +528,7 @@
             <input type="number" id="rightWinkUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
-        <!-- Nariz X -->
+        <!-- Nariz val X -->
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="noseX">Nariz X</div>
             <div class="gesture-value" id="noseXValue">0</div>
@@ -545,7 +545,7 @@
             <input type="number" id="noseXUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
-        <!-- Nariz Y -->
+        <!-- Nariz val Y -->
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="noseY">Nariz Y</div>
             <div class="gesture-value" id="noseYValue">0</div>
@@ -598,7 +598,7 @@
             </select>
         </div>
 
-    <!-- Envelope Controls -->
+    <!-- Controles del envelope -->
     <div class="envelope-controls">
         <h3 data-i18n="envelope">Envolvente</h3>
         <!-- Attack -->
@@ -732,22 +732,22 @@
     <!-- Overlay para Modo Presentación -->
     <div id="presentationOverlay">
         <button id="closePresentationButton">&times;</button>
-        <!-- Aquí se mostrará la visualización a pantalla completa -->
+        <!-- Aquí se va a mostrar la visualización a pantalla completa -->
     </div>
 
-    <!-- Include Libraries and Your Script -->
+    <!-- Scripts y librerias -->
     <script src="p5.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="camera_utils.js"></script>
     <script src="Tone.min.js"></script>    
    
 
-    <!-- Translation Script -->
+    <!-- Translation script -->
     <script>
         let translations = {};
-        let currentLanguage = 'es'; // Idioma predeterminado
+        let currentLanguage = 'es'; // El idioma predeterminado es el español
 
-        // Fetch the translations JSON file
+        // Fetch the translations en JSON file
         fetch('translations.json')
             .then(response => response.json())
             .then(data => {
