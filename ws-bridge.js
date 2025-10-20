@@ -4,7 +4,6 @@ const WS_URL = (window.sessionConfig && window.sessionConfig.relay_url) ||
 const WS_PROTOCOLS = undefined; // e.g., ['mmf-bridge-v1'] if your server requires
 
 let ws;
-let wsConnectionState = 'disconnected';
 let reconnectAttempts = 0;
 let heartbeatTimer = null;
 let heartbeatIntervalMs = 15000; // app-level heartbeat
