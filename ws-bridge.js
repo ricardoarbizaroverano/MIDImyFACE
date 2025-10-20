@@ -1,7 +1,6 @@
-// ws-bridge.js
+// ws-bridge.js oct 20, 2025
 (() => {
-  // >>> REPLACE with your Render websocket URL <<<
-  const DEFAULT_RELAY_URL = 'wss://<your-service>.onrender.com/ws';
+  const DEFAULT_RELAY_URL = 'https://midimyface-relay.onrender.com';
 
   let ws = null;
   let hb = null; // heartbeat timer
