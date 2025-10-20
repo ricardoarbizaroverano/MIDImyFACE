@@ -1,113 +1,264 @@
-// ws-bridge.js (hardened)
-const WS_URL = (window.sessionConfig && window.sessionConfig.relay_url) || 
-               'wss://midimyface-relay.onrender.com/ws';  // <-- try adding /ws if your server needs it
-const WS_PROTOCOLS = undefined; // e.g., ['mmf-bridge-v1'] if your server requires
+/* ==========================================
+   midimyface ws-bridge.js  (UPDATED, SAFE)
+   ========================================== */
 
-let ws;
-let reconnectAttempts = 0;
-let heartbeatTimer = null;
-let heartbeatIntervalMs = 15000; // app-level heartbeat
+(() => {
+  'use strict';
 
-function log(...args) { console.log('[WS]', ...args); }
-
-function startHeartbeat() {
-  stopHeartbeat();
-  heartbeatTimer = setInterval(() => {
-    try {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        // app-level ping message; adjust to what your server expects
-        ws.send(JSON.stringify({ type: 'ping', t: Date.now() }));
-      }
-    } catch (e) { /* no-op */ }
-  }, heartbeatIntervalMs);
-}
-
-function stopHeartbeat() {
-  if (heartbeatTimer) clearInterval(heartbeatTimer);
-  heartbeatTimer = null;
-}
-
-function nextBackoffMs() {
-  const ms = Math.min(30000, 500 * Math.pow(2, reconnectAttempts)); // 0.5s → 30s cap
-  reconnectAttempts++;
-  return ms;
-}
-
-function connectWS() {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
-
-  wsConnectionState = 'connecting';
-  log(`Connecting to ${WS_URL} (attempt ${reconnectAttempts + 1}) …`);
-  try {
-    ws = WS_PROTOCOLS ? new WebSocket(WS_URL, WS_PROTOCOLS) : new WebSocket(WS_URL);
-  } catch (err) {
-    console.error('WebSocket constructor failed:', err);
-    scheduleReconnect();
+  // ---- Prevent double loading (Live Server / cache / accidental re-includes) ----
+  if (window.__MMF_WS_BRIDGE_LOADED__) {
+    console.debug('[MMF] ws-bridge already loaded — skipping');
     return;
   }
+  window.__MMF_WS_BRIDGE_LOADED__ = true;
 
-  ws.onopen = () => {
-    wsConnectionState = 'connected';
-    reconnectAttempts = 0;
-    log('Connected');
-    startHeartbeat();
+  // ---- Connection state + last config (kept on window to share with other modules if needed) ----
+  window.wsConnectionState = window.wsConnectionState || 'disconnected'; // 'disconnected' | 'connecting' | 'connected' | 'error'
+  window.sessionConfig = window.sessionConfig || { session_id: '', password: '', name: '', relay_url: '' };
 
-    // Optionally announce client hello
-    try { ws.send(JSON.stringify({ type: 'hello', origin: window.location.origin })); } catch {}
-  };
+  // ---- Configurable defaults (edit RELAY_HOST once; UI can override via relay_url input) ----
+const RELAY_HOST_DEFAULT = 'wss://midimyface-relay.onrender.com'; // <- correct
+const WS_PATH = '/ws';
 
-  ws.onerror = (ev) => {
-    // Browser gives little here; onclose will have more detail
-    console.warn('WS error', ev);
-  };
+  // ---- Internal vars ----
+  let socket = null;
+  let heartbeatTimer = null;
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
+  const MAX_BACKOFF = 15000; // ms
+  const HEARTBEAT_MS = 25000;
 
-  ws.onclose = (ev) => {
-    wsConnectionState = 'disconnected';
-    stopHeartbeat();
-    // Detailed diagnostics
-    console.warn('WS closed', {
-      code: ev.code,        // e.g., 1006 (abnormal), 1008 (policy), 1015 (TLS)
-      reason: ev.reason,    // proxy/server may pass a reason
-      wasClean: ev.wasClean
-    });
+  // Keep the last good config so auto-reconnect knows what to use
+  let lastCfg = null;
 
-    // Heuristics
-    if (ev.code === 1008) {
-      console.warn('Likely origin/protocol policy rejection. Ensure server allows Origin:', window.location.origin);
-    } else if (ev.code === 1015 || ev.code === 1006) {
-      console.warn('TLS/proxy/cold-start issue possible. Try hitting the base URL in a tab to wake the service.');
-    }
+  // ---- Helpers ----
+  function wsDispatchState(state) {
+    window.wsConnectionState = state;
+    window.dispatchEvent(new CustomEvent('ws:setState', { detail: { state } }));
+  }
 
-    scheduleReconnect();
-  };
+  function clearTimers() {
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  }
 
-  ws.onmessage = (msg) => {
-    // If your server echoes pings, you can skip parsing here
+  function computeBackoff(n) {
+    // 1.6^n, clamped
+    const ms = Math.min(1000 * Math.pow(1.6, n), MAX_BACKOFF);
+    return Math.round(ms);
+  }
+
+  function buildWsUrl(relayBase) {
+    const base = (relayBase && relayBase.trim()) || RELAY_HOST_DEFAULT;
+    // If user pasted http(s), convert to ws(s)
     try {
-      const data = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
-      if (data && data.type === 'pong') return; // app-level pong
-      // route messages to your app if needed
-      // handleBridgeMessage(data);
-    } catch { /* ignore non-JSON */ }
-  };
-}
-
-function scheduleReconnect() {
-  const delay = nextBackoffMs();
-  log(`Reconnecting in ${delay} ms …`);
-  setTimeout(connectWS, delay);
-}
-
-// Public no-op emit shim so offline use doesn’t break
-window.mmfEmit = function mmfEmit(type, payload) {
-  // If you also forward to WS when connected:
-  try {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type, payload, t: Date.now() }));
+      const u = new URL(base);
+      const proto = (u.protocol === 'http:') ? 'ws:' : (u.protocol === 'https:' ? 'wss:' : u.protocol);
+      return `${proto}//${u.host}${WS_PATH}`;
+    } catch {
+      // If it's already ws/wss or a bare host, just trust it
+      if (base.startsWith('ws://') || base.startsWith('wss://')) return `${base}${WS_PATH}`;
+      return `wss://${base}${WS_PATH}`;
     }
-  } catch { /* no-op */ }
-  // Keep as no-op if not connected; callers shouldn’t fail
-};
+  }
 
-// Kick it off
-connectWS();
+  function startHeartbeat() {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+      safeSend({ type: 'ping', t: Date.now() });
+    }, HEARTBEAT_MS);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  }
+
+  function safeSend(obj) {
+    try {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(obj));
+      }
+    } catch (e) {
+      console.warn('[MMF] WS send failed:', e);
+    }
+  }
+
+  // ---- Core connect / disconnect ----
+  function connect(cfg) {
+    // Basic validation
+    if (!cfg || !cfg.session_id || !cfg.name) {
+      console.warn('[MMF] Missing session_id or name — not connecting.');
+      wsDispatchState('error');
+      return;
+    }
+
+    lastCfg = { ...cfg }; // remember for reconnects
+    clearTimers();
+    wsDispatchState('connecting');
+
+    const url = buildWsUrl(cfg.relay_url);
+    console.log('[MMF] Connecting WS to:', url);
+
+    socket = new WebSocket(url);
+
+    socket.onopen = () => {
+      console.log('[MMF] WS open');
+      // Join handshake
+      safeSend({
+        type: 'join',
+        session_id: cfg.session_id,
+        password: cfg.password || '',
+        name: cfg.name
+      });
+
+      startHeartbeat();
+      reconnectAttempts = 0; // reset backoff; we'll set "connected" when server acks
+    };
+
+    socket.onmessage = (evt) => {
+      let data;
+      try {
+        data = JSON.parse(evt.data);
+      } catch {
+        // Not JSON — ignore
+        return;
+      }
+
+      switch (data.type) {
+        case 'welcome':
+        case 'joined':
+        case 'ok':
+          // Server confirmed — mark connected
+          wsDispatchState('connected');
+          break;
+
+        case 'error':
+          console.warn('[MMF] WS error from server:', data.message);
+          wsDispatchState('error');
+          // server might close after this
+          break;
+
+        case 'peer_join':
+        case 'peer_leave':
+          // FYI events; you can surface in UI if desired
+          console.log('[MMF] Peer event:', data);
+          break;
+
+        case 'midi':
+        case 'gesture':
+        case 'chat':
+          // In future, route to UI or MIDI logic as needed
+          // window.dispatchEvent(new CustomEvent('relay:event', { detail: data }));
+          break;
+
+        case 'pong':
+          // heartbeat ack
+          break;
+
+        default:
+          // Unknown messages can be routed if you wish
+          // console.debug('[MMF] WS message:', data);
+          break;
+      }
+    };
+
+    socket.onerror = (e) => {
+      console.warn('[MMF] WS socket error:', e);
+      wsDispatchState('error');
+    };
+
+    socket.onclose = () => {
+      console.log('[MMF] WS closed');
+      stopHeartbeat();
+      if (window.wsConnectionState !== 'disconnected') {
+        // Attempt reconnect only if user didn’t explicitly disconnect
+        scheduleReconnect();
+      }
+    };
+  }
+
+  function scheduleReconnect() {
+    if (!lastCfg) {
+      wsDispatchState('disconnected');
+      return;
+    }
+    wsDispatchState('connecting');
+    const delay = computeBackoff(reconnectAttempts++);
+    console.log(`[MMF] Reconnecting in ${delay} ms…`);
+    reconnectTimer = setTimeout(() => connect(lastCfg), delay);
+  }
+
+  function disconnect(explicit = false) {
+    clearTimers();
+    if (socket) {
+      try { socket.close(1000, 'client disconnect'); } catch {}
+      socket = null;
+    }
+    if (explicit) {
+      // User asked to disconnect: don't auto-reconnect
+      lastCfg = null;
+    }
+    wsDispatchState('disconnected');
+  }
+
+
+  const MMFRelay = {
+    isConnected: () => !!socket && socket.readyState === WebSocket.OPEN,
+    getState: () => window.wsConnectionState,
+    getSession: () => ({ ...lastCfg }),
+
+    // Generic sender
+    send(type, payload = {}) {
+      safeSend({ type, ...payload });
+    },
+
+    // Convenience helpers
+    sendGesture(gestureName, value) {
+      if (!lastCfg) return;
+      safeSend({
+        type: 'gesture',
+        session_id: lastCfg.session_id,
+        from: lastCfg.name,
+        gesture: gestureName,
+        value
+      });
+    },
+
+    sendMidi(noteOrCc) {
+      if (!lastCfg) return;
+      // noteOrCc example:
+      // { kind:'noteon', ch:1, note:60, vel:100 }
+      // { kind:'noteoff', ch:1, note:60 }
+      // { kind:'cc', ch:1, cc:10, value:64 }
+      safeSend({
+        type: 'midi',
+        session_id: lastCfg.session_id,
+        from: lastCfg.name,
+        data: noteOrCc
+      });
+    },
+
+    disconnect: () => disconnect(true),
+  };
+
+  // Expose API
+  window.MMFRelay = MMFRelay;
+
+  // ---- Hook into your existing UI events ----
+  window.addEventListener('session:connect', (e) => {
+    const { session_id, password, name, relay_url } = e.detail || {};
+    // update global sessionConfig for other modules (non-sensitive; we do not persist password)
+    window.sessionConfig.session_id = session_id || '';
+    window.sessionConfig.password = password || '';
+    window.sessionConfig.name = name || '';
+    window.sessionConfig.relay_url = relay_url || '';
+
+    connect(window.sessionConfig);
+  });
+
+  window.addEventListener('session:disconnect', () => {
+    disconnect(true);
+  });
+
+  console.log('[MMF] ws-bridge loaded');
+})();
