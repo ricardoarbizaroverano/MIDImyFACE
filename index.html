@@ -5,386 +5,415 @@
     <meta name="viewport" content="width=1024, initial-scale=1.0, user-scalable=yes">
 <title data-i18n="title">MIDImyFACE - Interfaz gestural web</title>
 <style>
-        body {
-            background-color: black;
-            color: lime;
-            font-family: 'Courier New', Courier, monospace;
-            margin: 0;
-            overflow-y: auto;
-            overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            min-height: 100vh;
-        }
+    body {
+        background-color: black;
+        color: lime;
+        font-family: 'Courier New', Courier, monospace;
+        margin: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 100vh;
+    }
 
-        #header {
-            margin-top: 10px;
-            text-align: center;
-        }
+    #header {
+        margin-top: 10px;
+        text-align: center;
+    }
 
-        #title {
-            font-size: 24px;
-            margin: 0;
-        }
+    #title {
+        font-size: 24px;
+        margin: 0;
+    }
 
-        #subtitle {
-            font-size: 14px;
-            color: gray;
-            margin: 0;
-        }
+    #subtitle {
+        font-size: 14px;
+        color: gray;
+        margin: 0;
+    }
 
-        #videoContainer {
-            width: 90vw;
-            height: auto;
-            aspect-ratio: 16 / 9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid lime;
-            overflow: hidden;
-            position: relative;
-            margin: 10px auto;
-        }
+    #videoContainer {
+        width: 90vw;
+        height: auto;
+        aspect-ratio: 16 / 9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid lime;
+        overflow: hidden;
+        position: relative;
+        margin: 10px auto;
+    }
 
-        canvas {
-            position: absolute;
-            z-index: 100;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
+    canvas {
+        position: absolute;
+        z-index: 100;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
 
-        .info-container {
-            margin-top: 10px;
-            text-align: center;
-        }
+    .info-container {
+        margin-top: 10px;
+        text-align: center;
+    }
 
-        #detectedGesture {
-            font-size: 20px;
-            color: lime;
-            margin-bottom: 5px;
-        }
+    #detectedGesture {
+        font-size: 20px;
+        color: lime;
+        margin-bottom: 5px;
+    }
 
-        .gesture-controls {
-            margin-top: 20px;
-            width: 100%;
-            max-width: 800px;
-            padding: 0 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
+    .gesture-controls {
+        margin-top: 20px;
+        width: 100%;
+        max-width: 800px;
+        padding: 0 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
 
-        .gesture-row {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            color: lime;
-            flex-wrap: wrap;
-            width: 100%;
-        }
+    .gesture-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: lime;
+        flex-wrap: wrap;
+        width: 100%;
+    }
 
-        .gesture-name {
-            font-size: 16px;
-            width: 100px;
-            text-align: right;
-        }
+    .gesture-name {
+        font-size: 16px;
+        width: 100px;
+        text-align: right;
+    }
 
-        .gesture-value {
-            font-size: 16px;
-            width: 60px;
-            text-align: left;
-        }
+    .gesture-value {
+        font-size: 16px;
+        width: 60px;
+        text-align: left;
+    }
 
-        .input-range {
-            width: 45px;
-            background-color: black;
-            color: lime;
-            border: 1px solid lime;
-            text-align: center;
-        }
+    .input-range {
+        width: 45px;
+        background-color: black;
+        color: lime;
+        border: 1px solid lime;
+        text-align: center;
+    }
 
-        .toggle-button {
-            padding: 5px 8px;
-            border: 1px solid lime;
-            background-color: black;
-            color: lime;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 14px;
-        }
+    .toggle-button {
+        padding: 5px 8px;
+        border: 1px solid lime;
+        background-color: black;
+        color: lime;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
 
-        .toggle-button.active {
-            background-color: lime;
-            color: black;
-        }
+    .toggle-button.active {
+        background-color: lime;
+        color: black;
+    }
 
-        .dropdown {
-            background-color: black;
-            color: lime;
-            border: 1px solid lime;
-            padding: 5px;
-            font-size: 14px;
-        }
+    .dropdown {
+        background-color: black;
+        color: lime;
+        border: 1px solid lime;
+        padding: 5px;
+        font-size: 14px;
+    }
 
-        .dropdown option {
-            background-color: black;
-            color: lime;
-        }
+    .dropdown option {
+        background-color: black;
+        color: lime;
+    }
 
-        .cc-display {
-            font-size: 14px;
-            color: gray;
-            width: 50px;
-            text-align: center;
-        }
+    .cc-display {
+        font-size: 14px;
+        color: gray;
+        width: 50px;
+        text-align: center;
+    }
 
-        .midi-status {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-            width: 100%;
-        }
+    .midi-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
 
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background-color: red;
-        }
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: red;
+    }
 
-        .mode-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-            width: 100%;
-        }
+    /* ======== SESSION PANEL (NEW) ======== */
+    .session-panel {
+        background-color: black;
+        border: 1px solid lime;
+        padding: 10px;
+        margin-top: 10px;
+        max-width: 800px;
+        width: 100%;
+    }
 
-        .mode-button {
-            padding: 5px 10px;
-            border: 1px solid lime;
-            background-color: black;
-            color: lime;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 14px;
-        }
+    .session-panel .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 6px 0;
+        justify-content: center;
+    }
 
-        .mode-button.active {
-            background-color: lime;
-            color: black;
-        }
+    .input-range.wide {
+        width: 160px;
+    }
 
-        .theremin-mode,
-        .percussion-options {
-            display: none;
-        }
+    #wsStatusIndicator {
+        margin-left: 6px;
+    }
 
-        .theremin-mode.active,
-        .percussion-options.active {
-            display: block;
-        }
+    .mode-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
 
-        .theremin-option {
-            margin-top: 10px;
-        }
+    .mode-button {
+        padding: 5px 10px;
+        border: 1px solid lime;
+        background-color: black;
+        color: lime;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
 
-        .theremin-suboptions {
-            margin-left: 20px;
-            margin-top: 5px;
-        }
+    .mode-button.active {
+        background-color: lime;
+        color: black;
+    }
 
-        .scale-controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            margin-top: 20px;
-            flex-wrap: wrap;
-            width: 100%;
-            max-width: 800px;
-            padding: 0 10px;
-        }
+    .theremin-mode,
+    .percussion-options {
+        display: none;
+    }
 
-        .scale-label {
-            font-size: 16px;
-            color: lime;
-            margin-bottom: 5px;
-        }
+    .theremin-mode.active,
+    .percussion-options.active {
+        display: block;
+    }
 
-        .slider-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-            width: 100%;
-        }
+    .theremin-option {
+        margin-top: 10px;
+    }
 
-        .slider {
-            width: 100%;
-            max-width: 200px;
-            background-color: black;
-            appearance: none;
-            height: 4px;
-            outline: none;
-        }
+    .theremin-suboptions {
+        margin-left: 20px;
+        margin-top: 5px;
+    }
 
-        .slider::-webkit-slider-runnable-track {
-            background-color: lime;
-            height: 4px;
-        }
+    .scale-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+        width: 100%;
+        max-width: 800px;
+        padding: 0 10px;
+    }
 
-        .slider::-webkit-slider-thumb {
-            appearance: none;
-            width: 15px;
-            height: 15px;
-            background-color: lime;
-            border-radius: 50%;
-            cursor: pointer;
-            margin-top: -6px;
-        }
+    .scale-label {
+        font-size: 16px;
+        color: lime;
+        margin-bottom: 5px;
+    }
 
-        .slider::-moz-range-track {
-            background-color: lime;
-            height: 4px;
-        }
+    .slider-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+        width: 100%;
+    }
 
-        .slider::-moz-range-thumb {
-            width: 15px;
-            height: 15px;
-            background-color: lime;
-            border-radius: 50%;
-            cursor: pointer;
-        }
+    .slider {
+        width: 100%;
+        max-width: 200px;
+        background-color: black;
+        appearance: none;
+        height: 4px;
+        outline: none;
+    }
 
-        .duration-display {
-            width: 80px;
-            background-color: black;
-            color: lime;
-            border: 1px solid lime;
-            text-align: center;
-            font-size: 14px;
-            padding: 5px;
-            font-family: 'Courier New', Courier, monospace;
-        }
+    .slider::-webkit-slider-runnable-track {
+        background-color: lime;
+        height: 4px;
+    }
 
-        .envelope-controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 20px;
-            gap: 15px;
-            width: 100%;
-            max-width: 800px;
-            padding: 0 10px;
-        }
+    .slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        background-color: lime;
+        border-radius: 50%;
+        cursor: pointer;
+        margin-top: -6px;
+    }
 
-        .envelope-row {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            flex-wrap: wrap;
-            width: 100%;
-        }
+    .slider::-moz-range-track {
+        background-color: lime;
+        height: 4px;
+    }
 
-        .envelope-value {
-            font-size: 14px;
-            width: 50px;
-            text-align: left;
-            color: lime;
-        }
+    .slider::-moz-range-thumb {
+        width: 15px;
+        height: 15px;
+        background-color: lime;
+        border-radius: 50%;
+        cursor: pointer;
+    }
 
-        #instructionButton,
-        #presentationModeButton {
-            margin-top: 10px;
-            padding: 5px 10px;
-            border: 1px solid lime;
-            background-color: black;
-            color: lime;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 14px;
-        }
+    .duration-display {
+        width: 80px;
+        background-color: black;
+        color: lime;
+        border: 1px solid lime;
+        text-align: center;
+        font-size: 14px;
+        padding: 5px;
+        font-family: 'Courier New', Courier, monospace;
+    }
 
-        #instructionModal {
-            display: none;
-            position: fixed;
-            z-index: 100;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow-y: auto;
-            background-color: rgba(0, 0, 0, 0.9);
-        }
+    .envelope-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+        gap: 15px;
+        width: 100%;
+        max-width: 800px;
+        padding: 0 10px;
+    }
 
-        #instructionModalContent {
-            background-color: black;
-            margin: 5% auto;
-            padding: 20px;
-            border: 1px solid lime;
-            width: 90%;
-            max-width: 600px;
-            color: lime;
-            font-size: 16px;
-            text-align: left;
-            position: relative;
-        }
+    .envelope-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+        width: 100%;
+    }
 
-        #closeModalButton {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: lime;
-            background-color: black;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-        }
+    .envelope-value {
+        font-size: 14px;
+        width: 50px;
+        text-align: left;
+        color: lime;
+    }
 
-        #presentationOverlay {
-            display: none;
-            position: fixed;
-            z-index: 90;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-        }
+    #instructionButton,
+    #presentationModeButton {
+        margin-top: 10px;
+        padding: 5px 10px;
+        border: 1px solid lime;
+        background-color: black;
+        color: lime;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
 
-        #closePresentationButton {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: lime;
-            background-color: black;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-            z-index: 101;
-        }
+    #instructionModal {
+        display: none;
+        position: fixed;
+        z-index: 100;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        background-color: rgba(0, 0, 0, 0.9);
+    }
 
-        .hidden {
-            display: none !important;
-        }
-        .presentation-active #videoContainer,
-        .presentation-active canvas {
-            width: 100vw;
-            height: 100vh;
-        }
-    </style>
+    #instructionModalContent {
+        background-color: black;
+        margin: 5% auto;
+        padding: 20px;
+        border: 1px solid lime;
+        width: 90%;
+        max-width: 600px;
+        color: lime;
+        font-size: 16px;
+        text-align: left;
+        position: relative;
+    }
+
+    #closeModalButton {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: lime;
+        background-color: black;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    #presentationOverlay {
+        display: none;
+        position: fixed;
+        z-index: 90;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+    }
+
+    #closePresentationButton {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: lime;
+        background-color: black;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 101;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    .presentation-active #videoContainer,
+    .presentation-active canvas {
+        width: 100vw;
+        height: 100vh;
+    }
+</style>
+
 </head>
 
 <body>
@@ -528,7 +557,7 @@
             <input type="number" id="rightWinkUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
-        <!-- Nariz val X -->
+        <!-- Nariz X -->
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="noseX">Nariz X</div>
             <div class="gesture-value" id="noseXValue">0</div>
@@ -545,7 +574,7 @@
             <input type="number" id="noseXUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
-        <!-- Nariz val Y -->
+        <!-- Nariz Y -->
         <div class="gesture-row">
             <div class="gesture-name" data-i18n="noseY">Nariz Y</div>
             <div class="gesture-value" id="noseYValue">0</div>
@@ -598,7 +627,7 @@
             </select>
         </div>
 
-    <!-- Controles del envelope -->
+    <!-- Envelope Controls -->
     <div class="envelope-controls">
         <h3 data-i18n="envelope">Envolvente</h3>
         <!-- Attack -->
@@ -660,8 +689,39 @@
         <select id="midiOutputSelect" class="dropdown" aria-label="Selecciona la salida MIDI">
             <option value="" data-i18n="midi_select_placeholder">Selecciona la salida MIDI...</option>
         </select>
-        <div class="status-indicator" id="midiStatusIndicator"></div>
+        <div class="status-indicator" id="midiStatusIndicator" title="MIDI"></div>
+
+        <!-- Join Session toggle -->
+        <button id="joinSessionToggle" class="toggle-button" aria-expanded="false" data-i18n="joinSession">Unirse a sesión</button>
     </div>
+
+    <!-- Session Panel (hidden by default) -->
+    <div id="sessionPanel" class="session-panel hidden" aria-hidden="true">
+        <div class="row">
+            <label for="sessionIdInput" data-i18n="session.id">Session ID</label>
+            <input id="sessionIdInput" class="input-range wide" placeholder="ABCD12" data-i18n-placeholder="session.id_placeholder">
+        </div>
+        <div class="row">
+            <label for="sessionPasswordInput" data-i18n="session.password">Password</label>
+            <input id="sessionPasswordInput" type="password" class="input-range wide" placeholder="••••••" data-i18n-placeholder="session.password_placeholder">
+        </div>
+        <div class="row">
+            <label for="sessionNameInput" data-i18n="session.name">Nombre</label>
+            <input id="sessionNameInput" class="input-range wide" placeholder="Tu nombre" data-i18n-placeholder="session.name_placeholder">
+        </div>
+        <div class="row">
+            <button id="connectSessionButton" class="toggle-button" data-i18n="session.connect">Conectar</button>
+            <button id="disconnectSessionButton" class="toggle-button" data-i18n="session.disconnect">Desconectar</button>
+            <div class="status-indicator" id="wsStatusIndicator" title="WS"></div>
+        </div>
+        <!-- (Opcional avanzado) Campo para URL del relay:
+        <div class="row">
+            <label for="relayUrlInput">Relay URL</label>
+            <input id="relayUrlInput" class="input-range wide" placeholder="wss://tu-relay.onrender.com/ws">
+        </div>
+        -->
+    </div>
+
 
     <!-- Botones de Instrucciones y Modo Presentación -->
     <button id="instructionButton" data-i18n="instructionButton">Instrucciones de Uso</button>
@@ -732,22 +792,22 @@
     <!-- Overlay para Modo Presentación -->
     <div id="presentationOverlay">
         <button id="closePresentationButton">&times;</button>
-        <!-- Aquí se va a mostrar la visualización a pantalla completa -->
+        <!-- Aquí se mostrará la visualización a pantalla completa -->
     </div>
 
-    <!-- Scripts y librerias -->
+    <!-- Include Libraries and Your Script -->
     <script src="p5.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="camera_utils.js"></script>
     <script src="Tone.min.js"></script>    
    
 
-    <!-- Translation script -->
+    <!-- Translation Script -->
     <script>
         let translations = {};
-        let currentLanguage = 'es'; // El idioma predeterminado es el español
+        let currentLanguage = 'es'; // Idioma predeterminado
 
-        // Fetch the translations en JSON file
+        // Fetch the translations JSON file
         fetch('translations.json')
             .then(response => response.json())
             .then(data => {
@@ -791,7 +851,7 @@
         });
     </script>
      <script src="script.js"></script>
-
+     <script src="ws-bridge.js"></script>
 </body>
 
 </html>
