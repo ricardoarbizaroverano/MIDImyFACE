@@ -149,13 +149,14 @@
         console.log('[MMF] <=', data);
   
         switch (data.type) {
-          // Accept any of these as the server's handshake confirmation
+          // Accept these as valid handshake replies from the relay
           case 'hello/ack':
           case 'joined':
           case 'welcome':
           case 'ok':
             if (ackTimer) { clearTimeout(ackTimer); ackTimer = null; }
             wsDispatchState('connected');
+            console.log('[MMF] ✅ Connected to relay session:', data.data);
             break;
         
           case 'system/pong':
@@ -170,8 +171,9 @@
         
           default:
             // session/*, server/*, midi/*, gesture/* — just log for now
+            console.log('[MMF] <=', data);
             break;
-        }        
+        }       
       };
   
       socket.onerror = (e) => {
