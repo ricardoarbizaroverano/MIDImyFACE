@@ -42,15 +42,40 @@
     }
     function buildWsUrl(relayBase) {
       const base = (relayBase && relayBase.trim()) || RELAY_HOST_DEFAULT;
+    
       try {
         const u = new URL(base);
-        const proto = (u.protocol === 'http:') ? 'ws:' : (u.protocol === 'https:' ? 'wss:' : u.protocol);
+    
+        // Decide protocol
+        const proto =
+          u.protocol === 'http:'  ? 'ws:'  :
+          u.protocol === 'https:' ? 'wss:' : u.protocol;
+    
+        // If the user already provided a non-root path, don't append WS_PATH
+        const hasPath = u.pathname && u.pathname !== '/' && u.pathname !== '';
+        if (hasPath) {
+          // Normalize no trailing slash (render/ws vs render/ws/)
+          const normalizedPath = u.pathname.endsWith('/') ? u.pathname.slice(0, -1) : u.pathname;
+          return `${proto}//${u.host}${normalizedPath}`;
+        }
+    
+        // Otherwise use our default WS_PATH
         return `${proto}//${u.host}${WS_PATH}`;
       } catch {
-        if (base.startsWith('ws://') || base.startsWith('wss://')) return `${base}${WS_PATH}`;
+        // base isn't a full URL, treat as host
+        if (base.startsWith('ws://') || base.startsWith('wss://')) {
+          // If it already ends with /ws or has any path, use as-is
+          try {
+            const u2 = new URL(base);
+            const hasPath = u2.pathname && u2.pathname !== '/' && u2.pathname !== '';
+            if (hasPath) return base;
+          } catch {}
+          return `${base}${WS_PATH}`;
+        }
+        // bare host
         return `wss://${base}${WS_PATH}`;
       }
-    }
+    }    
     function getOrMakeClientUUID() {
       const KEY = 'mmf_client_uuid';
       try {
@@ -89,7 +114,9 @@
       wsDispatchState('connecting');
   
       const url = buildWsUrl(cfg.relay_url);
-      console.log('[MMF] Connecting WS to:', url);
+
+      // Log final resolved URL (to catch double /ws, wrong protocol, etc.)
+      console.log('[MMF] WS URL:', url);
       socket = new WebSocket(url);
   
       socket.onopen = () => {
@@ -122,25 +149,29 @@
         console.log('[MMF] <=', data);
   
         switch (data.type) {
+          // Accept any of these as the server's handshake confirmation
           case 'hello/ack':
+          case 'joined':
+          case 'welcome':
+          case 'ok':
             if (ackTimer) { clearTimeout(ackTimer); ackTimer = null; }
             wsDispatchState('connected');
             break;
-  
+        
           case 'system/pong':
             break;
-  
+        
           case 'error':
           case 'server/reject':
             if (ackTimer) { clearTimeout(ackTimer); ackTimer = null; }
             console.warn('[MMF] server says:', data);
             wsDispatchState('error');
             break;
-  
+        
           default:
             // session/*, server/*, midi/*, gesture/* — just log for now
             break;
-        }
+        }        
       };
   
       socket.onerror = (e) => {
