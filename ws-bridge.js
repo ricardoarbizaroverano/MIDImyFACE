@@ -163,6 +163,12 @@
       try { if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(obj)); }
       catch (e) { console.warn('[MMF] WS send failed:', e); }
     }
+    function asObj(input) {
+      return input && typeof input === 'object' ? input : {};
+    }
+    function readDetail(evt) {
+      return asObj(evt?.detail || evt?.data || evt);
+    }
   
     async function connect(cfg) {
       if (!cfg || !cfg.session_id || !cfg.name) {
@@ -286,13 +292,15 @@
       send(type, payload = {}) { safeSend({ type, ...payload }); },
       sendGesture(gestureName, value) {
         if (!lastCfg) return;
-        safeSend({ type: 'gesture/update', data: { gesture: gestureName, value } });
+        safeSend({ type: 'gesture/update', data: { name: gestureName, gesture: gestureName, value } });
       },
       sendMidi(noteOrCc) {
         if (!lastCfg) return;
         const map = { noteon: 'midi/note_on', noteoff: 'midi/note_off', cc: 'midi/cc' };
-        const t = map[noteOrCc?.kind];
-        if (t) safeSend({ type: t, data: noteOrCc });
+        const payload = asObj(noteOrCc);
+        const inferredKind = payload.kind || payload.type || '';
+        const t = map[inferredKind] || (inferredKind === 'midi/note_on' ? 'midi/note_on' : (inferredKind === 'midi/note_off' ? 'midi/note_off' : (inferredKind === 'midi/cc' ? 'midi/cc' : null)));
+        if (t) safeSend({ type: t, data: payload });
       },
       disconnect: () => disconnect(true),
     };
@@ -325,6 +333,50 @@
   
     window.addEventListener('session:disconnect', () => {
       disconnect(true);
+    });
+
+    // Bridge app-level events -> relay frames (supports obfuscated/legacy emitters)
+    window.addEventListener('gesture/update', (evt) => {
+      if (!MMFRelay.isConnected()) return;
+      const d = readDetail(evt);
+      const name = d.name || d.gesture;
+      const value = Number(d.value);
+      if (!name || Number.isNaN(value)) return;
+      safeSend({ type: 'gesture/update', data: { name, gesture: name, value } });
+    });
+
+    window.addEventListener('midi/cc', (evt) => {
+      if (!MMFRelay.isConnected()) return;
+      const d = readDetail(evt);
+      safeSend({ type: 'midi/cc', data: {
+        kind: 'cc',
+        channel: d.channel,
+        cc: d.cc,
+        value: d.value,
+        name: d.name || d.gesture || null,
+      }});
+    });
+
+    window.addEventListener('midi/note_on', (evt) => {
+      if (!MMFRelay.isConnected()) return;
+      const d = readDetail(evt);
+      safeSend({ type: 'midi/note_on', data: {
+        kind: 'noteon',
+        channel: d.channel,
+        note: d.note,
+        vel: d.vel ?? d.velocity,
+      }});
+    });
+
+    window.addEventListener('midi/note_off', (evt) => {
+      if (!MMFRelay.isConnected()) return;
+      const d = readDetail(evt);
+      safeSend({ type: 'midi/note_off', data: {
+        kind: 'noteoff',
+        channel: d.channel,
+        note: d.note,
+        vel: d.vel ?? d.velocity ?? 0,
+      }});
     });
   
     console.log('[MMF] ws-bridge loaded');
