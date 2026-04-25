@@ -11,10 +11,11 @@
     window.__MMF_WS_BRIDGE_LOADED__ = true;
   
     window.wsConnectionState = window.wsConnectionState || 'disconnected';
-    window.sessionConfig     = window.sessionConfig     || { session_id: '', password: '', name: '', relay_url: '' };
+    window.sessionConfig     = window.sessionConfig     || { session_id: '', password: '', name: '', relay_url: '', console_api: '', invite_token: '' };
   
     const RELAY_HOST_DEFAULT = 'wss://midimyface-relay.onrender.com';
     const WS_PATH            = '/ws';
+    const CONSOLE_API_DEFAULT = 'https://console.midimyface.com';
   
     let socket = null;
     let heartbeatTimer = null;
@@ -76,6 +77,67 @@
         return `wss://${base}${WS_PATH}`;
       }
     }    
+    function buildConsoleApiBase(cfg) {
+      const q = new URLSearchParams(window.location.search);
+      const fromQuery = q.get('console_api');
+      const fromCfg = cfg?.console_api || '';
+      const fromStorage = localStorage.getItem('mmf_console_api') || '';
+      const fromRelay = (() => {
+        const relayBase = (cfg?.relay_url || '').trim();
+        if (!relayBase) return '';
+        try {
+          const u = new URL(relayBase);
+          const host = u.host.replace('midimyface-relay', 'midimyface-console');
+          const proto = u.protocol === 'wss:' ? 'https:' : (u.protocol === 'ws:' ? 'http:' : u.protocol);
+          return `${proto}//${host}`;
+        } catch {
+          return '';
+        }
+      })();
+
+      const base = fromQuery || fromCfg || fromStorage || fromRelay || CONSOLE_API_DEFAULT;
+      try {
+        const normalized = new URL(base);
+        localStorage.setItem('mmf_console_api', normalized.origin);
+        return normalized.origin;
+      } catch {
+        return CONSOLE_API_DEFAULT;
+      }
+    }
+
+    async function requestJoinToken(cfg) {
+      const apiBase = buildConsoleApiBase(cfg);
+      const inviteToken = cfg.invite_token || new URLSearchParams(window.location.search).get('invite_token') || '';
+      const body = {
+        session_id: cfg.session_id,
+        password: cfg.password || '',
+        name: cfg.name,
+        client_uuid: getOrMakeClientUUID(),
+      };
+      if (inviteToken) body.invite_token = inviteToken;
+
+      const res = await fetch(`${apiBase}/api/sessions/join-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json().catch(() => ({ ok: false, error: 'invalid_response' }));
+      if (!res.ok || !data.ok || !data.join_token) {
+        throw new Error(data.error || `token_http_${res.status}`);
+      }
+      return data.join_token;
+    }
+
+    function relayHealthUrl(relayBase) {
+      try {
+        const wsUrl = new URL(buildWsUrl(relayBase));
+        const proto = wsUrl.protocol === 'wss:' ? 'https:' : 'http:';
+        return `${proto}//${wsUrl.host}/health`;
+      } catch {
+        return 'https://midimyface-relay.onrender.com/health';
+      }
+    }
+
     function getOrMakeClientUUID() {
       const KEY = 'mmf_client_uuid';
       try {
@@ -102,7 +164,7 @@
       catch (e) { console.warn('[MMF] WS send failed:', e); }
     }
   
-    function connect(cfg) {
+    async function connect(cfg) {
       if (!cfg || !cfg.session_id || !cfg.name) {
         console.warn('[MMF] Missing session_id or name — not connecting.');
         wsDispatchState('error');
@@ -112,6 +174,15 @@
       lastCfg = { ...cfg };
       clearTimers();
       wsDispatchState('connecting');
+
+      let joinToken = '';
+      try {
+        joinToken = await requestJoinToken(cfg);
+      } catch (e) {
+        console.warn('[MMF] Failed to obtain join token:', e?.message || e);
+        wsDispatchState('error');
+        return;
+      }
   
       const url = buildWsUrl(cfg.relay_url);
 
@@ -125,9 +196,9 @@
           type: 'hello',
           role: 'performer',
           session_id: cfg.session_id,
-          password: cfg.password || '',
           name: cfg.name,
-          client_uuid: getOrMakeClientUUID()
+          client_uuid: getOrMakeClientUUID(),
+          join_token: joinToken,
         });
   
         // Wait for hello/ack; if not received, show error (stuck yellow otherwise)
@@ -230,15 +301,18 @@
     // UI hooks
     window.addEventListener('session:connect', (e) => {
       const { session_id, password, name, relay_url } = e.detail || {};
+      const q = new URLSearchParams(window.location.search);
       window.sessionConfig.session_id = session_id || '';
       window.sessionConfig.password   = password   || '';
       window.sessionConfig.name       = name       || '';
       window.sessionConfig.relay_url  = relay_url  || '';
+      window.sessionConfig.console_api = q.get('console_api') || '';
+      window.sessionConfig.invite_token = q.get('invite_token') || '';
   
       // Wake Render service with a timeout, then try WS regardless
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 6000);
-      fetch('https://midimyface-relay.onrender.com/health', { signal: controller.signal })
+      fetch(relayHealthUrl(window.sessionConfig.relay_url), { signal: controller.signal })
         .then(() => {
           console.log('[MMF] Relay awake, connecting…');
           connect(window.sessionConfig);

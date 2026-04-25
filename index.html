@@ -182,6 +182,17 @@
         width: 160px;
     }
 
+    .invite-banner {
+        background: #001a00;
+        border: 1px solid lime;
+        color: lime;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        text-align: center;
+        width: 100%;
+    }
+
     #wsStatusIndicator {
         margin-left: 6px;
     }
@@ -693,33 +704,48 @@
 
         <!-- Join Session toggle -->
         <button id="joinSessionToggle" class="toggle-button" aria-expanded="false" data-i18n="joinSession">Unirse a sesión</button>
+        <a id="networkConsoleBtn" class="toggle-button" href="https://ricardoarbizaroverano.github.io/CONSOLE_MIDImyFACE/" target="_blank" rel="noopener noreferrer">MIDImyFACE Connect</a>
     </div>
 
     <!-- Session Panel (hidden by default) -->
     <div id="sessionPanel" class="session-panel hidden" aria-hidden="true">
-        <div class="row">
-            <label for="sessionIdInput" data-i18n="session.id">Session ID</label>
-            <input id="sessionIdInput" class="input-range wide" placeholder="ABCD12" data-i18n-placeholder="session.id_placeholder">
+
+        <!-- INVITE MODE: auto-shown when ?invite_token= is present in the URL -->
+        <div id="inviteModePanel" class="hidden">
+            <div class="invite-banner">🎵 Sesión en curso &mdash; introduce tu nombre para entrar</div>
+            <div class="row">
+                <label for="inviteNameInput">Tu nombre</label>
+                <input id="inviteNameInput" class="input-range wide" placeholder="Tu nombre...">
+            </div>
+            <div class="row">
+                <button id="inviteJoinButton" class="toggle-button">Unirse a la sesión</button>
+            </div>
         </div>
-        <div class="row">
-            <label for="sessionPasswordInput" data-i18n="session.password">Password</label>
-            <input id="sessionPasswordInput" type="password" class="input-range wide" placeholder="••••••" data-i18n-placeholder="session.password_placeholder">
+
+        <!-- MANUAL MODE: enter session ID + password directly -->
+        <div id="manualModePanel">
+            <div class="row">
+                <label for="sessionIdInput" data-i18n="session.id">Session ID</label>
+                <input id="sessionIdInput" class="input-range wide" placeholder="ABCD12" data-i18n-placeholder="session.id_placeholder">
+            </div>
+            <div class="row">
+                <label for="sessionPasswordInput" data-i18n="session.password">Password</label>
+                <input id="sessionPasswordInput" type="password" class="input-range wide" placeholder="••••••" data-i18n-placeholder="session.password_placeholder">
+            </div>
+            <div class="row">
+                <label for="sessionNameInput" data-i18n="session.name">Nombre</label>
+                <input id="sessionNameInput" class="input-range wide" placeholder="Tu nombre" data-i18n-placeholder="session.name_placeholder">
+            </div>
+            <div class="row">
+                <button id="connectSessionButton" class="toggle-button" data-i18n="session.connect">Conectar</button>
+                <button id="disconnectSessionButton" class="toggle-button" data-i18n="session.disconnect">Desconectar</button>
+            </div>
         </div>
+
+        <!-- WS status indicator (shared) -->
         <div class="row">
-            <label for="sessionNameInput" data-i18n="session.name">Nombre</label>
-            <input id="sessionNameInput" class="input-range wide" placeholder="Tu nombre" data-i18n-placeholder="session.name_placeholder">
-        </div>
-        <div class="row">
-            <button id="connectSessionButton" class="toggle-button" data-i18n="session.connect">Conectar</button>
-            <button id="disconnectSessionButton" class="toggle-button" data-i18n="session.disconnect">Desconectar</button>
             <div class="status-indicator" id="wsStatusIndicator" title="WS"></div>
         </div>
-        <!-- (Opcional avanzado) Campo para URL del relay:
-        <div class="row">
-            <label for="relayUrlInput">Relay URL</label>
-            <input id="relayUrlInput" class="input-range wide" placeholder="wss://tu-relay.onrender.com/ws">
-        </div>
-        -->
     </div>
 
 
@@ -852,6 +878,58 @@
     </script>
      <script src="script.js"></script>
      <script src="ws-bridge.js"></script>
+     <script>
+/* ── Invite-link auto-join ────────────────────────────────────────────────── */
+(function () {
+    const q           = new URLSearchParams(window.location.search);
+    const inviteToken = q.get('invite_token');
+    const sessionId   = q.get('session_id');
+    if (!inviteToken || !sessionId) return;
+
+    // Show session panel in invite mode
+    const panel       = document.getElementById('sessionPanel');
+    const invitePanel = document.getElementById('inviteModePanel');
+    const manualPanel = document.getElementById('manualModePanel');
+    const toggle      = document.getElementById('joinSessionToggle');
+    if (panel)       { panel.classList.remove('hidden'); panel.setAttribute('aria-hidden', 'false'); }
+    if (invitePanel) invitePanel.classList.remove('hidden');
+    if (manualPanel) manualPanel.classList.add('hidden');
+    if (toggle)      { toggle.textContent = '🎵 Sesión activa'; toggle.setAttribute('aria-expanded', 'true'); }
+
+    const joinBtn   = document.getElementById('inviteJoinButton');
+    const nameInput = document.getElementById('inviteNameInput');
+    if (!joinBtn || !nameInput) return;
+
+    function tryJoin() {
+        const name = nameInput.value.trim();
+        if (!name) { nameInput.focus(); nameInput.style.outline = '2px solid red'; return; }
+        nameInput.style.outline = '';
+        window.dispatchEvent(new CustomEvent('session:connect', {
+            detail: {
+                session_id:   sessionId,
+                password:     '',
+                name:         name,
+                relay_url:    '',
+                console_api:  q.get('console_api') || '',
+                invite_token: inviteToken,
+            }
+        }));
+        joinBtn.disabled    = true;
+        joinBtn.textContent = 'Conectando…';
+    }
+
+    joinBtn.addEventListener('click', tryJoin);
+    nameInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') tryJoin(); });
+
+    window.addEventListener('ws:setState', function (e) {
+        const s = e.detail && e.detail.state;
+        if      (s === 'connected')    { joinBtn.textContent = '\u2705 Conectado';         joinBtn.disabled = true; }
+        else if (s === 'error')        { joinBtn.textContent = 'Error \u2014 reintentar'; joinBtn.disabled = false; joinBtn.onclick = tryJoin; }
+        else if (s === 'connecting')   { joinBtn.textContent = 'Conectando\u2026';         joinBtn.disabled = true; }
+        else if (s === 'disconnected') { joinBtn.textContent = 'Unirse a la sesi\u00f3n'; joinBtn.disabled = false; }
+    });
+})();
+</script>
 </body>
 
 </html>
