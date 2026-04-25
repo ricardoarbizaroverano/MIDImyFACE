@@ -1,0 +1,9 @@
+# relay server — Node.js artefacts (never commit these)
+relay/node_modules/
+relay/package-lock.json
+relay/.env.local
+relay/.env.*.local
+relay/*.log
+
+# macOS
+.DS_Store
