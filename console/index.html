@@ -53,7 +53,7 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
 /* highlight the routed gesture inside a performer card */
 .gbox.active{ outline:1px solid var(--hi); border-radius:6px; }
 .landbox{border:1px dashed var(--line);padding:6px}
-.landcanvas{width:100%;height:128px;display:block;background:#021028;border:1px solid var(--line)}
+.landcanvas{width:100%;height:auto;aspect-ratio:16 / 9;display:block;background:#f3f8ff;border:1px solid var(--line)}
 .loading-wrap{margin-top:10px;padding:10px;border:1px solid var(--line);background:#062149}
 .loading-row{display:flex;align-items:center;gap:8px}
 .spinner{width:12px;height:12px;border:2px solid #24508f;border-top-color:var(--hi);border-radius:50%;animation:spin .8s linear infinite}
@@ -123,7 +123,14 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
         <div class="row" style="margin-bottom:8px">
           <input id="inviteLinkOutput" class="grow" readonly />
           <button id="copyInviteBtn" class="btn mini">COPY LINK</button>
+          <button id="showInviteQrBtn" class="btn mini">SHOW QR</button>
           <button id="copyCredsBtn" class="btn mini">COPY SID+PASS</button>
+        </div>
+        <div id="inviteQrWrap" class="hidden" style="margin-bottom:8px">
+          <div class="row" style="justify-content:center">
+            <img id="inviteQrImage" alt="Invite QR" style="width:220px;height:220px;border:1px solid var(--line);background:#07224a;padding:6px" />
+          </div>
+          <div class="small" style="text-align:center">Scan to open MIDImyFACE join page</div>
         </div>
         <div class="row">
           <button id="connectHostBtn" class="btn">CONNECT AS HOST</button>
@@ -167,9 +174,16 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
       <div class="kv"><span class="k">Invite</span><span id="inviteHint" class="v small">Copy the link and send it to participants</span></div>
       <div class="grow"></div>
       <button id="copyInviteMainBtn" class="btn mini">COPY INVITE LINK</button>
+      <button id="showInviteMainQrBtn" class="btn mini">SHOW QR</button>
     </div>
     <div class="row" style="margin-bottom:6px">
       <input id="inviteLinkMainOutput" class="grow" readonly placeholder="Create a session to generate invite link" />
+    </div>
+    <div id="inviteMainQrWrap" class="hidden" style="margin-bottom:6px">
+      <div class="row" style="justify-content:center">
+        <img id="inviteMainQrImage" alt="Invite QR" style="width:220px;height:220px;border:1px solid var(--line);background:#07224a;padding:6px" />
+      </div>
+      <div class="small" style="text-align:center">Scan to open MIDImyFACE join page</div>
     </div>
     <div id="inviteCopiedStatus" class="small">Invitation copied to clipboard will appear here.</div>
   </div>
@@ -257,19 +271,34 @@ let performanceFocusedParticipantId = null;
 let performanceSingleClickFocus = false;
 setInterval(()=>{ el('tpIn').textContent=tpIn; el('tpOut').textContent=tpOut; tpIn=0; tpOut=0; },1000);
 
-function drawLandmarkDots(ctx, w, h, pts){
+function drawLandmarkDots(ctx, w, h, pts, sourceAspect = 16 / 9){
   ctx.clearRect(0,0,w,h);
-  ctx.fillStyle = '#041a3a';
+  ctx.fillStyle = '#f3f8ff';
   ctx.fillRect(0,0,w,h);
-  ctx.fillStyle = '#1d3f74';
-  ctx.fillRect(0,h*0.68,w,1);
+
+  const targetAspect = w / Math.max(1, h);
+  let drawW = w;
+  let drawH = h;
+  if (targetAspect > sourceAspect) {
+    drawH = h;
+    drawW = h * sourceAspect;
+  } else {
+    drawW = w;
+    drawH = w / sourceAspect;
+  }
+  const offX = (w - drawW) * 0.5;
+  const offY = (h - drawH) * 0.5;
+
+  ctx.fillStyle = '#dbe4f3';
+  ctx.fillRect(offX, offY + drawH * 0.68, drawW, 1);
+
   if(pts.length){
-    ctx.fillStyle = '#23ff8a';
+    ctx.fillStyle = '#000000';
     for(let i=0;i<pts.length;i++){
-      const px = pts[i].x * w;
-      const py = pts[i].y * h;
+      const px = offX + (pts[i].x * drawW);
+      const py = offY + (pts[i].y * drawH);
       ctx.beginPath();
-      ctx.arc(px, py, 1.2, 0, Math.PI*2);
+      ctx.arc(px, py, 1.45, 0, Math.PI*2);
       ctx.fill();
     }
   }
@@ -604,6 +633,9 @@ function showCreatedSession(session){
   el('inviteLinkOutput').value = createdInviteLink || '';
   if(el('inviteLinkMainOutput')) el('inviteLinkMainOutput').value = createdInviteLink || '';
   if(el('inviteCopiedStatus')) el('inviteCopiedStatus').textContent = createdInviteLink ? 'Invite ready — copy and share this link with performers.' : 'Create a session to generate invite link.';
+  setInviteQrImages();
+  if(el('inviteQrWrap')) el('inviteQrWrap').classList.add('hidden');
+  if(el('inviteMainQrWrap')) el('inviteMainQrWrap').classList.add('hidden');
   el('createdSessionBox').classList.remove('hidden');
   el('kvSession').textContent = sessionId || '—';
 }
@@ -617,6 +649,30 @@ function flashInviteCopied(message){
   const inviteStatus = el('inviteCopiedStatus');
   if(inviteStatus) inviteStatus.textContent = message;
   setStatus(message);
+}
+
+function inviteQrUrl(link){
+  if(!link) return '';
+  return `https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=${encodeURIComponent(link)}`;
+}
+
+function setInviteQrImages(){
+  const qr = inviteQrUrl(createdInviteLink);
+  const img1 = el('inviteQrImage');
+  const img2 = el('inviteMainQrImage');
+  if(img1 && qr) img1.src = qr;
+  if(img2 && qr) img2.src = qr;
+}
+
+function toggleInviteQr(which){
+  if(!createdInviteLink){
+    flashInviteCopied('Create a session first to generate invite link and QR.');
+    return;
+  }
+  setInviteQrImages();
+  const wrap = which === 'main' ? el('inviteMainQrWrap') : el('inviteQrWrap');
+  if(!wrap) return;
+  wrap.classList.toggle('hidden');
 }
 
 async function loginHost(){
@@ -845,7 +901,7 @@ function renderCard(p, fresh=false){
 
       <div class="landbox" style="margin-bottom:6px">
         <div class="gname"><span>Face Landmarks</span><span class="small" data-lmstate>no frame</span></div>
-        <canvas class="landcanvas" data-landmarks width="340" height="128"></canvas>
+        <canvas class="landcanvas" data-landmarks width="340" height="191"></canvas>
       </div>
 
       <div class="grid" style="grid-template-columns:1fr 1fr 1fr; gap:6px">
@@ -1154,11 +1210,15 @@ el('copyInviteBtn').onclick = ()=>{
   flashInviteCopied('Invitation copied to clipboard. Send it like a Zoom invite.');
 };
 
+el('showInviteQrBtn').onclick = ()=> toggleInviteQr('setup');
+
 el('copyInviteMainBtn').onclick = ()=>{
   if(!createdInviteLink){ flashInviteCopied('Create a session first to generate the invite link.'); return; }
   copyToClipboard(createdInviteLink);
   flashInviteCopied('Invitation copied to clipboard. Send it like a Zoom invite.');
 };
+
+el('showInviteMainQrBtn').onclick = ()=> toggleInviteQr('main');
 
 el('copyCredsBtn').onclick = ()=>{
   copyToClipboard(`Session ID: ${sessionId}\nPassword: ${password}`);

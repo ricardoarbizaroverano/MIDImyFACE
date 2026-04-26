@@ -385,7 +385,6 @@
       const incoming = Array.isArray(d.points) ? d.points : [];
       if (!incoming.length) return;
       const points = incoming
-        .slice(0, 220)
         .map((p) => ({ x: Number(p?.x), y: Number(p?.y) }))
         .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
         .map((p) => ({ x: Math.max(0, Math.min(1, p.x)), y: Math.max(0, Math.min(1, p.y)) }));

@@ -913,8 +913,6 @@
 })();
 
 (function () {
-    const STRIDE = 3;
-    const MAX_POINTS = 180;
     const EMIT_MS = 90;
     let lastEmit = 0;
     let wrapTimer = null;
@@ -923,7 +921,7 @@
     function samplePoints(raw) {
         if (!Array.isArray(raw) || !raw.length) return [];
         const points = [];
-        for (let i = 0; i < raw.length && points.length < MAX_POINTS; i += STRIDE) {
+        for (let i = 0; i < raw.length; i += 1) {
             const p = raw[i];
             if (!p) continue;
             const x = Number(p.x);
@@ -996,37 +994,119 @@
     if (manualPanel) manualPanel.classList.add('hidden');
     if (toggle)      { toggle.textContent = '🎵 Sesión activa'; toggle.setAttribute('aria-expanded', 'true'); }
 
-    const joinBtn   = document.getElementById('inviteJoinButton');
-    const nameInput = document.getElementById('inviteNameInput');
-    if (!joinBtn || !nameInput) return;
+    let inviteParticipantName = '';
+    let inviteConnected = false;
 
-    function tryJoin() {
-        const name = nameInput.value.trim();
-        if (!name) { nameInput.focus(); nameInput.style.outline = '2px solid red'; return; }
-        nameInput.style.outline = '';
-        window.dispatchEvent(new CustomEvent('session:connect', {
-            detail: {
-                session_id:   sessionId,
-                password:     '',
-                name:         name,
-                relay_url:    '',
-                console_api:  q.get('console_api') || '',
-                invite_token: inviteToken,
-            }
-        }));
-        joinBtn.disabled    = true;
-        joinBtn.textContent = 'Conectando…';
+    function renderInviteIdle() {
+        if (!invitePanel) return;
+        invitePanel.innerHTML = `
+            <div class="invite-banner">🎵 Sesión en curso — toca “Conectar” y escribe tu nombre</div>
+            <div class="row">
+                <button id="inviteOpenPromptButton" class="toggle-button">Conectar a la sesión</button>
+            </div>
+        `;
+        const openBtn = document.getElementById('inviteOpenPromptButton');
+        if (openBtn) openBtn.addEventListener('click', openJoinPrompt);
     }
 
-    joinBtn.addEventListener('click', tryJoin);
-    nameInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') tryJoin(); });
+    function renderInviteConnected() {
+        if (!invitePanel) return;
+        invitePanel.innerHTML = `
+            <div class="invite-banner">✅ Conectado como ${inviteParticipantName || 'Participante'}</div>
+            <div class="row">
+                <button id="inviteDisconnectButton" class="toggle-button">Desconectar</button>
+            </div>
+        `;
+        const disconnectBtn = document.getElementById('inviteDisconnectButton');
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', function () {
+                inviteConnected = false;
+                window.dispatchEvent(new CustomEvent('session:disconnect'));
+                renderInviteIdle();
+            });
+        }
+    }
+
+    function openJoinPrompt() {
+        const existing = document.getElementById('inviteJoinPromptOverlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'inviteJoinPromptOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:2200;';
+
+        const box = document.createElement('div');
+        box.style.cssText = 'background:black;border:1px solid lime;padding:14px;max-width:420px;width:92%;color:lime;font-family:Courier New,monospace;';
+        box.innerHTML = `
+            <div style="font-size:16px;margin-bottom:8px">Unirse a la sesión</div>
+            <div style="font-size:13px;margin-bottom:8px">Escribe tu nombre para conectarte.</div>
+            <input id="invitePromptNameInput" class="input-range wide" style="width:100%;margin-bottom:10px" placeholder="Tu nombre..." value="${inviteParticipantName || ''}" />
+            <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+                <button id="invitePromptCancel" class="toggle-button">Cancelar</button>
+                <button id="invitePromptConnect" class="toggle-button">Conectar</button>
+            </div>
+        `;
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        const input = document.getElementById('invitePromptNameInput');
+        const cancelBtn = document.getElementById('invitePromptCancel');
+        const connectBtn = document.getElementById('invitePromptConnect');
+
+        function closePrompt() {
+            const node = document.getElementById('inviteJoinPromptOverlay');
+            if (node) node.remove();
+        }
+
+        function connectFromPrompt() {
+            const name = (input && input.value || '').trim();
+            if (!name) {
+                if (input) { input.focus(); input.style.outline = '2px solid red'; }
+                return;
+            }
+            inviteParticipantName = name;
+            closePrompt();
+            window.dispatchEvent(new CustomEvent('session:connect', {
+                detail: {
+                    session_id:   sessionId,
+                    password:     '',
+                    name:         name,
+                    relay_url:    '',
+                    console_api:  q.get('console_api') || '',
+                    invite_token: inviteToken,
+                }
+            }));
+        }
+
+        if (input) {
+            setTimeout(() => input.focus(), 20);
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') connectFromPrompt();
+            });
+        }
+        if (cancelBtn) cancelBtn.addEventListener('click', closePrompt);
+        if (connectBtn) connectBtn.addEventListener('click', connectFromPrompt);
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) closePrompt(); });
+    }
+
+    renderInviteIdle();
+    setTimeout(openJoinPrompt, 40);
 
     window.addEventListener('ws:setState', function (e) {
         const s = e.detail && e.detail.state;
-        if      (s === 'connected')    { joinBtn.textContent = '\u2705 Conectado';         joinBtn.disabled = true; }
-        else if (s === 'error')        { joinBtn.textContent = 'Error \u2014 reintentar'; joinBtn.disabled = false; joinBtn.onclick = tryJoin; }
-        else if (s === 'connecting')   { joinBtn.textContent = 'Conectando\u2026';         joinBtn.disabled = true; }
-        else if (s === 'disconnected') { joinBtn.textContent = 'Unirse a la sesi\u00f3n'; joinBtn.disabled = false; }
+        if (s === 'connected') {
+            inviteConnected = true;
+            renderInviteConnected();
+            return;
+        }
+        if (s === 'error') {
+            inviteConnected = false;
+            renderInviteIdle();
+            return;
+        }
+        if (s === 'disconnected' && !inviteConnected) {
+            renderInviteIdle();
+        }
     });
 })();
 </script>
