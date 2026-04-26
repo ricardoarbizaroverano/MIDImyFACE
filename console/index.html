@@ -208,6 +208,11 @@ function midiToNoteName(n){ const N=["C","C#","D","D#","E","F","F#","G","G#","A"
 const GESTURE_FROM_CH = {1:"mouth",2:"smile",3:"leftWink",4:"rightWink",5:"noseX",6:"noseY"};
 const GESTURE_LABEL   = {mouth:"Mouth",smile:"Smile",leftWink:"Left Wink",rightWink:"Right Wink",noseX:"Nose X",noseY:"Nose Y"};
 const ALL_GESTURES    = ["mouth","smile","leftWink","rightWink","noseX","noseY"];
+const GESTURE_ALIASES = { mouthOpen: "mouth" };
+function canonicalGestureName(name){
+  if(!name) return "";
+  return GESTURE_ALIASES[name] || name;
+}
 
 /* ===== Global routed gesture (override) ===== */
 let routedGesture = "mouth";
@@ -368,7 +373,15 @@ async function createSession(){
 
 /* ===== Model ===== */
 function makePerformer(id, name){
-  const gestures={}; ALL_GESTURES.forEach(g=> gestures[g]={value:0, route:true, mute:false, solo:false});
+  const gestures={};
+  ALL_GESTURES.forEach(g=> gestures[g]={
+    value:0,
+    route:true,
+    mute:false,
+    solo:false,
+    signalMode:"—",
+    lastNoteName:"—"
+  });
   return {
     id, name, connected:true,
     assignedOutChannel:1, mute:false, solo:false, notesRoute:true,
@@ -419,6 +432,24 @@ function pickCCSourceGesture(p){
 }
 function ccNumberForGesture(g){
   return DEFAULT_CC_FOR_GESTURE[g] ?? 11;
+}
+function shouldDisplayGesture(p,g){
+  return !!p && !p.mute && !p.gestures[g]?.mute;
+}
+function updateGestureMetaUI(id,g){
+  const card=document.querySelector(`[data-id="${id}"]`); if(!card) return;
+  const p = participants.get(id); if(!p) return;
+  const modeEl = card.querySelector(`[data-mode="${g}"]`);
+  const noteEl = card.querySelector(`[data-note="${g}"]`);
+  if(modeEl) modeEl.textContent = p.gestures[g]?.signalMode || '—';
+  if(noteEl) noteEl.textContent = p.gestures[g]?.lastNoteName || '—';
+}
+function resolveGestureFromPayload(d, p){
+  const payloadGesture = canonicalGestureName(d?.name || d?.gesture);
+  if(payloadGesture && ALL_GESTURES.includes(payloadGesture)) return payloadGesture;
+  const last = canonicalGestureName(p?.lastGesture || '');
+  if(last && ALL_GESTURES.includes(last)) return last;
+  return 'mouth';
 }
 
 /* ===== MIDI out helpers ===== */
@@ -501,6 +532,7 @@ function renderCard(p, fresh=false){
           <div class="gbox" data-gesture="${g}">
             <div class="gname"><span>${GESTURE_LABEL[g]}</span><span class="led" data-ledg="${g}"></span></div>
             <div class="meter"><div class="mbar ${p.gestures[g].route?'active':'inactive'}" data-bar="${g}" style="width:0%"></div></div>
+            <div class="small" style="margin-top:4px">sig=<span data-mode="${g}">${p.gestures[g].signalMode || '—'}</span> note=<span data-note="${g}">${p.gestures[g].lastNoteName || '—'}</span></div>
             <div class="rowx">
               <button class="tog" data-r="${g}">Route</button>
               <button class="tog" data-gm="${g}">M</button>
@@ -581,19 +613,18 @@ function noteLED(id,on){
 }
 function updateGestureUI(id,g,value){
   const card=document.querySelector(`[data-id="${id}"]`); if(!card) return;
+  const p = participants.get(id); if(!p) return;
+  if(!shouldDisplayGesture(p,g)) return;
   const bar=card.querySelector(`[data-bar="${g}"]`);
   if(bar) bar.style.width = (clamp(value,0,127)/127*100)+'%';
   const vEl=card.querySelector(`[data-v="${g}"]`); if(vEl) vEl.textContent=clamp(value,0,127);
   const ledg=card.querySelector(`[data-ledg="${g}"]`); if(ledg){ ledg.className='led ok'; setTimeout(()=>ledg.className='led',80); }
 
   // highlight whichever gesture is currently routed for this performer
-  const p = participants.get(id);
-  if (p) {
-    const active = pickCCSourceGesture(p);
-    card.querySelectorAll('.gbox[data-gesture]').forEach(el=>{
-      el.classList.toggle('active', el.getAttribute('data-gesture') === active);
-    });
-  }
+  const active = pickCCSourceGesture(p);
+  card.querySelectorAll('.gbox[data-gesture]').forEach(el=>{
+    el.classList.toggle('active', el.getAttribute('data-gesture') === active);
+  });
 }
 
 /* ===== Message handling (host side) ===== */
@@ -626,13 +657,15 @@ function handleRelayMessage(m){
 
     case "midi/cc": {
       const d=m.data||{}; const p=ensurePerf(d.from,d.performer_name||d.name);
-      const payloadGesture = d.name || d.gesture;
+      const payloadGesture = canonicalGestureName(d.name || d.gesture);
       const gkey = payloadGesture && ALL_GESTURES.includes(payloadGesture) ? payloadGesture : GESTURE_FROM_CH[d.channel];
       if(gkey){
         const val = Number(d.value)|0;
         p.gestures[gkey].value = val;
+        p.gestures[gkey].signalMode = 'CC';
         p.lastGesture = gkey;
         renderCard(p);
+        updateGestureMetaUI(p.id,gkey);
         updateGestureUI(p.id,gkey,val);
 
         // route only from the picked CC source for this performer
@@ -646,7 +679,7 @@ function handleRelayMessage(m){
 
     case "gesture/update": {
       const d=m.data||{}; const p=ensurePerf(d.from,d.performer_name||d.name);
-      const gkey=d.name||d.gesture; if(ALL_GESTURES.includes(gkey)){
+      const gkey=canonicalGestureName(d.name||d.gesture); if(ALL_GESTURES.includes(gkey)){
         const val=Number(d.value)|0; p.gestures[gkey].value=val; p.lastGesture=gkey; renderCard(p); updateGestureUI(p.id,gkey,val);
       }
       return;
@@ -655,7 +688,11 @@ function handleRelayMessage(m){
     case "midi/note_on": {
       const d=m.data||{}; const p=ensurePerf(d.from,d.performer_name||d.name);
       const note=Number(d.note)|0, vel=(Number(d.vel ?? d.velocity)|0)||100;
+      const gkey = resolveGestureFromPayload(d, p);
       p.lastNote={on:true,note,vel}; noteLED(p.id,true);
+      p.gestures[gkey].signalMode = 'NOTE';
+      p.gestures[gkey].lastNoteName = midiToNoteName(note);
+      updateGestureMetaUI(p.id,gkey);
       if(notesRoutable(p)) sendNote(true,note,vel,p.assignedOutChannel);
       if(p.audio.on){ ensureAudioNodes(p).then(()=> playLocal(p,note,vel,true)); }
       return;
@@ -663,7 +700,11 @@ function handleRelayMessage(m){
     case "midi/note_off": {
       const d=m.data||{}; const p=ensurePerf(d.from,d.performer_name||d.name);
       const note=Number(d.note)|0, vel=(Number(d.vel ?? d.velocity)|0)||0;
+      const gkey = resolveGestureFromPayload(d, p);
       noteLED(p.id,false);
+      p.gestures[gkey].signalMode = 'NOTE';
+      p.gestures[gkey].lastNoteName = midiToNoteName(note);
+      updateGestureMetaUI(p.id,gkey);
       if(notesRoutable(p)) sendNote(false,note,vel,p.assignedOutChannel);
       if(p.audio.on){ playLocal(p,note,vel,false); }
       return;
