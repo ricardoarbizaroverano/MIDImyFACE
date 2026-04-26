@@ -378,6 +378,23 @@
         vel: d.vel ?? d.velocity ?? 0,
       }});
     });
+
+    window.addEventListener('face/landmarks', (evt) => {
+      if (!MMFRelay.isConnected()) return;
+      const d = readDetail(evt);
+      const incoming = Array.isArray(d.points) ? d.points : [];
+      if (!incoming.length) return;
+      const points = incoming
+        .slice(0, 220)
+        .map((p) => ({ x: Number(p?.x), y: Number(p?.y) }))
+        .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
+        .map((p) => ({ x: Math.max(0, Math.min(1, p.x)), y: Math.max(0, Math.min(1, p.y)) }));
+      if (!points.length) return;
+      safeSend({ type: 'face/landmarks', data: {
+        points,
+        ts: Number(d.ts) || Date.now(),
+      }});
+    });
   
     console.log('[MMF] ws-bridge loaded');
   })();

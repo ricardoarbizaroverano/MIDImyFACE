@@ -52,6 +52,8 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
 .warnbar{border:1px solid var(--line);padding:6px 8px;color:var(--led-warn)}
 /* highlight the routed gesture inside a performer card */
 .gbox.active{ outline:1px solid var(--hi); border-radius:6px; }
+.landbox{border:1px dashed var(--line);padding:6px}
+.landcanvas{width:100%;height:128px;display:block;background:#021028;border:1px solid var(--line)}
 .loading-wrap{margin-top:10px;padding:10px;border:1px solid var(--line);background:#062149}
 .loading-row{display:flex;align-items:center;gap:8px}
 .spinner{width:12px;height:12px;border:2px solid #24508f;border-top-color:var(--hi);border-radius:50%;animation:spin .8s linear infinite}
@@ -156,6 +158,7 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
 
       <button id="ping" class="btn mini">PING</button>
       <button id="panic" class="btn mini">PANIC</button>
+      <button id="openPerformanceViewBtn" class="btn mini">PERFORMANCE VIEW</button>
     </div>
   </div>
 
@@ -249,7 +252,295 @@ let tpIn=0, tpOut=0;
 let hostAuthToken = localStorage.getItem('mmf_console_host_auth') || "";
 let hostProfile = null;
 let createdInviteLink = "";
+let performanceViewWindow = null;
+let performanceFocusedParticipantId = null;
+let performanceSingleClickFocus = false;
 setInterval(()=>{ el('tpIn').textContent=tpIn; el('tpOut').textContent=tpOut; tpIn=0; tpOut=0; },1000);
+
+function drawLandmarkDots(ctx, w, h, pts){
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = '#041a3a';
+  ctx.fillRect(0,0,w,h);
+  ctx.fillStyle = '#1d3f74';
+  ctx.fillRect(0,h*0.68,w,1);
+  if(pts.length){
+    ctx.fillStyle = '#23ff8a';
+    for(let i=0;i<pts.length;i++){
+      const px = pts[i].x * w;
+      const py = pts[i].y * h;
+      ctx.beginPath();
+      ctx.arc(px, py, 1.2, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+function getPerformanceCols(count){
+  if(count <= 1) return 1;
+  if(count === 2) return 2;
+  return Math.ceil(Math.sqrt(count));
+}
+
+function getPerformanceParticipants(){
+  return [...participants.values()]
+    .filter(p=>p.connected)
+    .map(p=>({
+      id: p.id,
+      name: p.name || p.id,
+      points: p.landmarks?.points || [],
+      ts: p.landmarks?.ts || 0,
+    }));
+}
+
+function ensurePerformanceViewWindow(){
+  if(performanceViewWindow && !performanceViewWindow.closed) return performanceViewWindow;
+  performanceViewWindow = window.open('', 'mmf-performance-view', 'popup=yes,resizable=yes,width=1280,height=820');
+  if(!performanceViewWindow){
+    setStatus('Popup blocked — allow popups to open Performance View');
+    return null;
+  }
+
+  const d = performanceViewWindow.document;
+  d.open();
+  d.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MIDImyFACE Performance View</title>
+  <style>
+    :root{--bg:#041a3a;--line:#0b2f63;--fg:#bfe8ff;--hi:#23ff8a;--dim:#7fb3ff}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .root{width:100%;height:100%;display:flex;flex-direction:column}
+    .toolbar{display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--line);background:#031430}
+    .toolbar .grow{flex:1}
+    .toolbtn{background:#07224a;color:var(--fg);border:1px solid var(--line);padding:6px 10px;font-family:inherit;font-size:12px;cursor:pointer}
+    .toolbtn.active{outline:1px solid var(--hi)}
+    .hint{font-size:12px;color:var(--dim)}
+    .stage{width:100%;height:100%;display:grid;gap:8px;padding:8px;min-height:0;flex:1}
+    .tile{border:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:#031430}
+    .tile.focused{outline:1px solid var(--hi)}
+    .frame{flex:1;min-height:0;padding:6px}
+    .canvas{width:100%;height:100%;display:block;border:1px solid var(--line);background:#021028}
+    .name{font-size:14px;padding:8px;color:var(--fg);border-top:1px solid var(--line);display:flex;align-items:center;gap:8px}
+    .label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+    .pinbtn{background:#07224a;color:var(--fg);border:1px solid var(--line);padding:3px 7px;font-size:12px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s ease}
+    .tile:hover .pinbtn,.tile:focus-within .pinbtn{opacity:1;pointer-events:auto}
+    .pinbtn.active{opacity:1;pointer-events:auto}
+    .pinbtn.active{outline:1px solid var(--hi);color:var(--hi)}
+    .empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--dim);border:1px dashed var(--line)}
+  </style>
+</head>
+<body>
+  <div class="root">
+    <div class="toolbar">
+      <button id="pvSingleClickBtn" class="toolbtn">SINGLE CLICK: OFF</button>
+      <button id="pvBackBtn" class="toolbtn">BACK TO GRID</button>
+      <button id="pvFullscreenBtn" class="toolbtn">FULLSCREEN</button>
+      <button id="pvCloseBtn" class="toolbtn">CLOSE</button>
+      <div class="grow"></div>
+      <div id="pvHint" class="hint">Shortcuts: pin or double-click tile = focus · F = fullscreen · Esc = back/close</div>
+    </div>
+    <div id="stage" class="stage"></div>
+  </div>
+</body>
+</html>`);
+  d.close();
+
+  function togglePopupFullscreen(){
+    const doc = performanceViewWindow?.document;
+    if(!doc) return;
+    if(doc.fullscreenElement){
+      doc.exitFullscreen?.().catch(()=>{});
+      return;
+    }
+    doc.documentElement.requestFullscreen?.().catch(()=>{});
+  }
+
+  function closePopup(){
+    if(performanceViewWindow && !performanceViewWindow.closed){
+      try{ performanceViewWindow.close(); }catch{}
+    }
+    performanceFocusedParticipantId = null;
+    performanceViewWindow = null;
+  }
+
+  function clearFocus(){
+    if(!performanceFocusedParticipantId) return;
+    performanceFocusedParticipantId = null;
+    if(performanceViewWindow && !performanceViewWindow.closed){
+      renderPerformanceView();
+    }
+  }
+
+  function updateSingleClickButton(){
+    const btn = d.getElementById('pvSingleClickBtn');
+    if(!btn) return;
+    btn.textContent = performanceSingleClickFocus ? 'SINGLE CLICK: ON' : 'SINGLE CLICK: OFF';
+    btn.classList.toggle('active', performanceSingleClickFocus);
+  }
+
+  const singleBtn = d.getElementById('pvSingleClickBtn');
+  const backBtn = d.getElementById('pvBackBtn');
+  const fullBtn = d.getElementById('pvFullscreenBtn');
+  const closeBtn = d.getElementById('pvCloseBtn');
+  if(singleBtn){
+    singleBtn.addEventListener('click', ()=>{
+      performanceSingleClickFocus = !performanceSingleClickFocus;
+      updateSingleClickButton();
+      if(performanceViewWindow && !performanceViewWindow.closed) renderPerformanceView();
+    });
+  }
+  if(backBtn) backBtn.addEventListener('click', clearFocus);
+  if(fullBtn) fullBtn.addEventListener('click', togglePopupFullscreen);
+  if(closeBtn) closeBtn.addEventListener('click', closePopup);
+  updateSingleClickButton();
+
+  const keyHandler = (evt) => {
+    const key = String(evt.key || '').toLowerCase();
+    if(key === 'f'){
+      evt.preventDefault();
+      togglePopupFullscreen();
+      return;
+    }
+    if(key === 'escape'){
+      evt.preventDefault();
+      if(performanceFocusedParticipantId){
+        clearFocus();
+        return;
+      }
+      closePopup();
+    }
+  };
+  performanceViewWindow.addEventListener('keydown', keyHandler);
+  d.addEventListener('keydown', keyHandler);
+
+  performanceViewWindow.addEventListener('beforeunload', ()=>{
+    performanceViewWindow = null;
+  });
+
+  return performanceViewWindow;
+}
+
+function renderPerformanceView(){
+  const w = ensurePerformanceViewWindow();
+  if(!w || w.closed) return;
+  const d = w.document;
+  const stage = d.getElementById('stage');
+  if(!stage) return;
+  const singleBtn = d.getElementById('pvSingleClickBtn');
+  const backBtn = d.getElementById('pvBackBtn');
+  const hint = d.getElementById('pvHint');
+
+  const items = getPerformanceParticipants();
+  if(!items.length){
+    performanceFocusedParticipantId = null;
+    if(singleBtn){
+      singleBtn.textContent = performanceSingleClickFocus ? 'SINGLE CLICK: ON' : 'SINGLE CLICK: OFF';
+      singleBtn.classList.toggle('active', performanceSingleClickFocus);
+    }
+    if(backBtn) backBtn.classList.remove('active');
+    if(backBtn) backBtn.disabled = true;
+    if(hint) hint.textContent = performanceSingleClickFocus
+      ? 'Single-click focus ON · double-click also works · F = fullscreen · Esc = back/close'
+      : 'Shortcuts: pin or double-click tile = focus · F = fullscreen · Esc = back/close';
+    stage.style.gridTemplateColumns = '1fr';
+    stage.innerHTML = `<div class="empty">Waiting for performers…</div>`;
+    return;
+  }
+
+  if(performanceFocusedParticipantId && !items.some(i=>i.id === performanceFocusedParticipantId)){
+    performanceFocusedParticipantId = null;
+  }
+
+  const activeItems = performanceFocusedParticipantId
+    ? items.filter(i=>i.id === performanceFocusedParticipantId)
+    : items;
+
+  if(backBtn){
+    backBtn.disabled = !performanceFocusedParticipantId;
+    backBtn.classList.toggle('active', !!performanceFocusedParticipantId);
+  }
+  if(singleBtn){
+    singleBtn.textContent = performanceSingleClickFocus ? 'SINGLE CLICK: ON' : 'SINGLE CLICK: OFF';
+    singleBtn.classList.toggle('active', performanceSingleClickFocus);
+  }
+  if(hint){
+    hint.textContent = performanceFocusedParticipantId
+      ? 'Focused view · Esc = back · F = fullscreen'
+      : (performanceSingleClickFocus
+          ? 'Single-click focus ON · double-click also works · F = fullscreen · Esc = back/close'
+          : 'Shortcuts: pin or double-click tile = focus · F = fullscreen · Esc = back/close');
+  }
+
+  const cols = getPerformanceCols(activeItems.length);
+  stage.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+
+  const existingIds = new Set(activeItems.map(i=>i.id));
+  stage.querySelectorAll('[data-pid]').forEach(node=>{
+    if(!existingIds.has(node.getAttribute('data-pid'))) node.remove();
+  });
+
+  activeItems.forEach(item=>{
+    let tile = stage.querySelector(`[data-pid="${item.id}"]`);
+    if(!tile){
+      tile = d.createElement('div');
+      tile.className = 'tile';
+      tile.setAttribute('data-pid', item.id);
+      tile.innerHTML = `
+        <div class="frame"><canvas class="canvas" data-canvas width="1280" height="720"></canvas></div>
+        <div class="name">
+          <span class="label" data-name></span>
+          <button class="pinbtn" data-pin>📌</button>
+        </div>
+      `;
+      stage.appendChild(tile);
+      tile.addEventListener('click', ()=>{
+        if(!performanceSingleClickFocus) return;
+        performanceFocusedParticipantId = performanceFocusedParticipantId === item.id ? null : item.id;
+        renderPerformanceView();
+      });
+      tile.addEventListener('dblclick', ()=>{
+        performanceFocusedParticipantId = item.id;
+        renderPerformanceView();
+      });
+      const pinBtn = tile.querySelector('[data-pin]');
+      if(pinBtn){
+        pinBtn.addEventListener('click', (evt)=>{
+          evt.preventDefault();
+          evt.stopPropagation();
+          performanceFocusedParticipantId = performanceFocusedParticipantId === item.id ? null : item.id;
+          renderPerformanceView();
+        });
+      }
+    }
+
+    tile.classList.toggle('focused', performanceFocusedParticipantId === item.id);
+
+    const nameEl = tile.querySelector('[data-name]');
+    if(nameEl) nameEl.textContent = item.name;
+    const pinBtn = tile.querySelector('[data-pin]');
+    if(pinBtn){
+      const isFocused = performanceFocusedParticipantId === item.id;
+      pinBtn.classList.toggle('active', isFocused);
+      pinBtn.title = isFocused ? 'Unpin (back to grid)' : 'Pin (focus this performer)';
+      pinBtn.setAttribute('aria-label', pinBtn.title);
+    }
+
+    const canvas = tile.querySelector('[data-canvas]');
+    if(canvas){
+      const displayW = Math.max(320, Math.floor(canvas.clientWidth || 640));
+      const displayH = Math.max(180, Math.floor(canvas.clientHeight || 360));
+      if(canvas.width !== displayW || canvas.height !== displayH){
+        canvas.width = displayW;
+        canvas.height = displayH;
+      }
+      const ctx = canvas.getContext('2d');
+      if(ctx) drawLandmarkDots(ctx, canvas.width, canvas.height, item.points || []);
+    }
+  });
+}
 
 /* ===== UI bits ===== */
 function setWS(state){ wsConnected=(state==='connected'); el('kvWS').textContent=state; el('ledWS').className='led '+(state==='connected'?'ok':state==='connecting'?'warn':state==='error'?'bad':''); }
@@ -391,6 +682,7 @@ function makePerformer(id, name){
     gestures,
     lastNote:{on:false,note:60,vel:100},
     lastGesture:"—",
+    landmarks:{ points:[], ts:0 },
     audio:{on:false, instrument:"musicBox", gain:null, sampler:null, volume:0.8, ready:false}
   };
 }
@@ -450,6 +742,30 @@ function resolveGestureFromPayload(d, p){
   const last = canonicalGestureName(p?.lastGesture || '');
   if(last && ALL_GESTURES.includes(last)) return last;
   return 'mouth';
+}
+function normalizeLandmarkPoints(raw){
+  if(!Array.isArray(raw)) return [];
+  return raw
+    .map(pt=>({ x:Number(pt?.x), y:Number(pt?.y) }))
+    .filter(pt=>Number.isFinite(pt.x) && Number.isFinite(pt.y))
+    .map(pt=>({ x:clamp(pt.x,0,1), y:clamp(pt.y,0,1) }));
+}
+function drawLandmarkCanvas(id){
+  const card=document.querySelector(`[data-id="${id}"]`); if(!card) return;
+  const p = participants.get(id); if(!p) return;
+  const canvas = card.querySelector('[data-landmarks]'); if(!canvas) return;
+  const pts = p.landmarks?.points || [];
+  const ctx = canvas.getContext('2d'); if(!ctx) return;
+  const w = canvas.width, h = canvas.height;
+  drawLandmarkDots(ctx, w, h, pts);
+  const lmState = card.querySelector('[data-lmstate]');
+  if(lmState){
+    if(!pts.length) lmState.textContent = 'no frame';
+    else {
+      const age = p.landmarks?.ts ? Math.max(0, Date.now() - p.landmarks.ts) : 0;
+      lmState.textContent = `${pts.length} pts · ${age}ms`;
+    }
+  }
 }
 
 /* ===== MIDI out helpers ===== */
@@ -525,6 +841,11 @@ function renderCard(p, fresh=false){
         <button class="tog" data-audio>OFF</button>
         <select data-ins>${Object.keys(INSTRUMENTS).map(k=>`<option value="${k}">${k}</option>`).join('')}</select>
         <input type="range" min="0" max="1" step="0.01" value="${p.audio?.volume ?? 0.8}" class="mini" style="width:110px" data-vol />
+      </div>
+
+      <div class="landbox" style="margin-bottom:6px">
+        <div class="gname"><span>Face Landmarks</span><span class="small" data-lmstate>no frame</span></div>
+        <canvas class="landcanvas" data-landmarks width="340" height="128"></canvas>
       </div>
 
       <div class="grid" style="grid-template-columns:1fr 1fr 1fr; gap:6px">
@@ -603,6 +924,7 @@ function renderCard(p, fresh=false){
   }
   card.querySelector('[data-led]').className = 'led ' + (p.connected?'ok':'');
   const last = card.querySelector('[data-lastg]'); if(last) last.textContent = p.lastGesture || '—';
+  drawLandmarkCanvas(p.id);
 }
 
 /* ===== UI updates ===== */
@@ -637,11 +959,15 @@ function handleRelayMessage(m){
         const p=ensurePerf(row.participant_id,row.name);
         p.connected=true; if(row.channel) p.assignedOutChannel=row.channel; renderCard(p);
       });
+      if(performanceViewWindow && !performanceViewWindow.closed) renderPerformanceView();
       updateCount(); return;
     }
     case "session/joined": {
       const d=m.data||{}; const p=ensurePerf(d.participant_id,d.name);
-      p.connected=true; if(d.channel) p.assignedOutChannel=d.channel; renderCard(p,true); updateCount(); return;
+      if(d.name) p.name = d.name;
+      p.connected=true; if(d.channel) p.assignedOutChannel=d.channel; renderCard(p,true);
+      if(performanceViewWindow && !performanceViewWindow.closed) renderPerformanceView();
+      updateCount(); return;
     }
     case "session/left": {
       const d = m.data || {};
@@ -651,6 +977,7 @@ function handleRelayMessage(m){
         const card = document.querySelector(`[data-id="${d.participant_id}"]`);
         if (card && card.parentNode) card.parentNode.removeChild(card);
       }
+      if(performanceViewWindow && !performanceViewWindow.closed) renderPerformanceView();
       updateCount();
       return;
     }
@@ -707,6 +1034,18 @@ function handleRelayMessage(m){
       updateGestureMetaUI(p.id,gkey);
       if(notesRoutable(p)) sendNote(false,note,vel,p.assignedOutChannel);
       if(p.audio.on){ playLocal(p,note,vel,false); }
+      return;
+    }
+
+    case "face/landmarks": {
+      const d=m.data||{}; const p=ensurePerf(d.from,d.performer_name||d.name);
+      if(d.performer_name) p.name = d.performer_name;
+      const points = normalizeLandmarkPoints(d.points || d.landmarks || []);
+      if(!points.length) return;
+      p.landmarks.points = points;
+      p.landmarks.ts = Number(d.ts) || Date.now();
+      drawLandmarkCanvas(p.id);
+      if(performanceViewWindow && !performanceViewWindow.closed) renderPerformanceView();
       return;
     }
 
@@ -796,6 +1135,14 @@ el('panic').onclick= ()=>{
     for(let n=0;n<128;n++){ out.send([st(0x80,ch),n,0]); tpOut++; }
   }
   setStatus('panic sent');
+};
+
+el('openPerformanceViewBtn').onclick = ()=>{
+  const w = ensurePerformanceViewWindow();
+  if(!w) return;
+  renderPerformanceView();
+  w.focus();
+  setStatus('performance view opened');
 };
 
 /* ===== Wire-up ===== */

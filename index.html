@@ -912,6 +912,73 @@
     });
 })();
 
+(function () {
+    const STRIDE = 3;
+    const MAX_POINTS = 180;
+    const EMIT_MS = 90;
+    let lastEmit = 0;
+    let wrapTimer = null;
+    let pollTimer = null;
+
+    function samplePoints(raw) {
+        if (!Array.isArray(raw) || !raw.length) return [];
+        const points = [];
+        for (let i = 0; i < raw.length && points.length < MAX_POINTS; i += STRIDE) {
+            const p = raw[i];
+            if (!p) continue;
+            const x = Number(p.x);
+            const y = Number(p.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+            points.push({ x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) });
+        }
+        return points;
+    }
+
+    function emitLandmarks(raw) {
+        const now = Date.now();
+        if (now - lastEmit < EMIT_MS) return;
+        const points = samplePoints(raw);
+        if (points.length < 20) return;
+        lastEmit = now;
+        window.dispatchEvent(new CustomEvent('face/landmarks', {
+            detail: { points, ts: now }
+        }));
+    }
+
+    function tryWrapDrawLandmarks() {
+        if (window.__MMF_LANDMARKS_WRAPPED__) return true;
+        if (typeof window.drawLandmarks !== 'function') return false;
+        const original = window.drawLandmarks;
+        window.drawLandmarks = function () {
+            emitLandmarks(arguments[0]);
+            return original.apply(this, arguments);
+        };
+        window.__MMF_LANDMARKS_WRAPPED__ = true;
+        return true;
+    }
+
+    window.addEventListener('load', () => {
+        tryWrapDrawLandmarks();
+        wrapTimer = setInterval(() => {
+            if (tryWrapDrawLandmarks() && wrapTimer) {
+                clearInterval(wrapTimer);
+                wrapTimer = null;
+            }
+        }, 500);
+
+        pollTimer = setInterval(() => {
+            try {
+                emitLandmarks(window.currentLandmarks);
+            } catch (_) {}
+        }, 180);
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (wrapTimer) clearInterval(wrapTimer);
+        if (pollTimer) clearInterval(pollTimer);
+    });
+})();
+
 /* ── Invite-link auto-join ────────────────────────────────────────────────── */
 (function () {
     const q           = new URLSearchParams(window.location.search);

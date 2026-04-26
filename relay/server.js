@@ -759,6 +759,7 @@ wss.on('connection', (ws, req) => {
       'midi/cc',
       'midi/note_on',
       'midi/note_off',
+      'face/landmarks',
       'percussion/trigger',
       'envelope/update',
       'mode/change',
