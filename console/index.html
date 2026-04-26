@@ -52,6 +52,14 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
 .warnbar{border:1px solid var(--line);padding:6px 8px;color:var(--led-warn)}
 /* highlight the routed gesture inside a performer card */
 .gbox.active{ outline:1px solid var(--hi); border-radius:6px; }
+.loading-wrap{margin-top:10px;padding:10px;border:1px solid var(--line);background:#062149}
+.loading-row{display:flex;align-items:center;gap:8px}
+.spinner{width:12px;height:12px;border:2px solid #24508f;border-top-color:var(--hi);border-radius:50%;animation:spin .8s linear infinite}
+.loading-text{color:var(--fg);font-size:12px}
+.loading-track{margin-top:8px;height:4px;background:#12386f;overflow:hidden}
+.loading-bar{height:100%;width:30%;background:linear-gradient(90deg,var(--hi),#23ff8a);animation:slide 1.2s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slide{0%{transform:translateX(-140%)}100%{transform:translateX(360%)}}
 </style>
 </head>
 <body>
@@ -73,6 +81,13 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
     <div id="authStatus" class="small" style="margin-top:8px">ready</div>
     <div class="row" style="margin-top:10px">
       <div class="grow"></div><button id="loginHostBtn" class="btn">SIGN IN</button>
+    </div>
+    <div id="loadingAuth" class="loading-wrap hidden" aria-live="polite">
+      <div class="loading-row">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="loadingAuthText" class="loading-text">Working…</span>
+      </div>
+      <div class="loading-track"><div class="loading-bar"></div></div>
     </div>
   </div>
 
@@ -240,6 +255,24 @@ function setStatus(s){
   const authStatus = el('authStatus');
   if(authStatus) authStatus.textContent=s;
 }
+function setLoading(message){
+  const box = el('loadingAuth');
+  const txt = el('loadingAuthText');
+  if(txt && message) txt.textContent = message;
+  if(box) box.classList.remove('hidden');
+}
+function clearLoading(){
+  const box = el('loadingAuth');
+  if(box) box.classList.add('hidden');
+}
+function setButtonsBusy(isBusy){
+  const loginBtn = el('loginHostBtn');
+  const createBtn = el('createSessionBtn');
+  const connectBtn = el('connectHostBtn');
+  if(loginBtn) loginBtn.disabled = !!isBusy;
+  if(createBtn) createBtn.disabled = !!isBusy;
+  if(connectBtn) connectBtn.disabled = !!isBusy;
+}
 function updateCount(){
   const fromState = [...participants.values()].filter(p=>p.connected).length;
   const fromDom   = document.querySelectorAll('#rack [data-id]').length;
@@ -294,8 +327,11 @@ async function loginHost(){
   const username = (el('hostUser').value || '').trim();
   const userPass = el('hostPass').value || '';
   if(!username || !userPass){ setStatus('username/password required'); return; }
+  setButtonsBusy(true);
+  setLoading('Checking credentials…');
   try{
     const result = await apiPost('/api/auth/login', { username, password: userPass }, false);
+    setLoading('Credentials verified. Loading session setup…');
     hostAuthToken = result.token;
     hostProfile = result.user;
     localStorage.setItem('mmf_console_host_auth', hostAuthToken);
@@ -303,6 +339,9 @@ async function loginHost(){
     setStatus(`signed in as ${hostProfile.username}`);
   }catch(err){
     setStatus(`login failed: ${err.message}`);
+  }finally{
+    clearLoading();
+    setButtonsBusy(false);
   }
 }
 
@@ -310,6 +349,8 @@ async function createSession(){
   if(!hostAuthToken){ setStatus('sign in first'); return; }
   const maxParticipants = Number(el('newSessionMax').value || 10);
   const sessionPassword = (el('newSessionPassword').value || '').trim();
+  setButtonsBusy(true);
+  setLoading('Creating session on server…');
   try{
     const result = await apiPost('/api/sessions/create', {
       max_participants: maxParticipants,
@@ -319,6 +360,9 @@ async function createSession(){
     setStatus('session created');
   }catch(err){
     setStatus(`create failed: ${err.message}`);
+  }finally{
+    clearLoading();
+    setButtonsBusy(false);
   }
 }
 
@@ -735,9 +779,13 @@ el('copyCredsBtn').onclick = ()=>{
 
 el('connectHostBtn').onclick = ()=>{
   if(!sessionId || !hostJoinToken){ setStatus('create session first'); return; }
+  setButtonsBusy(true);
+  setLoading('Connecting host socket…');
   $auth.classList.add('hidden');
   $main.classList.remove('hidden');
   shouldStayConnected = true;
+  clearLoading();
+  setButtonsBusy(false);
   connectWS();
 };
 
