@@ -7,3 +7,6 @@ relay/*.log
 
 # macOS
 .DS_Store
+
+# local-only notes
+.sandbox-notes.md

@@ -509,7 +509,7 @@
             <input type="number" id="mouthOpenMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
             <button class="toggle-button" id="mouthOpenScaling" data-i18n="scaling">Escalar</button>
             <button class="toggle-button" id="mouthOpenMute" data-i18n="mute">Mute</button>
-            <button class="toggle-button active" id="mouthOpenSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="mouthOpenSolo" data-i18n="solo">Solo</button>
             <button class="toggle-button" id="mouthOpenControl" data-i18n="control">Control</button>
             <div class="cc-display" id="mouthOpenCC"></div>
             <button class="toggle-button active" id="mouthOpenNotas" data-i18n="notes">Notas</button>
@@ -879,6 +879,39 @@
      <script src="script.js"></script>
      <script src="ws-bridge.js"></script>
      <script>
+/* ── Force startup gesture defaults (no solo, mouth unmuted, others muted) ── */
+(function () {
+    const FACE_GESTURES = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY'];
+
+    function syncButton(id, isActive) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.classList.toggle('active', !!isActive);
+    }
+
+    function applyDefaults() {
+        try {
+            if (typeof soloGestures !== 'undefined' && soloGestures) {
+                FACE_GESTURES.forEach((g) => { soloGestures[g] = false; });
+            }
+            if (typeof muteGestures !== 'undefined' && muteGestures) {
+                FACE_GESTURES.forEach((g) => { muteGestures[g] = g !== 'mouthOpen'; });
+            }
+        } catch (_) {}
+
+        FACE_GESTURES.forEach((g) => {
+            syncButton(`${g}Solo`, false);
+            syncButton(`${g}Mute`, g !== 'mouthOpen');
+        });
+    }
+
+    window.addEventListener('load', () => {
+        applyDefaults();
+        setTimeout(applyDefaults, 150);
+        setTimeout(applyDefaults, 600);
+    });
+})();
+
 /* ── Invite-link auto-join ────────────────────────────────────────────────── */
 (function () {
     const q           = new URLSearchParams(window.location.search);
