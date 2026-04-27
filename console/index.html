@@ -53,7 +53,7 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
 /* highlight the routed gesture inside a performer card */
 .gbox.active{ outline:1px solid var(--hi); border-radius:6px; }
 .landbox{border:1px dashed var(--line);padding:6px}
-.landcanvas{width:100%;height:auto;aspect-ratio:16 / 9;display:block;background:#f3f8ff;border:1px solid var(--line)}
+.landcanvas{width:100%;height:auto;aspect-ratio:16 / 9;display:block;background:#000;border:1px solid var(--line)}
 .loading-wrap{margin-top:10px;padding:10px;border:1px solid var(--line);background:#062149}
 .loading-row{display:flex;align-items:center;gap:8px}
 .spinner{width:12px;height:12px;border:2px solid #24508f;border-top-color:var(--hi);border-radius:50%;animation:spin .8s linear infinite}
@@ -251,11 +251,20 @@ const DEFAULT_CC_FOR_GESTURE = {
   noseX:10,   // Pan
   noseY:91    // Reverb
 };
+const GESTURE_FROM_CC = Object.fromEntries(
+  Object.entries(DEFAULT_CC_FOR_GESTURE).map(([gesture, cc]) => [String(cc), gesture])
+);
 
 /* ===== DOM helpers & state ===== */
 const el = id => document.getElementById(id);
 const $auth = el('auth'), $main = el('main'), $rack = el('rack');
 function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+function randomLandmarkColor(){
+  const hue = Math.floor(Math.random() * 360);
+  const sat = 85 + Math.floor(Math.random() * 15);
+  const light = 58 + Math.floor(Math.random() * 20);
+  return `hsl(${hue} ${sat}% ${light}%)`;
+}
 
 let ws=null, wsConnected=false, pingTimer=null, lastPing=0;
 let sessionId="", password="", hostJoinToken="", reconnectTimer=null, reconnectAttempts=0, shouldStayConnected=false;
@@ -271,9 +280,9 @@ let performanceFocusedParticipantId = null;
 let performanceSingleClickFocus = false;
 setInterval(()=>{ el('tpIn').textContent=tpIn; el('tpOut').textContent=tpOut; tpIn=0; tpOut=0; },1000);
 
-function drawLandmarkDots(ctx, w, h, pts, sourceAspect = 16 / 9){
+function drawLandmarkDots(ctx, w, h, pts, sourceAspect = 16 / 9, pointColor = '#00ffd5'){
   ctx.clearRect(0,0,w,h);
-  ctx.fillStyle = '#f3f8ff';
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0,0,w,h);
 
   const targetAspect = w / Math.max(1, h);
@@ -289,11 +298,11 @@ function drawLandmarkDots(ctx, w, h, pts, sourceAspect = 16 / 9){
   const offX = (w - drawW) * 0.5;
   const offY = (h - drawH) * 0.5;
 
-  ctx.fillStyle = '#dbe4f3';
+  ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(offX, offY + drawH * 0.68, drawW, 1);
 
   if(pts.length){
-    ctx.fillStyle = '#000000';
+    ctx.fillStyle = pointColor;
     for(let i=0;i<pts.length;i++){
       const px = offX + (pts[i].x * drawW);
       const py = offY + (pts[i].y * drawH);
@@ -317,6 +326,7 @@ function getPerformanceParticipants(){
       id: p.id,
       name: p.name || p.id,
       points: p.landmarks?.points || [],
+      color: p.landmarks?.color || '#00ffd5',
       ts: p.landmarks?.ts || 0,
     }));
 }
@@ -351,7 +361,7 @@ function ensurePerformanceViewWindow(){
     .tile{border:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:#031430}
     .tile.focused{outline:1px solid var(--hi)}
     .frame{flex:1;min-height:0;padding:6px}
-    .canvas{width:100%;height:100%;display:block;border:1px solid var(--line);background:#021028}
+    .canvas{width:100%;height:100%;display:block;border:1px solid var(--line);background:#000}
     .name{font-size:14px;padding:8px;color:var(--fg);border-top:1px solid var(--line);display:flex;align-items:center;gap:8px}
     .label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
     .pinbtn{background:#07224a;color:var(--fg);border:1px solid var(--line);padding:3px 7px;font-size:12px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s ease}
@@ -566,7 +576,7 @@ function renderPerformanceView(){
         canvas.height = displayH;
       }
       const ctx = canvas.getContext('2d');
-      if(ctx) drawLandmarkDots(ctx, canvas.width, canvas.height, item.points || []);
+      if(ctx) drawLandmarkDots(ctx, canvas.width, canvas.height, item.points || [], 16 / 9, item.color || '#00ffd5');
     }
   });
 }
@@ -738,8 +748,8 @@ function makePerformer(id, name){
     gestures,
     lastNote:{on:false,note:60,vel:100},
     lastGesture:"—",
-    landmarks:{ points:[], ts:0 },
-    audio:{on:false, instrument:"musicBox", gain:null, sampler:null, volume:0.8, ready:false}
+    landmarks:{ points:[], color: randomLandmarkColor(), ts:0 },
+    audio:{on:false, instrument:"musicBox", gain:null, sampler:null, volume:0.8, ready:false, loadingPromise:null}
   };
 }
 function ensurePerf(id, name){
@@ -813,7 +823,7 @@ function drawLandmarkCanvas(id){
   const pts = p.landmarks?.points || [];
   const ctx = canvas.getContext('2d'); if(!ctx) return;
   const w = canvas.width, h = canvas.height;
-  drawLandmarkDots(ctx, w, h, pts);
+  drawLandmarkDots(ctx, w, h, pts, 16 / 9, p.landmarks?.color || '#00ffd5');
   const lmState = card.querySelector('[data-lmstate]');
   if(lmState){
     if(!pts.length) lmState.textContent = 'no frame';
@@ -832,11 +842,10 @@ function sendNote(on,n,vel,ch){
   if(!out) return;
   out.send([ st(on?0x90:0x80,ch), clamp(n,0,127), clamp(vel,0,127) ]); tpOut++;
 }
-function sendCC_Perf(p,val){
+function sendCC_Perf(p, gesture, val){
   const out = getOutById(ccOutId);
   if(!out) return;
-  const g = pickCCSourceGesture(p);
-  const ccNum = ccNumberForGesture(g);
+  const ccNum = ccNumberForGesture(gesture);
   out.send([ st(0xB0, p.assignedOutChannel), clamp(ccNum,0,127), clamp(val,0,127) ]); tpOut++;
 }
 
@@ -850,15 +859,33 @@ async function ensureAudioNodes(p){
     try { await Tone.start(); } catch(e) { console.warn('Tone.start() blocked:', e); }
   }
   if (p.audio.ready) return;
+  if (p.audio.loadingPromise) {
+    await p.audio.loadingPromise;
+    return;
+  }
   if (!p.audio.gain) { p.audio.gain = new Tone.Gain(p.audio.volume).toDestination(); }
-  await swapInstrument(p, p.audio.instrument);
-  p.audio.ready = true;
+  p.audio.loadingPromise = swapInstrument(p, p.audio.instrument)
+    .then(() => { p.audio.ready = true; })
+    .catch((err) => {
+      console.warn('[Console] sampler load failed, keeping previous state:', err);
+    })
+    .finally(() => { p.audio.loadingPromise = null; });
+  await p.audio.loadingPromise;
 }
 async function swapInstrument(p, name){
   p.audio.instrument = name;
   if(p.audio.sampler){ try{ p.audio.sampler.dispose(); }catch{} p.audio.sampler=null; }
   const def = INSTRUMENTS[name] || INSTRUMENTS.musicBox;
-  p.audio.sampler = new Tone.Sampler({ urls:def.urls, release:def.release||0.3, onload:()=>{} }).connect(p.audio.gain);
+  await new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    p.audio.sampler = new Tone.Sampler({ urls:def.urls, release:def.release||0.3, onload:done }).connect(p.audio.gain);
+    setTimeout(done, 2500);
+  });
 }
 function playLocal(p, note, vel, on){
   if(!p.audio.on || !p.audio.sampler) return;
@@ -958,7 +985,10 @@ function renderCard(p, fresh=false){
 
     selIns.onchange = async ()=>{
       p.audio.instrument = selIns.value;
-      if(p.audio.on){ await ensureAudioNodes(p); await swapInstrument(p, p.audio.instrument); }
+      if(p.audio.on){
+        p.audio.ready = false;
+        await ensureAudioNodes(p);
+      }
     };
     vol.oninput = ()=>{
       const v=parseFloat(vol.value||"0.8"); p.audio.volume=v;
@@ -998,10 +1028,10 @@ function updateGestureUI(id,g,value){
   const vEl=card.querySelector(`[data-v="${g}"]`); if(vEl) vEl.textContent=clamp(value,0,127);
   const ledg=card.querySelector(`[data-ledg="${g}"]`); if(ledg){ ledg.className='led ok'; setTimeout(()=>ledg.className='led',80); }
 
-  // highlight whichever gesture is currently routed for this performer
-  const active = pickCCSourceGesture(p);
+  // highlight routable gestures for this performer
   card.querySelectorAll('.gbox[data-gesture]').forEach(el=>{
-    el.classList.toggle('active', el.getAttribute('data-gesture') === active);
+    const gesture = el.getAttribute('data-gesture');
+    el.classList.toggle('active', routable(p, gesture));
   });
 }
 
@@ -1041,7 +1071,11 @@ function handleRelayMessage(m){
     case "midi/cc": {
       const d=m.data||{}; const p=ensurePerf(d.from,d.performer_name||d.name);
       const payloadGesture = canonicalGestureName(d.name || d.gesture);
-      const gkey = payloadGesture && ALL_GESTURES.includes(payloadGesture) ? payloadGesture : GESTURE_FROM_CH[d.channel];
+      const ccGesture = GESTURE_FROM_CC[String(Number(d.cc)|0)] || '';
+      const chGesture = GESTURE_FROM_CH[d.channel];
+      const gkey = payloadGesture && ALL_GESTURES.includes(payloadGesture)
+        ? payloadGesture
+        : (ALL_GESTURES.includes(ccGesture) ? ccGesture : chGesture);
       if(gkey){
         const val = Number(d.value)|0;
         p.gestures[gkey].value = val;
@@ -1051,10 +1085,9 @@ function handleRelayMessage(m){
         updateGestureMetaUI(p.id,gkey);
         updateGestureUI(p.id,gkey,val);
 
-        // route only from the picked CC source for this performer
-        if (ccRoutable(p)){
-          const src = pickCCSourceGesture(p);
-          if (src === gkey) sendCC_Perf(p, val);
+        // route all enabled gestures (not only one source)
+        if (ccRoutable(p) && routable(p, gkey)){
+          sendCC_Perf(p, gkey, val);
         }
       }
       return;
@@ -1099,6 +1132,7 @@ function handleRelayMessage(m){
       const points = normalizeLandmarkPoints(d.points || d.landmarks || []);
       if(!points.length) return;
       p.landmarks.points = points;
+      if(!p.landmarks.color || p.landmarks.color === '#000000') p.landmarks.color = randomLandmarkColor();
       p.landmarks.ts = Number(d.ts) || Date.now();
       drawLandmarkCanvas(p.id);
       if(performanceViewWindow && !performanceViewWindow.closed) renderPerformanceView();
@@ -1207,7 +1241,7 @@ el('createSessionBtn').onclick = createSession;
 
 el('copyInviteBtn').onclick = ()=>{
   copyToClipboard(createdInviteLink);
-  flashInviteCopied('Invitation copied to clipboard. Send it like a Zoom invite.');
+  flashInviteCopied('Copy invite link to clipboard.');
 };
 
 el('showInviteQrBtn').onclick = ()=> toggleInviteQr('setup');
