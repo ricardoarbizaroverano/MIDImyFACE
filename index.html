@@ -423,6 +423,213 @@
         width: 100vw;
         height: 100vh;
     }
+
+    /* ======== CALIBRATION UX ======== */
+    .calibration-actions {
+        display: flex;
+        gap: 10px;
+        margin: 14px 0 6px 0;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .cal-action-btn {
+        padding: 8px 18px;
+        border: 1px solid lime;
+        background-color: black;
+        color: lime;
+        cursor: pointer;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+        transition: background 0.2s, color 0.2s;
+    }
+    .cal-action-btn:hover {
+        background-color: lime;
+        color: black;
+    }
+    .gesture-summary {
+        width: 100%;
+        max-width: 800px;
+        padding: 0 10px;
+        margin: 6px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .gesture-summary-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: lime;
+    }
+    .gesture-summary-name {
+        width: 100px;
+        text-align: right;
+        font-size: 15px;
+    }
+    .gesture-summary-value {
+        width: 55px;
+        font-size: 15px;
+        color: lime;
+    }
+    .gesture-calibrate-btn {
+        padding: 3px 10px;
+        border: 1px solid lime;
+        background: black;
+        color: lime;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: 'Courier New', Courier, monospace;
+        transition: background 0.15s;
+    }
+    .gesture-calibrate-btn:hover { background: #002200; }
+    .gesture-midi-val {
+        font-size: 13px;
+        color: gray;
+        width: 46px;
+        text-align: center;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    .gesture-summary-row .input-range.umbral-inline {
+        width: 42px;
+        font-size: 12px;
+        background: black;
+        color: lime;
+        border: 1px solid lime;
+        text-align: center;
+    }
+    .gesture-summary-row .toggle-button {
+        padding: 3px 7px;
+        font-size: 12px;
+    }
+
+    /* ── Cal Modal Overlay ── */
+    .cal-overlay {
+        display: none;
+        position: fixed;
+        z-index: 150;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.93);
+        overflow-y: auto;
+    }
+    .cal-overlay.open { display: block; }
+    .cal-modal-box {
+        background: black;
+        border: 1px solid lime;
+        margin: 2% auto;
+        padding: 20px 16px;
+        width: 96%;
+        max-width: 870px;
+        color: lime;
+        position: relative;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    .cal-modal-title {
+        font-size: 18px;
+        margin: 0 0 14px 0;
+    }
+    .cal-close-btn {
+        position: absolute;
+        top: 10px; right: 14px;
+        background: black;
+        border: none;
+        color: lime;
+        font-size: 22px;
+        cursor: pointer;
+    }
+
+    /* Manual cal: reuse existing gesture-controls inside modal */
+    #manualCalModal .gesture-controls {
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* ── Auto Cal Wizard ── */
+    .wizard-step { display: none; }
+    .wizard-step.active { display: block; }
+    .wizard-progress {
+        font-size: 13px;
+        color: gray;
+        margin-bottom: 6px;
+    }
+    .wizard-instruction {
+        font-size: 17px;
+        color: lime;
+        margin: 10px 0;
+        line-height: 1.55;
+    }
+    .wizard-status {
+        font-size: 13px;
+        color: #88ff44;
+        min-height: 22px;
+        margin: 6px 0;
+    }
+    .wizard-bar-wrap {
+        width: 100%;
+        height: 8px;
+        background: #001a00;
+        border: 1px solid #004400;
+        margin: 8px 0;
+        border-radius: 2px;
+    }
+    .wizard-bar {
+        height: 100%;
+        background: lime;
+        width: 0%;
+        transition: width 0.25s;
+        border-radius: 2px;
+    }
+    .wizard-timeout-wrap {
+        width: 100%;
+        height: 4px;
+        background: #1a0000;
+        border: 1px solid #440000;
+        margin: 4px 0;
+    }
+    .wizard-timeout-bar {
+        height: 100%;
+        background: #ff4400;
+        width: 100%;
+    }
+    .wizard-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+    }
+    .wizard-btn {
+        padding: 7px 15px;
+        border: 1px solid lime;
+        background: black;
+        color: lime;
+        cursor: pointer;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 13px;
+        transition: background 0.15s;
+    }
+    .wizard-btn:hover { background: #001a00; }
+    .wizard-btn.primary { background: lime; color: black; }
+    .wizard-btn.primary:hover { background: #aaff00; }
+    .wizard-btn.danger { border-color: #ff4400; color: #ff4400; }
+    .wizard-btn.danger:hover { background: #1a0000; }
+
+    /* Review table */
+    .review-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+        font-size: 13px;
+    }
+    .review-table th, .review-table td {
+        border: 1px solid #333;
+        padding: 5px 8px;
+        text-align: center;
+    }
+    .review-table th { color: gray; background: #060606; }
+    .review-table td.suggested { color: #88ff44; }
+    .review-table tr.skipped td { color: #555; font-style: italic; }
 </style>
 
 </head>
@@ -498,145 +705,136 @@
         </div>
     </div>
 
-    <!-- Controles de Gestos -->
-    <div class="gesture-controls">
-        <!-- Boca -->
-        <div class="gesture-row">
-            <div class="gesture-name" data-i18n="mouthOpen">Boca</div>
-            <div class="gesture-value" id="mouthOpenValue">0</div>
-            <input type="number" id="mouthOpenMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
-            <input type="number" id="mouthOpenMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
-            <input type="number" id="mouthOpenMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
-            <button class="toggle-button" id="mouthOpenScaling" data-i18n="scaling">Escalar</button>
+    <!-- Calibration Action Buttons -->
+    <div class="calibration-actions">
+        <button class="cal-action-btn" id="openManualCalBtn" data-i18n="manualCalibrationBtn">⚙ Calibración Manual</button>
+        <button class="cal-action-btn" id="openAutoCalBtn" data-i18n="automaticCalibrationBtn">✦ Auto Calibración</button>
+    </div>
+
+    <!-- Gesture Rows (main page) — raw value + CC + MIDI buttons + per-gesture calibrate -->
+    <div class="gesture-summary">
+
+        <!-- Boca / Mouth -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="mouthOpen">Boca</div>
+            <div class="gesture-summary-value" id="mouthOpen-live">0</div>
+            <div class="gesture-midi-val" id="mouthOpenCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="mouthOpen" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="mouthOpenMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="mouthOpenSolo" data-i18n="solo">Solo</button>
             <button class="toggle-button" id="mouthOpenControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="mouthOpenCC"></div>
             <button class="toggle-button active" id="mouthOpenNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="mouthOpenDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="mouthOpenUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+            <input type="number" id="mouthOpenUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
-        
-        <!-- Sonrisa -->
-        <div class="gesture-row">
-            <div class="gesture-name" data-i18n="smile">Sonrisa</div>
-            <div class="gesture-value" id="smileValue">0</div>
-            <input type="number" id="smileMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
-            <input type="number" id="smileMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
-            <input type="number" id="smileMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
-            <button class="toggle-button" id="smileScaling" data-i18n="scaling">Escalar</button>
+
+        <!-- Sonrisa / Smile -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="smile">Sonrisa</div>
+            <div class="gesture-summary-value" id="smile-live">0</div>
+            <div class="gesture-midi-val" id="smileCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="smile" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="smileMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="smileSolo" data-i18n="solo">Solo</button>
             <button class="toggle-button" id="smileControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="smileCC"></div>
             <button class="toggle-button active" id="smileNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="smileDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="smileUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+            <input type="number" id="smileUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
-        <!-- Guiño Izq. -->
-        <div class="gesture-row">
-            <div class="gesture-name" data-i18n="leftWink">Guiño Izq.</div>
-            <div class="gesture-value" id="leftWinkValue">0</div>
-            <input type="number" id="leftWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
-            <input type="number" id="leftWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
-            <input type="number" id="leftWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
-            <button class="toggle-button" id="leftWinkScaling" data-i18n="scaling">Escalar</button>
+        <!-- Guiño Izq. / Left Wink -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="leftWink">Guiño Izq.</div>
+            <div class="gesture-summary-value" id="leftWink-live">0</div>
+            <div class="gesture-midi-val" id="leftWinkCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="leftWink" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="leftWinkMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="leftWinkSolo" data-i18n="solo">Solo</button>
             <button class="toggle-button" id="leftWinkControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="leftWinkCC"></div>
             <button class="toggle-button active" id="leftWinkNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="leftWinkDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="leftWinkUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+            <input type="number" id="leftWinkUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
-        <!-- Guiño Der. -->
-        <div class="gesture-row">
-            <div class="gesture-name" data-i18n="rightWink">Guiño Der.</div>
-            <div class="gesture-value" id="rightWinkValue">0</div>
-            <input type="number" id="rightWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
-            <input type="number" id="rightWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
-            <input type="number" id="rightWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
-            <button class="toggle-button" id="rightWinkScaling" data-i18n="scaling">Escalar</button>
+        <!-- Guiño Der. / Right Wink -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="rightWink">Guiño Der.</div>
+            <div class="gesture-summary-value" id="rightWink-live">0</div>
+            <div class="gesture-midi-val" id="rightWinkCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="rightWink" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="rightWinkMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="rightWinkSolo" data-i18n="solo">Solo</button>
             <button class="toggle-button" id="rightWinkControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="rightWinkCC"></div>
             <button class="toggle-button active" id="rightWinkNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="rightWinkDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="rightWinkUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+            <input type="number" id="rightWinkUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
-        <!-- Nariz X -->
-        <div class="gesture-row">
-            <div class="gesture-name" data-i18n="noseX">Nariz X</div>
-            <div class="gesture-value" id="noseXValue">0</div>
-            <input type="number" id="noseXMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
-            <input type="number" id="noseXMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
-            <input type="number" id="noseXMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
-            <button class="toggle-button" id="noseXScaling" data-i18n="scaling">Escalar</button>
+        <!-- Nariz X / Nose X -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="noseX">Nariz X</div>
+            <div class="gesture-summary-value" id="noseX-live">0</div>
+            <div class="gesture-midi-val" id="noseXCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="noseX" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="noseXMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="noseXSolo" data-i18n="solo">Solo</button>
             <button class="toggle-button" id="noseXControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="noseXCC"></div>
             <button class="toggle-button active" id="noseXNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="noseXDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="noseXUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+            <input type="number" id="noseXUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
-        <!-- Nariz Y -->
-        <div class="gesture-row">
-            <div class="gesture-name" data-i18n="noseY">Nariz Y</div>
-            <div class="gesture-value" id="noseYValue">0</div>
-            <input type="number" id="noseYMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
-            <input type="number" id="noseYMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
-            <input type="number" id="noseYMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
-            <button class="toggle-button" id="noseYScaling" data-i18n="scaling">Escalar</button>
+        <!-- Nariz Y / Nose Y -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="noseY">Nariz Y</div>
+            <div class="gesture-summary-value" id="noseY-live">0</div>
+            <div class="gesture-midi-val" id="noseYCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="noseY" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="noseYMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="noseYSolo" data-i18n="solo">Solo</button>
             <button class="toggle-button" id="noseYControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="noseYCC"></div>
             <button class="toggle-button active" id="noseYNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="noseYDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="noseYUmbral" class="input-range" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+            <input type="number" id="noseYUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
-        <!-- Controles de Escalas -->
-        <div class="scale-controls">
-            <div class="scale-label" data-i18n="scale">Escala:</div>
-            <select id="scaleSelect" class="dropdown">
-                <option value="major" data-i18n="scaleOptions.major">Mayor</option>
-                <option value="minor" data-i18n="scaleOptions.minor">Menor</option>
-                <option value="dorian" data-i18n="scaleOptions.dorian">Dórico</option>
-                <option value="phrygian" data-i18n="scaleOptions.phrygian">Frigio</option>
-                <option value="lydian" data-i18n="scaleOptions.lydian">Lidio</option>
-                <option value="mixolydian" data-i18n="scaleOptions.mixolydian">Mixolidio</option>
-                <option value="aeolian" data-i18n="scaleOptions.aeolian">Eólico</option>
-                <option value="locrian" data-i18n="scaleOptions.locrian">Locrio</option>
-                <option value="pentatonic" selected data-i18n="scaleOptions.pentatonic">Pentatónica</option>
-                <option value="blues" data-i18n="scaleOptions.blues">Blues</option>
-                <option value="bebop" data-i18n="scaleOptions.bebop">Bebop</option>
-                <option value="harmonic_minor" data-i18n="scaleOptions.harmonic_minor">Menor Armónica</option>
-                <option value="melodic_minor" data-i18n="scaleOptions.melodic_minor">Menor Melódica</option>
-                <option value="chromatic" data-i18n="scaleOptions.chromatic">Cromática</option>
-            </select>
-            <div class="scale-label" data-i18n="fundamental">Fundamental:</div>
-            <select id="rootNoteSelect" class="dropdown">
-                <option value="C" data-i18n="rootNoteOptions.C">Do</option>
-                <option value="C#" data-i18n="rootNoteOptions.C_sharp">Do#</option>
-                <option value="D" data-i18n="rootNoteOptions.D">Re</option>
-                <option value="D#" data-i18n="rootNoteOptions.D_sharp">Re#</option>
-                <option value="E" data-i18n="rootNoteOptions.E">Mi</option>
-                <option value="F" data-i18n="rootNoteOptions.F">Fa</option>
-                <option value="F#" data-i18n="rootNoteOptions.F_sharp">Fa#</option>
-                <option value="G" data-i18n="rootNoteOptions.G">Sol</option>
-                <option value="G#" data-i18n="rootNoteOptions.G_sharp">Sol#</option>
-                <option value="A" data-i18n="rootNoteOptions.A">La</option>
-                <option value="A#" data-i18n="rootNoteOptions.A_sharp">La#</option>
-                <option value="B" data-i18n="rootNoteOptions.B">Si</option>
-            </select>
-        </div>
+    </div>
+
+    <!-- Scale Controls -->
+    <div class="scale-controls">
+        <div class="scale-label" data-i18n="scale">Escala:</div>
+        <select id="scaleSelect" class="dropdown">
+            <option value="major" data-i18n="scaleOptions.major">Mayor</option>
+            <option value="minor" data-i18n="scaleOptions.minor">Menor</option>
+            <option value="dorian" data-i18n="scaleOptions.dorian">Dórico</option>
+            <option value="phrygian" data-i18n="scaleOptions.phrygian">Frigio</option>
+            <option value="lydian" data-i18n="scaleOptions.lydian">Lidio</option>
+            <option value="mixolydian" data-i18n="scaleOptions.mixolydian">Mixolidio</option>
+            <option value="aeolian" data-i18n="scaleOptions.aeolian">Eólico</option>
+            <option value="locrian" data-i18n="scaleOptions.locrian">Locrio</option>
+            <option value="pentatonic" selected data-i18n="scaleOptions.pentatonic">Pentatónica</option>
+            <option value="blues" data-i18n="scaleOptions.blues">Blues</option>
+            <option value="bebop" data-i18n="scaleOptions.bebop">Bebop</option>
+            <option value="harmonic_minor" data-i18n="scaleOptions.harmonic_minor">Menor Armónica</option>
+            <option value="melodic_minor" data-i18n="scaleOptions.melodic_minor">Menor Melódica</option>
+            <option value="chromatic" data-i18n="scaleOptions.chromatic">Cromática</option>
+        </select>
+        <div class="scale-label" data-i18n="fundamental">Fundamental:</div>
+        <select id="rootNoteSelect" class="dropdown">
+            <option value="C" data-i18n="rootNoteOptions.C">Do</option>
+            <option value="C#" data-i18n="rootNoteOptions.C_sharp">Do#</option>
+            <option value="D" data-i18n="rootNoteOptions.D">Re</option>
+            <option value="D#" data-i18n="rootNoteOptions.D_sharp">Re#</option>
+            <option value="E" data-i18n="rootNoteOptions.E">Mi</option>
+            <option value="F" data-i18n="rootNoteOptions.F">Fa</option>
+            <option value="F#" data-i18n="rootNoteOptions.F_sharp">Fa#</option>
+            <option value="G" data-i18n="rootNoteOptions.G">Sol</option>
+            <option value="G#" data-i18n="rootNoteOptions.G_sharp">Sol#</option>
+            <option value="A" data-i18n="rootNoteOptions.A">La</option>
+            <option value="A#" data-i18n="rootNoteOptions.A_sharp">La#</option>
+            <option value="B" data-i18n="rootNoteOptions.B">Si</option>
+        </select>
+    </div>
 
     <!-- Envelope Controls -->
     <div class="envelope-controls">
@@ -692,7 +890,7 @@
             <div class="cc-display" id="releaseCC"></div>
         </div>
     </div>
-</div>
+
 
     <!-- MIDI Output Selector -->
     <div class="midi-status">
@@ -752,6 +950,186 @@
     <!-- Botones de Instrucciones y Modo Presentación -->
     <button id="instructionButton" data-i18n="instructionButton">Instrucciones de Uso</button>
     <button id="presentationModeButton" data-i18n="presentationModeButton">Modo Presentación</button>
+
+    <!-- ===== MANUAL CALIBRATION MODAL ===== -->
+    <div id="manualCalModal" class="cal-overlay">
+        <div class="cal-modal-box">
+            <button class="cal-close-btn" id="closeManualCalBtn">&times;</button>
+            <h2 class="cal-modal-title">⚙ Manual Calibration</h2>
+            <p style="font-size:12px;color:gray;margin:0 0 12px 0;">
+                Edit values directly. Changes take effect immediately. These are the active calibration values at runtime.
+            </p>
+            <!-- Gesture rows: only calibration params (Min Change, Min, Max, Scaling) -->
+            <!-- Mute/Solo/Control/Notes/Disparador/Umbral live on main page rows -->
+            <div class="gesture-controls">
+                <!-- Boca -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="mouthOpen">Boca</div>
+                    <div class="gesture-value" id="mouthOpenValue">0</div>
+                    <input type="number" id="mouthOpenMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="mouthOpenMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="mouthOpenMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="mouthOpenScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <!-- Sonrisa -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="smile">Sonrisa</div>
+                    <div class="gesture-value" id="smileValue">0</div>
+                    <input type="number" id="smileMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="smileMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="smileMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="smileScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <!-- Guiño Izq. -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="leftWink">Guiño Izq.</div>
+                    <div class="gesture-value" id="leftWinkValue">0</div>
+                    <input type="number" id="leftWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="leftWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="leftWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="leftWinkScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <!-- Guiño Der. -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="rightWink">Guiño Der.</div>
+                    <div class="gesture-value" id="rightWinkValue">0</div>
+                    <input type="number" id="rightWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="rightWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="rightWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="rightWinkScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <!-- Nariz X -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="noseX">Nariz X</div>
+                    <div class="gesture-value" id="noseXValue">0</div>
+                    <input type="number" id="noseXMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="noseXMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="noseXMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="noseXScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <!-- Nariz Y -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="noseY">Nariz Y</div>
+                    <div class="gesture-value" id="noseYValue">0</div>
+                    <input type="number" id="noseYMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="noseYMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="noseYMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="noseYScaling" data-i18n="scaling">Escalar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== AUTOMATIC CALIBRATION WIZARD ===== -->
+    <div id="autoCalModal" class="cal-overlay">
+        <div class="cal-modal-box">
+            <button class="cal-close-btn" id="closeAutoCalBtn">&times;</button>
+            <h2 class="cal-modal-title" data-i18n="wizard.title">✦ Automatic Calibration</h2>
+
+            <!-- Step 0: Neutral -->
+            <div class="wizard-step" id="wiz-step-0">
+                <div class="wizard-progress" data-i18n="wizard.step_1_neutral">Step 1 / 8 — Neutral Face</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_1_instr">Look at the camera, keep a neutral face, and stay at the same distance.</div>
+                <div class="wizard-status" id="wiz-status-0" data-i18n="wizard.waiting">Waiting for stable face…</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-0"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-0"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn danger" id="wiz-cancel-0" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 1: Mouth -->
+            <div class="wizard-step" id="wiz-step-1">
+                <div class="wizard-progress" id="wiz-prog-1" data-i18n="wizard.step_2_mouth">Step 2 / 8 — Mouth</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_2_instr">Open and close your mouth naturally two or three times.</div>
+                <div class="wizard-status" id="wiz-status-1" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-1"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-1"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-1" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-1" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Smile -->
+            <div class="wizard-step" id="wiz-step-2">
+                <div class="wizard-progress" id="wiz-prog-2" data-i18n="wizard.step_3_smile">Step 3 / 8 — Smile</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_3_instr">Smile and relax naturally two or three times.</div>
+                <div class="wizard-status" id="wiz-status-2" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-2"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-2"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-2" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-2" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Left Wink -->
+            <div class="wizard-step" id="wiz-step-3">
+                <div class="wizard-progress" id="wiz-prog-3" data-i18n="wizard.step_4_left">Step 4 / 8 — Left Eye</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_4_instr">Blink or wink your left eye twice.</div>
+                <div class="wizard-status" id="wiz-status-3" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-3"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-3"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-3" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-3" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Right Wink -->
+            <div class="wizard-step" id="wiz-step-4">
+                <div class="wizard-progress" id="wiz-prog-4" data-i18n="wizard.step_5_right">Step 5 / 8 — Right Eye</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_5_instr">Blink or wink your right eye twice.</div>
+                <div class="wizard-status" id="wiz-status-4" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-4"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-4"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-4" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-4" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 5: Nose X -->
+            <div class="wizard-step" id="wiz-step-5">
+                <div class="wizard-progress" id="wiz-prog-5" data-i18n="wizard.step_6_noseX">Step 6 / 8 — Head Left / Right</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_6_instr">Move your head left and right naturally.</div>
+                <div class="wizard-status" id="wiz-status-5" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-5"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-5"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-5" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-5" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 6: Nose Y -->
+            <div class="wizard-step" id="wiz-step-6">
+                <div class="wizard-progress" id="wiz-prog-6" data-i18n="wizard.step_7_noseY">Step 7 / 8 — Head Up / Down</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_7_instr">Move your head up and down naturally.</div>
+                <div class="wizard-status" id="wiz-status-6" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-6"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-6"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-6" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-6" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 7: Review -->
+            <div class="wizard-step" id="wiz-step-7">
+                <div class="wizard-progress" data-i18n="wizard.step_8_review">Step 8 / 8 — Review</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_8_instr" style="font-size:15px;">Review the suggested values. Click Apply to write them into Manual Calibration.</div>
+                <div id="wiz-review-body"></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn primary" id="wiz-apply" data-i18n="wizard.apply">Apply</button>
+                    <button class="wizard-btn" id="wiz-retry-all" data-i18n="wizard.retryAll">Retry All</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-review" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
 
     <!-- Modal de Instrucciones -->
     <div id="instructionModal">
@@ -876,6 +1254,7 @@
             applyTranslations(currentLanguage);
         });
     </script>
+     <script src="calibration.js"></script>
      <script src="script.js"></script>
      <script src="ws-bridge.js"></script>
      <script>
