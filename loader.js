@@ -18,7 +18,7 @@
 
     // ── Config ─────────────────────────────────────────────────────────────
     // Change RELAY_ORIGIN to wherever midimyface-relay is hosted
-    const RELAY_ORIGIN  = 'https://midimyface-relay.onrender.com'; // ← update this
+    const RELAY_ORIGIN  = 'https://midimyface-relay.onrender.com';
     const BOOT_ENDPOINT = RELAY_ORIGIN + '/api/boot';
     const ENC_FILE      = '/calibration.enc';
 
