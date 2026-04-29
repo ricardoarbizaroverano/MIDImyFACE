@@ -1,0 +1,2170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1024, initial-scale=1.0, user-scalable=yes">
+<title data-i18n="title">MIDImyFACE - Interfaz gestural web</title>
+<style>
+    body {
+        background-color: black;
+        color: lime;
+        font-family: 'Courier New', Courier, monospace;
+        margin: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 100vh;
+    }
+
+    #header {
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    #title {
+        font-size: 24px;
+        margin: 0;
+    }
+
+    #subtitle {
+        font-size: 14px;
+        color: gray;
+        margin: 0;
+    }
+
+    #videoContainer {
+        width: 90vw;
+        height: auto;
+        aspect-ratio: 16 / 9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid lime;
+        overflow: hidden;
+        position: relative;
+        margin: 10px auto;
+    }
+
+    canvas {
+        position: absolute;
+        z-index: 100;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .info-container {
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    #detectedGesture {
+        font-size: 20px;
+        color: lime;
+        margin-bottom: 5px;
+    }
+
+    .gesture-controls {
+        margin-top: 20px;
+        width: 100%;
+        max-width: 800px;
+        padding: 0 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .gesture-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: lime;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .gesture-name {
+        font-size: 16px;
+        width: 100px;
+        text-align: right;
+    }
+
+    .gesture-value {
+        font-size: 16px;
+        width: 60px;
+        text-align: left;
+    }
+
+    .input-range {
+        width: 45px;
+        background-color: black;
+        color: lime;
+        border: 1px solid lime;
+        text-align: center;
+    }
+
+    .toggle-button {
+        padding: 5px 8px;
+        border: 1px solid lime;
+        background-color: black;
+        color: lime;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
+
+    .toggle-button.active {
+        background-color: lime;
+        color: black;
+    }
+
+    .dropdown {
+        background-color: black;
+        color: lime;
+        border: 1px solid lime;
+        padding: 5px;
+        font-size: 14px;
+    }
+
+    .dropdown option {
+        background-color: black;
+        color: lime;
+    }
+
+    .cc-display {
+        font-size: 14px;
+        color: gray;
+        width: 50px;
+        text-align: center;
+    }
+
+    .midi-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: red;
+    }
+
+    /* ======== SESSION PANEL (NEW) ======== */
+    .session-panel {
+        background-color: black;
+        border: 1px solid lime;
+        padding: 10px;
+        margin-top: 10px;
+        max-width: 800px;
+        width: 100%;
+    }
+
+    .session-panel .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 6px 0;
+        justify-content: center;
+    }
+
+    .input-range.wide {
+        width: 160px;
+    }
+
+    .invite-banner {
+        background: #001a00;
+        border: 1px solid lime;
+        color: lime;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        text-align: center;
+        width: 100%;
+    }
+
+    #wsStatusIndicator {
+        margin-left: 6px;
+    }
+
+    .mode-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .mode-button {
+        padding: 5px 10px;
+        border: 1px solid lime;
+        background-color: black;
+        color: lime;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
+
+    .mode-button.active {
+        background-color: lime;
+        color: black;
+    }
+
+    .theremin-mode,
+    .percussion-options {
+        display: none;
+    }
+
+    .theremin-mode.active,
+    .percussion-options.active {
+        display: block;
+    }
+
+    .theremin-option {
+        margin-top: 10px;
+    }
+
+    .theremin-suboptions {
+        margin-left: 20px;
+        margin-top: 5px;
+    }
+
+    .scale-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+        width: 100%;
+        max-width: 800px;
+        padding: 0 10px;
+    }
+
+    .scale-label {
+        font-size: 16px;
+        color: lime;
+        margin-bottom: 5px;
+    }
+
+    .slider-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .slider {
+        width: 100%;
+        max-width: 200px;
+        background-color: black;
+        appearance: none;
+        height: 4px;
+        outline: none;
+    }
+
+    .slider::-webkit-slider-runnable-track {
+        background-color: lime;
+        height: 4px;
+    }
+
+    .slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 15px;
+        height: 15px;
+        background-color: lime;
+        border-radius: 50%;
+        cursor: pointer;
+        margin-top: -6px;
+    }
+
+    .slider::-moz-range-track {
+        background-color: lime;
+        height: 4px;
+    }
+
+    .slider::-moz-range-thumb {
+        width: 15px;
+        height: 15px;
+        background-color: lime;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    .duration-display {
+        width: 80px;
+        background-color: black;
+        color: lime;
+        border: 1px solid lime;
+        text-align: center;
+        font-size: 14px;
+        padding: 5px;
+        font-family: 'Courier New', Courier, monospace;
+    }
+
+    .envelope-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+        gap: 15px;
+        width: 100%;
+        max-width: 800px;
+        padding: 0 10px;
+    }
+
+    .envelope-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .envelope-value {
+        font-size: 14px;
+        width: 50px;
+        text-align: left;
+        color: lime;
+    }
+
+    #instructionButton,
+    #presentationModeButton {
+        margin-top: 10px;
+        padding: 5px 10px;
+        border: 1px solid lime;
+        background-color: black;
+        color: lime;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
+
+    #instructionModal {
+        display: none;
+        position: fixed;
+        z-index: 100;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        background-color: rgba(0, 0, 0, 0.9);
+    }
+
+    #instructionModalContent {
+        background-color: black;
+        margin: 5% auto;
+        padding: 20px;
+        border: 1px solid lime;
+        width: 90%;
+        max-width: 600px;
+        color: lime;
+        font-size: 16px;
+        text-align: left;
+        position: relative;
+    }
+
+    #closeModalButton {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: lime;
+        background-color: black;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    #presentationOverlay {
+        display: none;
+        position: fixed;
+        z-index: 90;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+    }
+
+    #closePresentationButton {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: lime;
+        background-color: black;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 101;
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    .presentation-active #videoContainer,
+    .presentation-active canvas {
+        width: 100vw;
+        height: 100vh;
+    }
+
+    /* ======== CALIBRATION UX ======== */
+    .calibration-actions {
+        display: flex;
+        gap: 10px;
+        margin: 14px 0 6px 0;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .cal-action-btn {
+        padding: 8px 18px;
+        border: 1px solid lime;
+        background-color: black;
+        color: lime;
+        cursor: pointer;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+        transition: background 0.2s, color 0.2s;
+    }
+    .cal-action-btn:hover {
+        background-color: lime;
+        color: black;
+    }
+    .gesture-summary {
+        width: 100%;
+        max-width: 800px;
+        padding: 0 10px;
+        margin: 6px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .gesture-summary-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: lime;
+    }
+    .gesture-summary-name {
+        width: 100px;
+        text-align: right;
+        font-size: 15px;
+    }
+    .gesture-summary-value {
+        width: 55px;
+        font-size: 15px;
+        color: lime;
+    }
+    .gesture-calibrate-btn {
+        padding: 3px 10px;
+        border: 1px solid lime;
+        background: black;
+        color: lime;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: 'Courier New', Courier, monospace;
+        transition: background 0.15s;
+    }
+    .gesture-calibrate-btn:hover { background: #002200; }
+    .gesture-midi-val {
+        font-size: 13px;
+        color: gray;
+        width: 46px;
+        text-align: center;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    .gesture-summary-row .input-range.umbral-inline {
+        width: 42px;
+        font-size: 12px;
+        background: black;
+        color: lime;
+        border: 1px solid lime;
+        text-align: center;
+    }
+    .gesture-summary-row .toggle-button {
+        padding: 3px 7px;
+        font-size: 12px;
+    }
+
+    /* ── Cal Modal Overlay ── */
+    .cal-overlay {
+        display: none;
+        position: fixed;
+        z-index: 150;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.93);
+        overflow-y: auto;
+    }
+    .cal-overlay.open { display: block; }
+    .cal-modal-box {
+        background: black;
+        border: 1px solid lime;
+        margin: 2% auto;
+        padding: 20px 16px;
+        width: 96%;
+        max-width: 870px;
+        color: lime;
+        position: relative;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    .cal-modal-title {
+        font-size: 18px;
+        margin: 0 0 14px 0;
+    }
+    .cal-close-btn {
+        position: absolute;
+        top: 10px; right: 14px;
+        background: black;
+        border: none;
+        color: lime;
+        font-size: 22px;
+        cursor: pointer;
+    }
+
+    /* Manual cal: reuse existing gesture-controls inside modal */
+    #manualCalModal .gesture-controls {
+        max-width: 100%;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* ── Auto Cal Wizard ── */
+    .wizard-step { display: none; }
+    .wizard-step.active { display: block; }
+    .wizard-progress {
+        font-size: 13px;
+        color: gray;
+        margin-bottom: 6px;
+    }
+    .wizard-instruction {
+        font-size: 20px;
+        font-weight: 700;
+        color: #d6ff8f;
+        margin: 12px 0;
+        line-height: 1.7;
+        padding: 10px 12px;
+        border: 1px solid #3d6f20;
+        background: #0f2200;
+        border-radius: 6px;
+    }
+    .wizard-status {
+        font-size: 15px;
+        font-weight: 600;
+        color: #baff72;
+        min-height: 26px;
+        margin: 8px 0;
+    }
+    .wizard-demo-wrap {
+        width: 100%;
+        margin: 10px 0 12px;
+        padding: 8px;
+        border: 1px solid #2a5a18;
+        background: #0b1800;
+        border-radius: 6px;
+        text-align: center;
+    }
+    .wizard-demo {
+        width: 100%;
+        max-height: 190px;
+        object-fit: contain;
+        border-radius: 4px;
+        image-rendering: auto;
+    }
+    .wizard-range {
+        margin: 8px 0;
+        padding: 8px;
+        border: 1px solid #275e16;
+        background: #0b1f00;
+        border-radius: 5px;
+        color: #baff72;
+        font-size: 12px;
+    }
+    .wiz-range-choice-wrap { display:flex; gap:12px; margin:20px 0 10px 0; justify-content:center; }
+    .wiz-range-opt { flex:1; max-width:180px; padding:14px 8px; font-size:13px; text-align:center; border:2px solid #2f7c16; background:#000; color:#9dff57; border-radius:5px; cursor:pointer; }
+    .wiz-range-opt.active { background:#275e16; color:#baff72; border-color:#9dff57; font-weight:bold; }
+    .mcal-noterange-row { border-top:1px dashed #1a3a09; padding-top:5px; margin-top:0; gap:6px; flex-wrap:wrap; min-height:unset; }
+    .mcal-noterange-row .gesture-name { font-size:10px; color:#555; }
+    .mcal-fullrange-lbl { font-size:11px; color:#baff72; display:flex; align-items:center; gap:4px; white-space:nowrap; }
+    .mcal-customrange { display:none; gap:4px; align-items:center; font-size:11px; color:#9dff57; flex-wrap:wrap; }
+    .mcal-customrange select, .mcal-customrange input[type="number"] { background:#000; color:#9dff57; border:1px solid #2f7c16; padding:2px 4px; font-size:11px; border-radius:3px; }
+    .mcal-customrange select { width:55px; }
+    .mcal-customrange input[type="number"] { width:40px; }
+    .wizard-range-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 6px;
+    }
+    .wizard-range select,
+    .wizard-range input[type="number"] {
+        background: #000;
+        color: #9dff57;
+        border: 1px solid #2f7c16;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 12px;
+        padding: 4px 6px;
+        width: auto;
+    }
+    .wizard-bar-wrap {
+        width: 100%;
+        height: 8px;
+        background: #001a00;
+        border: 1px solid #004400;
+        margin: 8px 0;
+        border-radius: 2px;
+    }
+    .wizard-bar {
+        height: 100%;
+        background: lime;
+        width: 0%;
+        transition: width 0.25s;
+        border-radius: 2px;
+    }
+    .wizard-timeout-wrap {
+        width: 100%;
+        height: 4px;
+        background: #1a0000;
+        border: 1px solid #440000;
+        margin: 4px 0;
+    }
+    .wizard-timeout-bar {
+        height: 100%;
+        background: #ff4400;
+        width: 100%;
+    }
+    .wizard-buttons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+    }
+    .wizard-btn {
+        padding: 7px 15px;
+        border: 1px solid lime;
+        background: black;
+        color: lime;
+        cursor: pointer;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 13px;
+        transition: background 0.15s;
+    }
+    .wizard-btn:hover { background: #001a00; }
+    .wizard-btn.primary { background: lime; color: black; }
+    .wizard-btn.primary:hover { background: #aaff00; }
+    .wizard-btn.danger { border-color: #ff4400; color: #ff4400; }
+    .wizard-btn.danger:hover { background: #1a0000; }
+
+    /* Review table */
+    .review-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+        font-size: 13px;
+    }
+    .review-table th, .review-table td {
+        border: 1px solid #333;
+        padding: 5px 8px;
+        text-align: center;
+    }
+    .review-table th { color: gray; background: #060606; }
+    .review-table td.suggested { color: #88ff44; }
+    .review-table tr.skipped td { color: #555; font-style: italic; }
+</style>
+
+</head>
+
+<body>
+
+    <div id="header">
+        <h1 id="title" data-i18n="title">MIDImyFACE</h1>
+        <p id="subtitle" data-i18n="subtitle">por ricardoarbiza 2024 | ricardoarbiza.com</p>
+    </div>
+    <br>
+    <select id="languageSwitcher" class="dropdown">
+        <option value="es" selected data-i18n="languageSwitcher.es">Español</option>
+        <option value="en" data-i18n="languageSwitcher.en">English</option>
+    </select>
+    <br><br>
+
+    <!-- Video Container -->
+    <div id="videoContainer"></div>
+
+    <!-- Controles de Modo -->
+    <div class="mode-controls">
+        <button id="percussionToggle" class="mode-button" data-i18n="percussionToggle">Percusión</button>
+        <button id="thereminToggle" class="mode-button active" data-i18n="thereminToggle">Theremin</button>
+    </div>
+
+    <!-- Opciones de Percusión -->
+    <div id="percussionOptions" class="percussion-options">
+        <select id="percussionModeSelect" class="dropdown">
+            <option value="umbral" data-i18n="percussionModeSelect.threshold">Umbral</option>
+            <option value="automatico" data-i18n="percussionModeSelect.automatic">Automático</option>
+        </select>
+    </div>
+
+    <!-- Opciones de Theremin -->
+    <div id="thereminModeOptions" class="theremin-mode">
+        <div class="theremin-option">
+            <input type="radio" id="thereminSynthOption" name="thereminOption" value="synth">
+            <label for="thereminSynthOption" data-i18n="thereminSynthOption">Synth</label>
+            <!-- Subopciones de Synth -->
+            <div id="thereminSynthOptions" class="theremin-suboptions">
+                <label for="waveformSelect" data-i18n="waveformSelect.label">Forma de Onda:</label>
+                <select id="waveformSelect" class="dropdown">
+                    <option value="sine" data-i18n="waveformSelect.sine">Sinusoidal</option>
+                    <option value="square" data-i18n="waveformSelect.square">Cuadrada</option>
+                    <option value="sawtooth" data-i18n="waveformSelect.sawtooth">Sierra</option>
+                    <option value="triangle" data-i18n="waveformSelect.triangle">Triangular</option>
+                </select>
+            </div>
+        </div>
+        <div class="theremin-option">
+            <input type="radio" id="thereminNotesOption" name="thereminOption" value="notas" checked>
+            <label for="thereminNotesOption" data-i18n="thereminNotesOption">Notas</label>
+            <!-- Subopciones de Notas -->
+            <div id="thereminNotesOptions" class="theremin-suboptions">
+                <label for="midiInstrumentSelect" data-i18n="midiInstrumentSelect.label">Instrumento MIDI:</label>
+                <select id="midiInstrumentSelect" class="dropdown">
+                    <option value="piano" data-i18n="midiInstrumentSelect.piano">Piano</option>
+                    <option value="guitar" data-i18n="midiInstrumentSelect.guitar">Guitarra</option>
+                    <option value="strings" data-i18n="midiInstrumentSelect.strings">Strings</option>
+                    <option value="stringSpicatto" data-i18n="midiInstrumentSelect.stringSpicatto">S. Spicatto</option>
+                    <option value="musicBox" selected data-i18n="midiInstrumentSelect.musicBox">Caja de Música</option>
+                    <option value="flauta" data-i18n="midiInstrumentSelect.flauta">Flauta</option>
+                    <option value="pad" data-i18n="midiInstrumentSelect.pad">Pad</option>
+                    <option value="marimba" data-i18n="midiInstrumentSelect.marimba">Marimba</option>
+                    <option value="trumpet" data-i18n="midiInstrumentSelect.trumpet">Trompeta</option>
+                    <option value="bass" data-i18n="midiInstrumentSelect.bass">Bajo</option>
+                    <option value="choir" data-i18n="midiInstrumentSelect.choir">Voz</option>
+                    <option value="synthesizer" data-i18n="midiInstrumentSelect.synthesizer">Sintetizador</option>
+                    <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Armónico</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calibration Action Buttons -->
+    <div class="calibration-actions">
+        <button class="cal-action-btn" id="openManualCalBtn" data-i18n="manualCalibrationBtn">Calibración Manual</button>
+        <button class="cal-action-btn" id="openAutoCalBtn" data-i18n="automaticCalibrationBtn">Auto Calibración</button>
+    </div>
+
+    <!-- Gesture Rows (main page) — raw value + CC + MIDI buttons + per-gesture calibrate -->
+    <div class="gesture-summary">
+
+        <!-- Boca / Mouth -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="mouthOpen">Boca</div>
+            <div class="gesture-summary-value" id="mouthOpen-live">0</div>
+            <div class="gesture-midi-val" id="mouthOpenCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="mouthOpen" data-i18n="calibrate">Calibrar</button>
+            <button class="toggle-button" id="mouthOpenMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="mouthOpenSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="mouthOpenControl" data-i18n="control">Control</button>
+            <button class="toggle-button active" id="mouthOpenNotas" data-i18n="notes">Notas</button>
+            <button class="toggle-button" id="mouthOpenDisparador" data-i18n="trigger">Disparador</button>
+            <input type="number" id="mouthOpenUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+        </div>
+
+        <!-- Sonrisa / Smile -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="smile">Sonrisa</div>
+            <div class="gesture-summary-value" id="smile-live">0</div>
+            <div class="gesture-midi-val" id="smileCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="smile" data-i18n="calibrate">Calibrar</button>
+            <button class="toggle-button" id="smileMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="smileSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="smileControl" data-i18n="control">Control</button>
+            <button class="toggle-button active" id="smileNotas" data-i18n="notes">Notas</button>
+            <button class="toggle-button" id="smileDisparador" data-i18n="trigger">Disparador</button>
+            <input type="number" id="smileUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+        </div>
+
+        <!-- Guiño Izq. / Left Wink -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="leftWink">Guiño Izq.</div>
+            <div class="gesture-summary-value" id="leftWink-live">0</div>
+            <div class="gesture-midi-val" id="leftWinkCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="leftWink" data-i18n="calibrate">Calibrar</button>
+            <button class="toggle-button" id="leftWinkMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="leftWinkSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="leftWinkControl" data-i18n="control">Control</button>
+            <button class="toggle-button active" id="leftWinkNotas" data-i18n="notes">Notas</button>
+            <button class="toggle-button" id="leftWinkDisparador" data-i18n="trigger">Disparador</button>
+            <input type="number" id="leftWinkUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+        </div>
+
+        <!-- Guiño Der. / Right Wink -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="rightWink">Guiño Der.</div>
+            <div class="gesture-summary-value" id="rightWink-live">0</div>
+            <div class="gesture-midi-val" id="rightWinkCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="rightWink" data-i18n="calibrate">Calibrar</button>
+            <button class="toggle-button" id="rightWinkMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="rightWinkSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="rightWinkControl" data-i18n="control">Control</button>
+            <button class="toggle-button active" id="rightWinkNotas" data-i18n="notes">Notas</button>
+            <button class="toggle-button" id="rightWinkDisparador" data-i18n="trigger">Disparador</button>
+            <input type="number" id="rightWinkUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+        </div>
+
+        <!-- Nariz X / Nose X -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="noseX">Nariz X</div>
+            <div class="gesture-summary-value" id="noseX-live">0</div>
+            <div class="gesture-midi-val" id="noseXCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="noseX" data-i18n="calibrate">Calibrar</button>
+            <button class="toggle-button" id="noseXMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="noseXSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="noseXControl" data-i18n="control">Control</button>
+            <button class="toggle-button active" id="noseXNotas" data-i18n="notes">Notas</button>
+            <button class="toggle-button" id="noseXDisparador" data-i18n="trigger">Disparador</button>
+            <input type="number" id="noseXUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+        </div>
+
+        <!-- Nariz Y / Nose Y -->
+        <div class="gesture-summary-row">
+            <div class="gesture-summary-name" data-i18n="noseY">Nariz Y</div>
+            <div class="gesture-summary-value" id="noseY-live">0</div>
+            <div class="gesture-midi-val" id="noseYCC"></div>
+            <button class="gesture-calibrate-btn" data-cal-gesture="noseY" data-i18n="calibrate">Calibrar</button>
+            <button class="toggle-button" id="noseYMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="noseYSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="noseYControl" data-i18n="control">Control</button>
+            <button class="toggle-button active" id="noseYNotas" data-i18n="notes">Notas</button>
+            <button class="toggle-button" id="noseYDisparador" data-i18n="trigger">Disparador</button>
+            <input type="number" id="noseYUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
+        </div>
+
+    </div>
+
+    <!-- Scale Controls -->
+    <div class="scale-controls">
+        <div class="scale-label" data-i18n="scale">Escala:</div>
+        <select id="scaleSelect" class="dropdown">
+            <option value="major" data-i18n="scaleOptions.major">Mayor</option>
+            <option value="minor" data-i18n="scaleOptions.minor">Menor</option>
+            <option value="dorian" data-i18n="scaleOptions.dorian">Dórico</option>
+            <option value="phrygian" data-i18n="scaleOptions.phrygian">Frigio</option>
+            <option value="lydian" data-i18n="scaleOptions.lydian">Lidio</option>
+            <option value="mixolydian" data-i18n="scaleOptions.mixolydian">Mixolidio</option>
+            <option value="aeolian" data-i18n="scaleOptions.aeolian">Eólico</option>
+            <option value="locrian" data-i18n="scaleOptions.locrian">Locrio</option>
+            <option value="pentatonic" selected data-i18n="scaleOptions.pentatonic">Pentatónica</option>
+            <option value="blues" data-i18n="scaleOptions.blues">Blues</option>
+            <option value="bebop" data-i18n="scaleOptions.bebop">Bebop</option>
+            <option value="harmonic_minor" data-i18n="scaleOptions.harmonic_minor">Menor Armónica</option>
+            <option value="melodic_minor" data-i18n="scaleOptions.melodic_minor">Menor Melódica</option>
+            <option value="chromatic" data-i18n="scaleOptions.chromatic">Cromática</option>
+        </select>
+        <div class="scale-label" data-i18n="fundamental">Fundamental:</div>
+        <select id="rootNoteSelect" class="dropdown">
+            <option value="C" data-i18n="rootNoteOptions.C">Do</option>
+            <option value="C#" data-i18n="rootNoteOptions.C_sharp">Do#</option>
+            <option value="D" data-i18n="rootNoteOptions.D">Re</option>
+            <option value="D#" data-i18n="rootNoteOptions.D_sharp">Re#</option>
+            <option value="E" data-i18n="rootNoteOptions.E">Mi</option>
+            <option value="F" data-i18n="rootNoteOptions.F">Fa</option>
+            <option value="F#" data-i18n="rootNoteOptions.F_sharp">Fa#</option>
+            <option value="G" data-i18n="rootNoteOptions.G">Sol</option>
+            <option value="G#" data-i18n="rootNoteOptions.G_sharp">Sol#</option>
+            <option value="A" data-i18n="rootNoteOptions.A">La</option>
+            <option value="A#" data-i18n="rootNoteOptions.A_sharp">La#</option>
+            <option value="B" data-i18n="rootNoteOptions.B">Si</option>
+        </select>
+    </div>
+
+    <!-- Envelope Controls -->
+    <div class="envelope-controls">
+        <h3 data-i18n="envelope">Envolvente</h3>
+        <!-- Attack -->
+        <div class="envelope-row">
+            <div class="gesture-name" data-i18n="attack">Attack</div>
+            <div class="envelope-value" id="attackValue">100 ms</div>
+            <input type="range" id="attackSlider" class="slider" min="0" max="2000" value="100" step="10">
+            <button class="toggle-button" id="attackMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="attackSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="attackControl" data-i18n="control">Control</button>
+            <div class="cc-display" id="attackCC"></div>
+        </div>
+        <!-- Decay -->
+        <div class="envelope-row">
+            <div class="gesture-name" data-i18n="decay">Decay</div>
+            <div class="envelope-value" id="decayValue">300 ms</div>
+            <input type="range" id="decaySlider" class="slider" min="0" max="2000" value="300" step="10">
+            <button class="toggle-button" id="decayMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="decaySolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="decayControl" data-i18n="control">Control</button>
+            <div class="cc-display" id="decayCC"></div>
+        </div>
+        <!-- Sustain Level -->
+        <div class="envelope-row">
+            <div class="gesture-name" data-i18n="sustain">Sustain Level</div>
+            <div class="envelope-value" id="sustainValue">0.5</div>
+            <input type="range" id="sustainSlider" class="slider" min="0" max="1" value="0.5" step="0.01">
+            <button class="toggle-button" id="sustainMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="sustainSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="sustainControl" data-i18n="control">Control</button>
+            <div class="cc-display" id="sustainCC"></div>
+        </div>
+        <!-- Sustain Duration -->
+        <div class="envelope-row">
+            <div class="gesture-name" data-i18n="sustainDuration">Sustain Duration</div>
+            <div class="envelope-value" id="sustainDurationValue">2000 ms</div>
+            <input type="range" id="sustainDurationSlider" class="slider" min="0" max="10000" value="2000" step="100">
+            <button class="toggle-button" id="sustainDurationMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="sustainDurationSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="sustainDurationControl" data-i18n="control">Control</button>
+            <div class="cc-display" id="sustainDurationCC"></div>
+        </div>
+        <!-- Release -->
+        <div class="envelope-row">
+            <div class="gesture-name" data-i18n="release">Release</div>
+            <div class="envelope-value" id="releaseValue">500 ms</div>
+            <input type="range" id="releaseSlider" class="slider" min="0" max="5000" value="500" step="10">
+            <button class="toggle-button" id="releaseMute" data-i18n="mute">Mute</button>
+            <button class="toggle-button" id="releaseSolo" data-i18n="solo">Solo</button>
+            <button class="toggle-button" id="releaseControl" data-i18n="control">Control</button>
+            <div class="cc-display" id="releaseCC"></div>
+        </div>
+    </div>
+
+
+    <!-- MIDI Output Selector -->
+    <div class="midi-status">
+        <label for="midiOutputSelect" data-i18n="midi_output">Salida MIDI:</label>
+        <select id="midiOutputSelect" class="dropdown" aria-label="Selecciona la salida MIDI">
+            <option value="" data-i18n="midi_select_placeholder">Selecciona la salida MIDI...</option>
+        </select>
+        <div class="status-indicator" id="midiStatusIndicator" title="MIDI"></div>
+
+        <!-- Join Session toggle -->
+        <button id="joinSessionToggle" class="toggle-button" aria-expanded="false" data-i18n="joinSession">Unirse a sesión</button>
+        <a id="networkConsoleBtn" class="toggle-button" href="https://midimyface.com/console/" target="_blank" rel="noopener noreferrer">MIDImyFACE Connect</a>
+    </div>
+
+    <!-- Session Panel (hidden by default) -->
+    <div id="sessionPanel" class="session-panel hidden" aria-hidden="true">
+
+        <!-- INVITE MODE: auto-shown when ?invite_token= is present in the URL -->
+        <div id="inviteModePanel" class="hidden">
+            <div class="invite-banner">Sesión en curso &mdash; introduce tu nombre para entrar</div>
+            <div class="row">
+                <label for="inviteNameInput">Tu nombre</label>
+                <input id="inviteNameInput" class="input-range wide" placeholder="Tu nombre...">
+            </div>
+            <div class="row">
+                <button id="inviteJoinButton" class="toggle-button">Unirse a la sesión</button>
+            </div>
+        </div>
+
+        <!-- MANUAL MODE: enter session ID + password directly -->
+        <div id="manualModePanel">
+            <div class="row">
+                <label for="sessionIdInput" data-i18n="session.id">Session ID</label>
+                <input id="sessionIdInput" class="input-range wide" placeholder="ABCD12" data-i18n-placeholder="session.id_placeholder">
+            </div>
+            <div class="row">
+                <label for="sessionPasswordInput" data-i18n="session.password">Password</label>
+                <input id="sessionPasswordInput" type="password" class="input-range wide" placeholder="••••••" data-i18n-placeholder="session.password_placeholder">
+            </div>
+            <div class="row">
+                <label for="sessionNameInput" data-i18n="session.name">Nombre</label>
+                <input id="sessionNameInput" class="input-range wide" placeholder="Tu nombre" data-i18n-placeholder="session.name_placeholder">
+            </div>
+            <div class="row">
+                <button id="connectSessionButton" class="toggle-button" data-i18n="session.connect">Conectar</button>
+                <button id="disconnectSessionButton" class="toggle-button" data-i18n="session.disconnect">Desconectar</button>
+            </div>
+        </div>
+
+        <!-- WS status indicator (shared) -->
+        <div class="row">
+            <div class="status-indicator" id="wsStatusIndicator" title="WS"></div>
+        </div>
+    </div>
+
+
+    <!-- Botones de Instrucciones y Modo Presentación -->
+    <button id="instructionButton" data-i18n="instructionButton">Instrucciones de Uso</button>
+    <button id="presentationModeButton" data-i18n="presentationModeButton">Modo Presentación</button>
+
+    <!-- ===== MANUAL CALIBRATION MODAL ===== -->
+    <div id="manualCalModal" class="cal-overlay">
+        <div class="cal-modal-box">
+            <button class="cal-close-btn" id="closeManualCalBtn">&times;</button>
+            <h2 class="cal-modal-title">Manual Calibration</h2>
+            <p style="font-size:12px;color:gray;margin:0 0 12px 0;">
+                Edit values directly. Changes take effect immediately. These are the active calibration values at runtime.
+            </p>
+            <!-- Gesture rows: only calibration params (Min Change, Min, Max, Scaling) -->
+            <!-- Mute/Solo/Control/Notes/Disparador/Umbral live on main page rows -->
+            <div class="gesture-controls">
+                <!-- Boca -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="mouthOpen">Boca</div>
+                    <div class="gesture-value" id="mouthOpenValue">0</div>
+                    <input type="number" id="mouthOpenMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="mouthOpenMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="mouthOpenMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="mouthOpenScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-mouthOpen" checked> Full MIDI</label>
+                    <div id="mcal-customrange-mouthOpen" class="mcal-customrange">
+                        <select id="mcal-lowclass-mouthOpen"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-mouthOpen" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-mouthOpen"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-mouthOpen" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
+                <!-- Sonrisa -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="smile">Sonrisa</div>
+                    <div class="gesture-value" id="smileValue">0</div>
+                    <input type="number" id="smileMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="smileMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="smileMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="smileScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-smile" checked> Full MIDI</label>
+                    <div id="mcal-customrange-smile" class="mcal-customrange">
+                        <select id="mcal-lowclass-smile"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-smile" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-smile"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-smile" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
+                <!-- Guiño Izq. -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="leftWink">Guiño Izq.</div>
+                    <div class="gesture-value" id="leftWinkValue">0</div>
+                    <input type="number" id="leftWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="leftWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="leftWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="leftWinkScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-leftWink" checked> Full MIDI</label>
+                    <div id="mcal-customrange-leftWink" class="mcal-customrange">
+                        <select id="mcal-lowclass-leftWink"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-leftWink" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-leftWink"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-leftWink" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
+                <!-- Guiño Der. -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="rightWink">Guiño Der.</div>
+                    <div class="gesture-value" id="rightWinkValue">0</div>
+                    <input type="number" id="rightWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="rightWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="rightWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="rightWinkScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-rightWink" checked> Full MIDI</label>
+                    <div id="mcal-customrange-rightWink" class="mcal-customrange">
+                        <select id="mcal-lowclass-rightWink"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-rightWink" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-rightWink"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-rightWink" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
+                <!-- Nariz X -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="noseX">Nariz X</div>
+                    <div class="gesture-value" id="noseXValue">0</div>
+                    <input type="number" id="noseXMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="noseXMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="noseXMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="noseXScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-noseX" checked> Full MIDI</label>
+                    <div id="mcal-customrange-noseX" class="mcal-customrange">
+                        <select id="mcal-lowclass-noseX"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-noseX" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-noseX"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-noseX" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
+                <!-- Nariz Y -->
+                <div class="gesture-row">
+                    <div class="gesture-name" data-i18n="noseY">Nariz Y</div>
+                    <div class="gesture-value" id="noseYValue">0</div>
+                    <input type="number" id="noseYMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
+                    <input type="number" id="noseYMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
+                    <input type="number" id="noseYMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
+                    <button class="toggle-button" id="noseYScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-noseY" checked> Full MIDI</label>
+                    <div id="mcal-customrange-noseY" class="mcal-customrange">
+                        <select id="mcal-lowclass-noseY"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-noseY" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-noseY"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-noseY" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== AUTOMATIC CALIBRATION WIZARD ===== -->
+    <div id="autoCalModal" class="cal-overlay">
+        <div class="cal-modal-box">
+            <button class="cal-close-btn" id="closeAutoCalBtn">&times;</button>
+            <h2 class="cal-modal-title" data-i18n="wizard.title">Automatic Calibration</h2>
+
+            <!-- Step 0: Neutral -->
+            <div class="wizard-step" id="wiz-step-0">
+                <div class="wizard-progress" data-i18n="wizard.step_1_neutral">Step 1 / 8 — Neutral Face</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_1_instr">Look at the camera, keep a neutral face, and stay at the same distance.</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-still.gif" alt="Neutral face reference" onerror="this.onerror=null;this.src='wizard-still.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-0" data-i18n="wizard.waiting">Waiting for stable face...</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-0"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-0"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn danger" id="wiz-cancel-0" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 1: Mouth -->
+            <div class="wizard-step" id="wiz-step-1">
+                <div class="wizard-progress" id="wiz-prog-1" data-i18n="wizard.step_2_mouth">Step 2 / 8 — Mouth</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_2_instr">Open and close your mouth naturally two or three times.</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-mouth.gif" alt="Mouth gesture reference" onerror="this.onerror=null;this.src='wizard-mouth.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-1" data-i18n="wizard.capturing">Capturing...</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-1"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-1"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-1" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-1" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Smile -->
+            <div class="wizard-step" id="wiz-step-2">
+                <div class="wizard-progress" id="wiz-prog-2" data-i18n="wizard.step_3_smile">Step 3 / 8 — Smile</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_3_instr">Smile and relax naturally two or three times.</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-smile.gif" alt="Smile gesture reference" onerror="this.onerror=null;this.src='wizard-smile.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-2" data-i18n="wizard.capturing">Capturing...</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-2"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-2"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-2" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-2" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Left Wink -->
+            <div class="wizard-step" id="wiz-step-3">
+                <div class="wizard-progress" id="wiz-prog-3" data-i18n="wizard.step_4_left">Step 4 / 8 — Left Eye</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_4_instr">Blink or wink your left eye twice.</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-Lblink.gif" alt="Left blink gesture reference" onerror="this.onerror=null;this.src='wizard-Lblink.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-3" data-i18n="wizard.capturing">Capturing...</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-3"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-3"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-3" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-3" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Right Wink -->
+            <div class="wizard-step" id="wiz-step-4">
+                <div class="wizard-progress" id="wiz-prog-4" data-i18n="wizard.step_5_right">Step 5 / 8 — Right Eye</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_5_instr">Blink or wink your right eye twice.</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-Rblink.gif" alt="Right blink gesture reference" onerror="this.onerror=null;this.src='wizard-Rblink.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-4" data-i18n="wizard.capturing">Capturing...</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-4"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-4"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-4" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-4" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 5: Nose X -->
+            <div class="wizard-step" id="wiz-step-5">
+                <div class="wizard-progress" id="wiz-prog-5" data-i18n="wizard.step_6_noseX">Step 6 / 8 — Head Left / Right</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_6_instr">Move your head left and right naturally.</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-noseX.gif" alt="Nose X gesture reference" onerror="this.onerror=null;this.src='wizard-noseX.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-5" data-i18n="wizard.capturing">Capturing...</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-5"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-5"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-5" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-5" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 6: Nose Y -->
+            <div class="wizard-step" id="wiz-step-6">
+                <div class="wizard-progress" id="wiz-prog-6" data-i18n="wizard.step_7_noseY">Step 7 / 8 — Head Up / Down</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_7_instr">Move your head up and down naturally.</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-noseY.gif" alt="Nose Y gesture reference" onerror="this.onerror=null;this.src='wizard-noseY.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-6" data-i18n="wizard.capturing">Capturing...</div>
+                <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-6"></div></div>
+                <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-6"></div></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn" id="wiz-skip-6" data-i18n="wizard.skip">Skip</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-6" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Range Selection Step (shared interstitial shown after each gesture capture) -->
+            <div class="wizard-step" id="wiz-step-range">
+                <div class="wizard-progress" id="wiz-range-progress">Musical Range</div>
+                <div class="wizard-instruction" id="wiz-range-instr" style="margin-bottom:8px;">
+                    Do you want to use the full MIDI note range, or choose a specific musical range for this gesture?
+                </div>
+                <div class="wiz-range-choice-wrap">
+                    <button class="wizard-btn wiz-range-opt active" id="wiz-range-full-btn">Full MIDI Range</button>
+                    <button class="wizard-btn wiz-range-opt" id="wiz-range-custom-btn">Custom Range</button>
+                </div>
+                <div id="wiz-range-custom-wrap" style="display:none; margin-top:12px;">
+                    <div class="wizard-range-row">
+                        <span>Low</span>
+                        <select id="wiz-range-lowclass"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="wiz-range-lowoct" type="number" min="-1" max="9" value="3" style="width:50px;">
+                        <span>High</span>
+                        <select id="wiz-range-highclass"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="wiz-range-highoct" type="number" min="-1" max="9" value="5" style="width:50px;">
+                    </div>
+                </div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn primary" id="wiz-range-next">Next</button>
+                    <button class="wizard-btn danger" id="wiz-range-cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Step 7: Review -->
+            <div class="wizard-step" id="wiz-step-7">
+                <div class="wizard-progress" data-i18n="wizard.step_8_review">Step 8 / 8 — Review</div>
+                <div class="wizard-instruction" data-i18n="wizard.step_8_instr" style="font-size:15px;">Review the suggested values. Click Apply to write them into Manual Calibration.</div>
+                <div id="wiz-review-body"></div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn primary" id="wiz-apply" data-i18n="wizard.apply">Apply</button>
+                    <button class="wizard-btn" id="wiz-retry-all" data-i18n="wizard.retryAll">Retry All</button>
+                    <button class="wizard-btn danger" id="wiz-cancel-review" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal de Instrucciones -->
+    <div id="instructionModal">
+        <div id="instructionModalContent">
+            <button id="closeModalButton">&times;</button>
+            <h2 data-i18n="instructionsModal.title">Instrucciones de Uso</h2>
+            <p data-i18n="instructionsModal.description">
+                Este controlador web permite utilizar gestos faciales para generar señales MIDI y controlar instrumentos virtuales, así como generar sonido directamente en el navegador.
+            </p>
+            <h3 data-i18n="instructionsModal.usageModes.title">Modos de Uso:</h3>
+            <h4 data-i18n="instructionsModal.usageModes.thereminAndPercussion.title">Modo Theremin y Percusión</h4>
+            <p data-i18n="instructionsModal.usageModes.thereminAndPercussion.description">
+                En estos modos, puedes escuchar el resultado sonoro directamente en el navegador utilizando la lógica de los gestos.
+            </p>
+            <h5 data-i18n="instructionsModal.usageModes.thereminAndPercussion.theremin.title">Theremin:</h5>
+            <p data-i18n="instructionsModal.usageModes.thereminAndPercussion.theremin.description">
+                Al activar el modo Theremin, puedes elegir entre dos opciones:
+            </p>
+            <ul>
+                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.theremin.synth"><strong>Synth:</strong> Utiliza un oscilador. Puedes seleccionar la forma de onda (sinusoidal, cuadrada, sierra, triangular) y controlar la frecuencia abriendo y cerrando la boca, y cambiar la dinámica con la apertura de ojos.</li>
+                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.theremin.notes"><strong>Notas:</strong> Activa automáticamente el botón Notas del gesto Boca. Puedes seleccionar un instrumento MIDI para escuchar. Este modo utiliza la salida MIDI de notas generada por la boca y reproduce los sonidos directamente en el navegador.</li>
+            </ul>
+            <h5 data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.title">Percusión:</h5>
+            <p data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.description">
+                Al activar el modo Percusión, todos los botones de Disparador se activan automáticamente. Puedes elegir entre dos modos:
+            </p>
+            <ul>
+                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.threshold"><strong>Umbral:</strong> Utiliza el valor configurado en el umbral para activar el disparador de cada gesto.</li>
+                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.automatic"><strong>Automático:</strong> Detecta cambios repentinos en los valores para activar los sonidos de percusión.</li>
+            </ul>
+            <h4 data-i18n="instructionsModal.usageModes.midiOutput.title">Salida MIDI</h4>
+            <p data-i18n="instructionsModal.usageModes.midiOutput.description">
+                Si no están activados los modos Theremin o Percusión, el sistema funciona como un controlador MIDI. Puedes utilizar los gestos para enviar señales MIDI de Control, Notas o Disparadores según las configuraciones establecidas.
+            </p>
+            <p data-i18n="instructionsModal.midiCustomization">
+                Ajusta los parámetros de <em data-i18n="minChangePlaceholder">Cambio Mínimo</em>, <em data-i18n="scale">Escala</em> y <em data-i18n="fundamental">Fundamental</em> para personalizar la respuesta del sistema.
+            </p>
+            <h3 data-i18n="instructionsModal.gestureFunctions.title">Funciones de los Gestos:</h3>
+            <ul>
+                <li data-i18n="instructionsModal.gestureFunctions.notes"><strong>Notas:</strong> Toca notas discretas basadas en el gesto y la escala seleccionada. Las notas se activan al cruzar umbrales ascendentes y se desactivan al descender.</li>
+                <li data-i18n="instructionsModal.gestureFunctions.control"><strong>Control:</strong> Envía valores continuos MIDI CC basados en el gesto.</li>
+                <li data-i18n="instructionsModal.gestureFunctions.trigger"><strong>Disparador:</strong> Activa eventos cuando el gesto cruza un umbral específico.</li>
+            </ul>
+            <h3 data-i18n="instructionsModal.valueAdjustment.title">Ajuste de Valores y Sensibilidad:</h3>
+            <p data-i18n="instructionsModal.valueAdjustment.description">
+                Puedes ajustar el <em data-i18n="minChangePlaceholder">Cambio Mínimo</em> para controlar la sensibilidad de los gestos. Modifica los valores <em data-i18n-placeholder="minPlaceholder">Min</em> y <em data-i18n-placeholder="maxPlaceholder">Max</em> para calibrar el rango de detección según tus características faciales.
+            </p>
+            <h3 data-i18n="instructionsModal.noteActivationLogic.title">Lógica de Activación de Notas:</h3>
+            <p data-i18n="instructionsModal.noteActivationLogic.description">
+                En modo Notas, las notas se activan cuando el valor del gesto cruza un umbral en sentido ascendente y se desactivan al descender. Por ejemplo, si el Cambio Mínimo es 10:
+            </p>
+            <ul>
+                <li data-i18n="instructionsModal.noteActivationLogic.example1">Valor sube de 0 a 11: se activa la primera nota.</li>
+                <li data-i18n="instructionsModal.noteActivationLogic.example2">Valor sube de 11 a 23: se activa la siguiente nota en la escala.</li>
+                <li data-i18n="instructionsModal.noteActivationLogic.example3">Valor desciende por debajo del umbral: la nota se desactiva.</li>
+            </ul>
+            <p>
+                <em data-i18n="instructionsModal.credits">Idea, diseño y programación: Ricardo Arbiza, 2024</em><br>
+                <span data-i18n="instructionsModal.contact">Contacto:</span> <a href="mailto:ricardoarbizaroverano@gmail.com">ricardoarbizaroverano at gmail.com</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Overlay para Modo Presentación -->
+    <div id="presentationOverlay">
+        <button id="closePresentationButton">&times;</button>
+        <!-- Aquí se mostrará la visualización a pantalla completa -->
+    </div>
+
+    <!-- Include Libraries and Your Script -->
+    <script src="p5.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="camera_utils.js"></script>
+    <script src="Tone.min.js"></script>    
+   
+
+    <!-- Translation Script -->
+    <script>
+        let translations = {};
+        let currentLanguage = 'es'; // Idioma predeterminado
+        let translationsReady = false;
+
+        // Fallback translations in case fetch fails (minimal set)
+        const fallbackTranslations = {
+            "es": {
+                "dynamicsWithWink": "Dinámica con Guiño",
+                "dynamicsWithMouth": "Dinámica con Boca",
+                "automaticCalibrationBtn": "Auto Calibración",
+                "manualCalibrationBtn": "Calibración Manual",
+                "wizard": {
+                    "title": "Calibración Automática",
+                    "step_1_neutral": "Paso 1 / 8 — Cara Neutral",
+                    "step_1_instr": "Mira la cámara, mantén una cara neutral y quédate a la misma distancia.",
+                    "step_2_mouth": "Paso 2 / 8 — Boca",
+                    "step_2_instr": "Abre y cierra la boca naturalmente dos o tres veces.",
+                    "skip": "Omitir",
+                    "cancel": "Cancelar",
+                    "apply": "Aplicar",
+                    "retryAll": "Reintentar Todo",
+                    "capturing": "Capturando..."
+                }
+            },
+            "en": {
+                "dynamicsWithWink": "Dynamics with Wink",
+                "dynamicsWithMouth": "Dynamics with Mouth",
+                "automaticCalibrationBtn": "Auto Calibration",
+                "manualCalibrationBtn": "Manual Calibration",
+                "wizard": {
+                    "title": "Automatic Calibration",
+                    "step_1_neutral": "Step 1 / 8 — Neutral Face",
+                    "step_1_instr": "Look at the camera, keep a neutral face, and stay at the same distance.",
+                    "step_2_mouth": "Step 2 / 8 — Mouth",
+                    "step_2_instr": "Open and close your mouth naturally two or three times.",
+                    "skip": "Skip",
+                    "cancel": "Cancel",
+                    "apply": "Apply",
+                    "retryAll": "Retry All",
+                    "capturing": "Capturing..."
+                }
+            }
+        };
+
+        // Fetch the translations JSON file with better error handling
+        fetch('translations.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load translations.json: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('[MIDImyFACE] Translations loaded successfully');
+                translations = data;
+                translationsReady = true;
+                applyTranslations(currentLanguage);
+            })
+            .catch(error => {
+                console.error('[MIDImyFACE] Error loading translations.json:', error);
+                console.log('[MIDImyFACE] Using fallback translations');
+                translations = fallbackTranslations;
+                translationsReady = true;
+                applyTranslations(currentLanguage);
+            });
+
+        // Function to apply translations based on the selected language
+        function applyTranslations(language) {
+            if (!translationsReady) {
+                console.warn('[MIDImyFACE] Translations not ready yet, will retry on next call');
+                return;
+            }
+            console.log('[MIDImyFACE] Applying translations for language: ' + language);
+            let appliedCount = 0;
+            
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const text = getNestedTranslation(translations[language], key);
+                if (text) {
+                    element.innerHTML = text;
+                    appliedCount++;
+                }
+            });
+            console.log('[MIDImyFACE] Applied ' + appliedCount + ' text translations');
+            
+            // Manejar placeholders
+            let placeholderCount = 0;
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-i18n-placeholder');
+                const text = getNestedTranslation(translations[language], key);
+                if (text) {
+                    element.setAttribute('placeholder', text);
+                    placeholderCount++;
+                }
+            });
+            if (placeholderCount > 0) console.log('[MIDImyFACE] Applied ' + placeholderCount + ' placeholder translations');
+            
+            // Manejar elementos option
+            let optionCount = 0;
+            document.querySelectorAll('option[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const text = getNestedTranslation(translations[language], key);
+                if (text) {
+                    element.textContent = text;
+                    optionCount++;
+                }
+            });
+            if (optionCount > 0) console.log('[MIDImyFACE] Applied ' + optionCount + ' option translations');
+        }
+
+        function getNestedTranslation(obj, key) {
+            const fromObj = (source) => {
+                if (!source) return null;
+                const value = key.split('.').reduce((o, i) => (o && typeof o === 'object') ? o[i] : null, source);
+                if (value === undefined || value === null || value === '') return null;
+                return value;
+            };
+            const direct = fromObj(obj);
+            if (direct) return direct;
+            const inCurrent = fromObj(translations[currentLanguage]);
+            if (inCurrent) return inCurrent;
+            const inSpanish = fromObj(translations.es);
+            if (inSpanish) return inSpanish;
+            const inEnglish = fromObj(translations.en);
+            if (inEnglish) return inEnglish;
+            return null;
+        }
+
+        // Event listener for the language switcher
+        const langSwitcher = document.getElementById('languageSwitcher');
+        if (langSwitcher) {
+            langSwitcher.addEventListener('change', (event) => {
+                currentLanguage = event.target.value;
+                console.log('[MIDImyFACE] Language switched to: ' + currentLanguage);
+                applyTranslations(currentLanguage);
+                setTimeout(() => applyTranslations(currentLanguage), 150);
+                setTimeout(() => applyTranslations(currentLanguage), 500);
+            });
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(() => applyTranslations(currentLanguage), 120);
+            setTimeout(() => applyTranslations(currentLanguage), 450);
+            setTimeout(() => applyTranslations(currentLanguage), 900);
+        });
+    </script>
+     <script src="calibration.js"></script>
+     <script>
+/* ── MIDImyFACE Note-Range Interceptor ────────────────────────────────────
+   Remaps every Tone.js triggerAttack note to the gesture's custom range.
+
+   Core math:
+     1. Identify the gesture from gestureActiveNotes[gesture] === incomingMidi
+     2. Read the live raw sensor value from currentGestureValues[gesture]
+     3. Read calibrated min/max from the Manual Cal DOM inputs
+     4. Compute proportion = (rawValue - calMin) / (calMax - calMin)
+     5. Map → targetMidi = low + proportion × (high - low)
+     6. Snap to nearest on-scale note within [low, high]
+
+   This gives true proportional mapping: minimum gesture → lowest note,
+   maximum gesture → highest note, linear in between.                       ── */
+(function () {
+    'use strict';
+
+    // ── Scale / key helpers (mirrors calibration.js) ─────────────────────
+    const PITCH_CLASS = {C:0,'C#':1,DB:1,D:2,'D#':3,EB:3,E:4,F:5,'F#':6,GB:6,G:7,'G#':8,AB:8,A:9,'A#':10,BB:10,B:11};
+    const SCALE_IVLS  = {
+        major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
+        phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
+        aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
+        pentatonic:[0,2,4,7,9], blues:[0,3,5,6,7,10], bebop:[0,2,4,5,7,9,10,11],
+        harmonic_minor:[0,2,3,5,7,8,11], melodic_minor:[0,2,3,5,7,9,11],
+        chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
+    };
+
+    function getKeyPc() {
+        try { const v=(document.getElementById('rootNoteSelect')||{}).value||'C'; return PITCH_CLASS[v.toUpperCase()]??0; } catch(_){return 0;}
+    }
+    function getScaleIvs() {
+        try { const v=(document.getElementById('scaleSelect')||{}).value||'chromatic'; return SCALE_IVLS[v]||SCALE_IVLS.chromatic; } catch(_){return SCALE_IVLS.chromatic;}
+    }
+
+    // All MIDI notes in [low,high] that belong to the current scale/key.
+    // Falls back to every semitone if no scale notes fit.
+    function buildAllowed(low, high) {
+        const kpc=getKeyPc(), ivs=getScaleIvs(), out=[];
+        for (let n=low; n<=high; n++) { if (ivs.includes(((n-kpc)%12+12)%12)) out.push(n); }
+        return out.length ? out : Array.from({length:high-low+1},(_,i)=>low+i);
+    }
+
+    // Nearest note in `allowed` to `target`.
+    function snapNearest(target, allowed) {
+        let best=allowed[0], bestD=Infinity;
+        for (const n of allowed) { const d=Math.abs(n-target); if (d<bestD){bestD=d; best=n;} }
+        return best;
+    }
+
+    // ── Calibration bounds from Manual Cal inputs ─────────────────────────
+    function getCalBounds(gesture) {
+        const minEl=document.getElementById(gesture+'Min');
+        const maxEl=document.getElementById(gesture+'Max');
+        const min=parseFloat(minEl&&minEl.value);
+        const max=parseFloat(maxEl&&maxEl.value);
+        return (Number.isFinite(min)&&Number.isFinite(max)&&max>min) ? {min,max} : null;
+    }
+
+    // ── Desired note range from localStorage ─────────────────────────────
+    function loadRanges() {
+        try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges')||'{}'); } catch(_){return{};}
+    }
+
+    // ── Core remap ────────────────────────────────────────────────────────
+    // gesture: string key. incomingMidi: MIDI int from quantizeToScale.
+    function remapMidi(incomingMidi, gesture) {
+        if (!gesture) return incomingMidi;
+        const range = loadRanges()[gesture];
+        if (!range || range.fullRange) return incomingMidi;
+
+        const low  = Math.round(Number(range.lowMidi));
+        const high = Math.round(Number(range.highMidi));
+        if (!Number.isFinite(low)||!Number.isFinite(high)||low>=high) return incomingMidi;
+
+        // Proportion from live raw sensor value + calibration bounds
+        const rawVal = window.currentGestureValues ? Number(window.currentGestureValues[gesture]) : NaN;
+        const cal    = getCalBounds(gesture);
+        let proportion;
+        if (cal && Number.isFinite(rawVal)) {
+            proportion = Math.max(0, Math.min(1, (rawVal - cal.min) / (cal.max - cal.min)));
+        } else {
+            // Fallback: position of incomingMidi within C2(36)–C7(96), a conservative
+            // estimate of quantizeToScale's output range.
+            proportion = Math.max(0, Math.min(1, (incomingMidi - 36) / 60));
+        }
+
+        const targetMidi = Math.round(low + proportion * (high - low));
+        const allowed    = buildAllowed(low, high);
+        return allowed.length ? snapNearest(targetMidi, allowed) : incomingMidi;
+    }
+
+    // ── Gesture lookup ────────────────────────────────────────────────────
+    // script.js sets gestureActiveNotes[gesture] = quantizeResult BEFORE
+    // calling playSynthNoteWhenReady, so this lookup is reliable at attack time.
+    function gestureForNote(midi) {
+        const ga = window.gestureActiveNotes;
+        if (!ga) return null;
+        for (const [g,n] of Object.entries(ga)) { if (n===midi) return g; }
+        return null;
+    }
+
+    // ── Tone note conversion ──────────────────────────────────────────────
+    function toMidi(note) {
+        if (typeof note==='number') return Math.round(note);
+        try { return Math.round(window.Tone.Frequency(note).toMidi()); } catch(_){return -1;}
+    }
+    function toNote(midi) {
+        try { return window.Tone.Frequency(midi,'midi').toNote(); } catch(_){return midi;}
+    }
+
+    // Track original→remapped for triggerRelease so notes end cleanly
+    const _attackMap = new Map();
+
+    // ── Prototype patch ───────────────────────────────────────────────────
+    function wrapProto(cls, method, isRelease) {
+        const orig = cls.prototype[method];
+        if (!orig || orig.__mmfMapped) return;
+        cls.prototype[method] = function(note, ...rest) {
+            let mapped = note;
+            try {
+                const mIn = toMidi(note);
+                if (mIn >= 0 && mIn <= 127) {
+                    let mOut;
+                    if (isRelease) {
+                        mOut = _attackMap.has(mIn) ? _attackMap.get(mIn) : mIn;
+                        _attackMap.delete(mIn);
+                    } else {
+                        const gesture = gestureForNote(mIn);
+                        mOut = remapMidi(mIn, gesture);
+                        if (mOut !== mIn) _attackMap.set(mIn, mOut);
+                    }
+                    if (mOut !== mIn) mapped = toNote(mOut);
+                }
+            } catch(_) {}
+            return orig.call(this, mapped, ...rest);
+        };
+        cls.prototype[method].__mmfMapped = true;
+    }
+
+    function applyWrap() {
+        if (!window.Tone) return false;
+        ['Sampler','PolySynth','Synth'].forEach(name => {
+            const C = window.Tone[name];
+            if (!C||!C.prototype) return;
+            wrapProto(C, 'triggerAttack',         false);
+            wrapProto(C, 'triggerAttackRelease',  false);
+            wrapProto(C, 'triggerRelease',        true);
+        });
+        console.log('[MIDImyFACE] note-range interceptor active (proportional mapping)');
+        return true;
+    }
+
+    if (!applyWrap()) {
+        const t = setInterval(()=>{ if(applyWrap()) clearInterval(t); }, 100);
+        setTimeout(()=>clearInterval(t), 8000);
+    }
+})();
+    </script>
+     <script src="script.js"></script>
+     <script src="ws-bridge.js"></script>
+     <script>
+/* ── Force startup gesture defaults (no solo, mouth unmuted, others muted) ── */
+(function () {
+    const FACE_GESTURES = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY'];
+
+    function syncButton(id, isActive) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.classList.toggle('active', !!isActive);
+    }
+
+    function applyDefaults() {
+        try {
+            if (typeof soloGestures !== 'undefined' && soloGestures) {
+                FACE_GESTURES.forEach((g) => { soloGestures[g] = false; });
+            }
+            if (typeof muteGestures !== 'undefined' && muteGestures) {
+                FACE_GESTURES.forEach((g) => { muteGestures[g] = g !== 'mouthOpen'; });
+            }
+        } catch (_) {}
+
+        FACE_GESTURES.forEach((g) => {
+            syncButton(`${g}Solo`, false);
+            syncButton(`${g}Mute`, g !== 'mouthOpen');
+        });
+    }
+
+    window.addEventListener('load', () => {
+        applyDefaults();
+        setTimeout(applyDefaults, 150);
+        setTimeout(applyDefaults, 600);
+    });
+})();
+
+/* ── Audio unlock for reliable Notes playback ────────────────────────────── */
+(function () {
+    let unlocked = false;
+
+    function ensureAudioUnlocked() {
+        if (unlocked) return;
+        try {
+            if (window.Tone && typeof window.Tone.start === 'function') {
+                window.Tone.start().then(() => { unlocked = true; }).catch(() => {});
+            }
+        } catch (_) {}
+    }
+
+    function bindUnlock(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', ensureAudioUnlocked);
+    }
+
+    window.addEventListener('load', () => {
+        ['mouthOpenNotas','smileNotas','leftWinkNotas','rightWinkNotas','noseXNotas','noseYNotas','thereminToggle','instructionButton','openAutoCalBtn','openManualCalBtn'].forEach(bindUnlock);
+        document.addEventListener('pointerdown', ensureAudioUnlocked, { once: true });
+        document.addEventListener('keydown', ensureAudioUnlocked, { once: true });
+    });
+})();
+
+/* ── Trigger precedence: percussion ON => all gestures are Disparador ───── */
+(function () {
+    const GESTURES = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY'];
+    const triggerPrefs = {};
+
+    function btn(id) { return document.getElementById(id); }
+    function isActive(id) { const el = btn(id); return !!(el && el.classList.contains('active')); }
+
+    function setActiveByClick(id, wanted) {
+        const el = btn(id);
+        if (!el) return;
+        const active = el.classList.contains('active');
+        if (active !== wanted) el.click();
+    }
+
+    function rememberCurrentPrefs() {
+        GESTURES.forEach((g) => {
+            triggerPrefs[g] = isActive(`${g}Disparador`);
+        });
+    }
+
+    function applyEffectiveTriggerState() {
+        const percOn = isActive('percussionToggle');
+        if (percOn) {
+            GESTURES.forEach((g) => setActiveByClick(`${g}Disparador`, true));
+        } else {
+            GESTURES.forEach((g) => setActiveByClick(`${g}Disparador`, !!triggerPrefs[g]));
+        }
+    }
+
+    window.addEventListener('load', () => {
+        rememberCurrentPrefs();
+        GESTURES.forEach((g) => {
+            const el = btn(`${g}Disparador`);
+            if (!el) return;
+            el.addEventListener('click', () => {
+                if (!isActive('percussionToggle')) {
+                    triggerPrefs[g] = isActive(`${g}Disparador`);
+                }
+            });
+        });
+
+        const percussion = btn('percussionToggle');
+        if (percussion) {
+            percussion.addEventListener('click', () => {
+                setTimeout(() => {
+                    if (isActive('percussionToggle')) rememberCurrentPrefs();
+                    applyEffectiveTriggerState();
+                }, 30);
+            });
+        }
+
+        setTimeout(applyEffectiveTriggerState, 120);
+    });
+})();
+
+/* ── Gesture note-range mapping (key + scale aware) ─────────────────────── */
+(function () {
+    const CHANNEL_TO_GESTURE = {
+        1: 'mouthOpen',
+        2: 'smile',
+        3: 'leftWink',
+        4: 'rightWink',
+        5: 'noseX',
+        6: 'noseY'
+    };
+
+    const PITCH_CLASS = {
+        C: 0, 'C#': 1, DB: 1,
+        D: 2, 'D#': 3, EB: 3,
+        E: 4,
+        F: 5, 'F#': 6, GB: 6,
+        G: 7, 'G#': 8, AB: 8,
+        A: 9, 'A#': 10, BB: 10,
+        B: 11
+    };
+
+    const SCALE_INTERVALS = {
+        major: [0, 2, 4, 5, 7, 9, 11],
+        minor: [0, 2, 3, 5, 7, 8, 10],
+        dorian: [0, 2, 3, 5, 7, 9, 10],
+        phrygian: [0, 1, 3, 5, 7, 8, 10],
+        lydian: [0, 2, 4, 6, 7, 9, 11],
+        mixolydian: [0, 2, 4, 5, 7, 9, 10],
+        aeolian: [0, 2, 3, 5, 7, 8, 10],
+        locrian: [0, 1, 3, 5, 6, 8, 10],
+        pentatonic: [0, 2, 4, 7, 9],
+        blues: [0, 3, 5, 6, 7, 10],
+        bebop: [0, 2, 4, 5, 7, 9, 10, 11],
+        harmonic_minor: [0, 2, 3, 5, 7, 8, 11],
+        melodic_minor: [0, 2, 3, 5, 7, 9, 11],
+        chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    };
+
+    const activeMappedNotes = new Map();
+
+    function getSelectedScale() {
+        const el = document.getElementById('scaleSelect');
+        return (el && el.value) ? el.value : 'chromatic';
+    }
+
+    function getSelectedKey() {
+        const el = document.getElementById('rootNoteSelect');
+        return (el && el.value) ? String(el.value).toUpperCase() : 'C';
+    }
+
+    function loadGestureRanges() {
+        try {
+            const raw = localStorage.getItem('mmfGestureNoteRanges');
+            return raw ? JSON.parse(raw) : {};
+        } catch (_) {
+            return {};
+        }
+    }
+
+    function buildAllowedNotes(lowMidi, highMidi, keyName, scaleName) {
+        const keyPc = PITCH_CLASS[keyName] ?? 0;
+        const intervals = SCALE_INTERVALS[scaleName] || SCALE_INTERVALS.chromatic;
+        const allowed = [];
+        for (let note = lowMidi; note <= highMidi; note += 1) {
+            const rel = ((note - keyPc) % 12 + 12) % 12;
+            if (intervals.includes(rel)) allowed.push(note);
+        }
+        if (!allowed.length) {
+            for (let note = lowMidi; note <= highMidi; note += 1) allowed.push(note);
+        }
+        return allowed;
+    }
+
+    function inferGesture(payload) {
+        if (!payload || typeof payload !== 'object') return null;
+        if (payload.gesture) return String(payload.gesture);
+        if (payload.name) return String(payload.name);
+        const ch = Number(payload.channel);
+        return CHANNEL_TO_GESTURE[ch] || null;
+    }
+
+    function clampMidi(note) {
+        const n = Math.round(Number(note));
+        if (!Number.isFinite(n)) return null;
+        return Math.max(0, Math.min(127, n));
+    }
+
+    function mapGestureNote(originalNote, gesture) {
+        const ranges = loadGestureRanges();
+        const range = ranges && ranges[gesture];
+        const note = clampMidi(originalNote);
+        if (!range || !Number.isFinite(note)) return note;
+        if (range.fullRange) return note;
+
+        const low = Number(range.lowMidi);
+        const high = Number(range.highMidi);
+        if (!Number.isFinite(low) || !Number.isFinite(high)) return note;
+
+        const lowMidi = Math.max(0, Math.min(127, Math.min(low, high)));
+        const highMidi = Math.max(0, Math.min(127, Math.max(low, high)));
+        if (lowMidi === highMidi) return lowMidi;
+
+        const allowed = buildAllowedNotes(lowMidi, highMidi, getSelectedKey(), getSelectedScale());
+        if (!allowed.length) return note;
+
+        const norm = note / 127;
+        const idx = Math.max(0, Math.min(allowed.length - 1, Math.round(norm * (allowed.length - 1))));
+        return allowed[idx];
+    }
+
+    function isNoteOn(type) {
+        const t = String(type || '').toLowerCase();
+        return t.includes('note_on') || t === 'noteon';
+    }
+
+    function isNoteOff(type) {
+        const t = String(type || '').toLowerCase();
+        return t.includes('note_off') || t === 'noteoff';
+    }
+
+    function wrapMmfEmit() {
+        if (window.__MMF_NOTE_RANGE_MAPPER_WRAPPED__) return true;
+        if (typeof window.mmfEmit !== 'function') return false;
+
+        const originalEmit = window.mmfEmit;
+
+        window.mmfEmit = function (type, payload) {
+            let nextPayload = payload;
+            try {
+                if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'note')) {
+                    const gesture = inferGesture(payload);
+                    const rawNote = clampMidi(payload.note);
+                    if (gesture && Number.isFinite(rawNote)) {
+                        const key = `${gesture}:${rawNote}`;
+                        if (isNoteOn(type)) {
+                            const mapped = mapGestureNote(rawNote, gesture);
+                            activeMappedNotes.set(key, mapped);
+                            nextPayload = { ...payload, note: mapped };
+                        } else if (isNoteOff(type)) {
+                            const remembered = activeMappedNotes.get(key);
+                            const mapped = Number.isFinite(remembered) ? remembered : mapGestureNote(rawNote, gesture);
+                            activeMappedNotes.delete(key);
+                            nextPayload = { ...payload, note: mapped };
+                        }
+                    }
+                }
+            } catch (_) {}
+            return originalEmit.call(this, type, nextPayload);
+        };
+
+        window.__MMF_NOTE_RANGE_MAPPER_WRAPPED__ = true;
+        console.log('[MIDImyFACE] Gesture note-range mapper active');
+        return true;
+    }
+
+    window.addEventListener('load', () => {
+        if (wrapMmfEmit()) return;
+        const t = setInterval(() => {
+            if (wrapMmfEmit()) clearInterval(t);
+        }, 250);
+        setTimeout(() => clearInterval(t), 12000);
+    });
+})();
+
+(function () {
+    const EMIT_MS = 90;
+    let lastEmit = 0;
+    let wrapTimer = null;
+    let pollTimer = null;
+
+    function samplePoints(raw) {
+        if (!Array.isArray(raw) || !raw.length) return [];
+        const points = [];
+        for (let i = 0; i < raw.length; i += 1) {
+            const p = raw[i];
+            if (!p) continue;
+            const x = Number(p.x);
+            const y = Number(p.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+            points.push({ x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) });
+        }
+        return points;
+    }
+
+    function emitLandmarks(raw) {
+        const now = Date.now();
+        if (now - lastEmit < EMIT_MS) return;
+        const points = samplePoints(raw);
+        if (points.length < 20) return;
+        lastEmit = now;
+        window.dispatchEvent(new CustomEvent('face/landmarks', {
+            detail: { points, ts: now }
+        }));
+    }
+
+    function tryWrapDrawLandmarks() {
+        if (window.__MMF_LANDMARKS_WRAPPED__) return true;
+        if (typeof window.drawLandmarks !== 'function') return false;
+        const original = window.drawLandmarks;
+        window.drawLandmarks = function () {
+            emitLandmarks(arguments[0]);
+            return original.apply(this, arguments);
+        };
+        window.__MMF_LANDMARKS_WRAPPED__ = true;
+        return true;
+    }
+
+    window.addEventListener('load', () => {
+        tryWrapDrawLandmarks();
+        wrapTimer = setInterval(() => {
+            if (tryWrapDrawLandmarks() && wrapTimer) {
+                clearInterval(wrapTimer);
+                wrapTimer = null;
+            }
+        }, 500);
+
+        pollTimer = setInterval(() => {
+            try {
+                emitLandmarks(window.currentLandmarks);
+            } catch (_) {}
+        }, 180);
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (wrapTimer) clearInterval(wrapTimer);
+        if (pollTimer) clearInterval(pollTimer);
+    });
+})();
+
+/* ── Invite-link auto-join ────────────────────────────────────────────────── */
+(function () {
+    const q           = new URLSearchParams(window.location.search);
+    const inviteToken = q.get('invite_token');
+    const sessionId   = q.get('session_id');
+    if (!inviteToken || !sessionId) return;
+
+    // Show session panel in invite mode
+    const panel       = document.getElementById('sessionPanel');
+    const invitePanel = document.getElementById('inviteModePanel');
+    const manualPanel = document.getElementById('manualModePanel');
+    const toggle      = document.getElementById('joinSessionToggle');
+    if (panel)       { panel.classList.remove('hidden'); panel.setAttribute('aria-hidden', 'false'); }
+    if (invitePanel) invitePanel.classList.remove('hidden');
+    if (manualPanel) manualPanel.classList.add('hidden');
+    if (toggle)      { toggle.textContent = 'Sesión activa'; toggle.setAttribute('aria-expanded', 'true'); }
+
+    let inviteParticipantName = '';
+    let inviteConnected = false;
+
+    function renderInviteIdle() {
+        if (!invitePanel) return;
+        invitePanel.innerHTML = `
+            <div class="invite-banner">Sesión en curso — toca "Conectar" y escribe tu nombre</div>
+            <div class="row">
+                <button id="inviteOpenPromptButton" class="toggle-button">Conectar a la sesión</button>
+            </div>
+        `;
+        const openBtn = document.getElementById('inviteOpenPromptButton');
+        if (openBtn) openBtn.addEventListener('click', openJoinPrompt);
+    }
+
+    function renderInviteConnected() {
+        if (!invitePanel) return;
+        invitePanel.innerHTML = `
+            <div class="invite-banner">✅ Conectado como ${inviteParticipantName || 'Participante'}</div>
+            <div class="row">
+                <button id="inviteDisconnectButton" class="toggle-button">Desconectar</button>
+            </div>
+        `;
+        const disconnectBtn = document.getElementById('inviteDisconnectButton');
+        if (disconnectBtn) {
+            disconnectBtn.addEventListener('click', function () {
+                inviteConnected = false;
+                window.dispatchEvent(new CustomEvent('session:disconnect'));
+                renderInviteIdle();
+            });
+        }
+    }
+
+    function openJoinPrompt() {
+        const existing = document.getElementById('inviteJoinPromptOverlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'inviteJoinPromptOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:2200;';
+
+        const box = document.createElement('div');
+        box.style.cssText = 'background:black;border:1px solid lime;padding:14px;max-width:420px;width:92%;color:lime;font-family:Courier New,monospace;';
+        box.innerHTML = `
+            <div style="font-size:16px;margin-bottom:8px">Unirse a la sesión</div>
+            <div style="font-size:13px;margin-bottom:8px">Escribe tu nombre para conectarte.</div>
+            <input id="invitePromptNameInput" class="input-range wide" style="width:100%;margin-bottom:10px" placeholder="Tu nombre..." value="${inviteParticipantName || ''}" />
+            <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+                <button id="invitePromptCancel" class="toggle-button">Cancelar</button>
+                <button id="invitePromptConnect" class="toggle-button">Conectar</button>
+            </div>
+        `;
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        const input = document.getElementById('invitePromptNameInput');
+        const cancelBtn = document.getElementById('invitePromptCancel');
+        const connectBtn = document.getElementById('invitePromptConnect');
+
+        function closePrompt() {
+            const node = document.getElementById('inviteJoinPromptOverlay');
+            if (node) node.remove();
+        }
+
+        function connectFromPrompt() {
+            const name = (input && input.value || '').trim();
+            if (!name) {
+                if (input) { input.focus(); input.style.outline = '2px solid red'; }
+                return;
+            }
+            inviteParticipantName = name;
+            closePrompt();
+            window.dispatchEvent(new CustomEvent('session:connect', {
+                detail: {
+                    session_id:   sessionId,
+                    password:     '',
+                    name:         name,
+                    relay_url:    '',
+                    console_api:  q.get('console_api') || '',
+                    invite_token: inviteToken,
+                }
+            }));
+        }
+
+        if (input) {
+            setTimeout(() => input.focus(), 20);
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') connectFromPrompt();
+            });
+        }
+        if (cancelBtn) cancelBtn.addEventListener('click', closePrompt);
+        if (connectBtn) connectBtn.addEventListener('click', connectFromPrompt);
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) closePrompt(); });
+    }
+
+    renderInviteIdle();
+    setTimeout(openJoinPrompt, 40);
+
+    window.addEventListener('ws:setState', function (e) {
+        const s = e.detail && e.detail.state;
+        if (s === 'connected') {
+            inviteConnected = true;
+            renderInviteConnected();
+            return;
+        }
+        if (s === 'error') {
+            inviteConnected = false;
+            renderInviteIdle();
+            return;
+        }
+        if (s === 'disconnected' && !inviteConnected) {
+            renderInviteIdle();
+        }
+    });
+})();
+</script>
+</body>
+
+</html>
