@@ -29,6 +29,7 @@ function loadLocalEnvFile(filePath) {
 }
 
 loadLocalEnvFile(path.join(__dirname, '.env.local'));
+loadLocalEnvFile(path.join(__dirname, '.env'));
 
 /* ========================
    Config (env-overridable)
@@ -386,6 +387,27 @@ const server = http.createServer(async (req, res) => {
 
   if (parsed.pathname === '/health' || parsed.pathname === '/.well-known/health') {
     return sendJson(res, 200, { ok: true, time: new Date().toISOString(), ws_path: WS_PATH }, { ...base, ...cors });
+  }
+
+  /* ─── Boot key endpoint — serves AES key to legitimate origins only ─── */
+  if (req.method === 'GET' && parsed.pathname === '/api/boot') {
+    const bootAllowed = [
+      'https://www.midimyface.com',
+      'https://midimyface.com',
+    ];
+    const MMF_SECRET_KEY = process.env.MMF_SECRET_KEY || '';
+    if (!bootAllowed.includes(origin)) {
+      return sendJson(res, 403, { error: 'forbidden' }, { ...base, 'Access-Control-Allow-Origin': origin || '*' });
+    }
+    if (!MMF_SECRET_KEY || MMF_SECRET_KEY.length !== 64) {
+      return sendJson(res, 503, { error: 'server misconfigured' }, { ...base, 'Access-Control-Allow-Origin': origin });
+    }
+    return sendJson(res, 200, { key: MMF_SECRET_KEY }, {
+      ...base,
+      'Access-Control-Allow-Origin': origin,
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+    });
   }
 
   if (parsed.pathname === '/') {
