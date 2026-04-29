@@ -43,6 +43,8 @@
     const ADVANCE_HOLD_MS      = 700;    // hold "enough range" before advancing
     const SAMPLE_INTERVAL_MS   = 60;     // collection tick
     const LIVE_MIRROR_MS       = 80;     // compact-row update interval
+    const STEP_PREP_MS         = 1200;   // read/prepare time before evaluation
+    const STEP_MIN_DURATION_MS = 5000;   // minimum time to stay on each gesture step
 
     // Thresholds for "enough movement detected" relative to noise floor
     // Multiplied by noise floor MAD to compute minimum acceptable range
@@ -53,6 +55,16 @@
         rightWink: 3,
         noseX:     5,
         noseY:     5,
+    };
+
+    // Absolute minimum ranges to avoid progressing on tiny/noisy motion.
+    const ABS_MIN_RANGE = {
+        mouthOpen: 12,
+        smile:     10,
+        leftWink:  8,
+        rightWink: 8,
+        noseX:     14,
+        noseY:     14,
     };
 
     /* ── Utility: statistics ───────────────────────────────── */
@@ -108,6 +120,204 @@
         el.dispatchEvent(new Event('input',  { bubbles: true }));
     }
 
+    function parseAbsoluteNote(note) {
+        if (!note || typeof note !== 'string') return null;
+        const t = note.trim().toUpperCase().replace(/\s+/g, '');
+        const m = t.match(/^([A-G])([#B]?)(-?\d)$/);
+        if (!m) return null;
+        const name = m[1] + (m[2] || '');
+        const octave = parseInt(m[3], 10);
+        const semitone = NOTE_INDEX[name];
+        if (semitone === undefined || !Number.isFinite(octave)) return null;
+        const midi = (octave + 1) * 12 + semitone;
+        if (midi < 0 || midi > 127) return null;
+        return { midi, canonical: name + octave };
+    }
+
+    function loadGestureNoteRanges() {
+        try {
+            const raw = localStorage.getItem('mmfGestureNoteRanges');
+            return raw ? JSON.parse(raw) : {};
+        } catch (_) {
+            return {};
+        }
+    }
+
+    function saveGestureNoteRanges(ranges) {
+        try { localStorage.setItem('mmfGestureNoteRanges', JSON.stringify(ranges || {})); } catch (_) {}
+    }
+
+    function noteRangeControlIds(stepIdx) {
+        return {
+            full: `wiz-fullrange-${stepIdx}`,
+            lowClass: `wiz-lowclass-${stepIdx}`,
+            lowOct: `wiz-lowoct-${stepIdx}`,
+            highClass: `wiz-highclass-${stepIdx}`,
+            highOct: `wiz-highoct-${stepIdx}`,
+            customWrap: `wiz-customrange-${stepIdx}`,
+        };
+    }
+
+    function updateRangeControlsVisibility(stepIdx) {
+        const ids = noteRangeControlIds(stepIdx);
+        const fullEl = document.getElementById(ids.full);
+        const wrapEl = document.getElementById(ids.customWrap);
+        if (!fullEl || !wrapEl) return;
+        wrapEl.style.display = fullEl.checked ? 'none' : 'grid';
+    }
+
+    function initRangeControlsForStep(stepIdx, gesture) {
+        const ids = noteRangeControlIds(stepIdx);
+        const fullEl = document.getElementById(ids.full);
+        const lowClassEl = document.getElementById(ids.lowClass);
+        const lowOctEl = document.getElementById(ids.lowOct);
+        const highClassEl = document.getElementById(ids.highClass);
+        const highOctEl = document.getElementById(ids.highOct);
+
+        if (!fullEl || !lowClassEl || !lowOctEl || !highClassEl || !highOctEl) return;
+
+        const current = wizardNoteRanges[gesture] || null;
+        if (!current || current.fullRange) {
+            fullEl.checked = true;
+            lowClassEl.value = 'C';
+            lowOctEl.value = '3';
+            highClassEl.value = 'C';
+            highOctEl.value = '5';
+        } else {
+            fullEl.checked = false;
+            const lowParsed = parseAbsoluteNote(current.low || 'C3');
+            const highParsed = parseAbsoluteNote(current.high || 'C5');
+            const fallbackLow = lowParsed ? lowParsed.canonical : 'C3';
+            const fallbackHigh = highParsed ? highParsed.canonical : 'C5';
+            lowClassEl.value = fallbackLow.replace(/-?\d$/, '');
+            lowOctEl.value = fallbackLow.match(/-?\d$/)?.[0] || '3';
+            highClassEl.value = fallbackHigh.replace(/-?\d$/, '');
+            highOctEl.value = fallbackHigh.match(/-?\d$/)?.[0] || '5';
+        }
+
+        fullEl.onchange = () => updateRangeControlsVisibility(stepIdx);
+        updateRangeControlsVisibility(stepIdx);
+    }
+
+    function captureGestureNoteRangeFromStep(stepIdx, gesture) {
+        const ids = noteRangeControlIds(stepIdx);
+        const fullEl = document.getElementById(ids.full);
+        const lowClassEl = document.getElementById(ids.lowClass);
+        const lowOctEl = document.getElementById(ids.lowOct);
+        const highClassEl = document.getElementById(ids.highClass);
+        const highOctEl = document.getElementById(ids.highOct);
+
+        if (!fullEl || !lowClassEl || !lowOctEl || !highClassEl || !highOctEl) {
+            wizardNoteRanges[gesture] = { fullRange: true };
+            return;
+        }
+
+        if (fullEl.checked) {
+            wizardNoteRanges[gesture] = { fullRange: true };
+            return;
+        }
+
+        const lowRaw = `${lowClassEl.value}${lowOctEl.value}`;
+        const highRaw = `${highClassEl.value}${highOctEl.value}`;
+        const low = parseAbsoluteNote(lowRaw);
+        const high = parseAbsoluteNote(highRaw);
+        if (!low || !high) {
+            wizardNoteRanges[gesture] = { fullRange: true };
+            return;
+        }
+
+        if (low.midi <= high.midi) {
+            wizardNoteRanges[gesture] = { fullRange: false, low: low.canonical, high: high.canonical, lowMidi: low.midi, highMidi: high.midi };
+        } else {
+            wizardNoteRanges[gesture] = { fullRange: false, low: high.canonical, high: low.canonical, lowMidi: high.midi, highMidi: low.midi };
+        }
+    }
+
+    /* ── Shared range selection step (interstitial after each gesture) ──── */
+
+    function showRangeStep(gesture) {
+        document.querySelectorAll('#autoCalModal .wizard-step').forEach(el => el.classList.remove('active'));
+        const rangeStep = document.getElementById('wiz-step-range');
+        if (!rangeStep) { advanceWizardToNextGesture(); return; }
+        rangeStep.classList.add('active');
+
+        const prog = document.getElementById('wiz-range-progress');
+        if (prog) prog.textContent = `Musical Range — ${GESTURE_LABELS[gesture] || gesture}`;
+
+        const fullBtn    = document.getElementById('wiz-range-full-btn');
+        const customBtn  = document.getElementById('wiz-range-custom-btn');
+        const customWrap = document.getElementById('wiz-range-custom-wrap');
+        const lowClassEl = document.getElementById('wiz-range-lowclass');
+        const lowOctEl   = document.getElementById('wiz-range-lowoct');
+        const highClassEl= document.getElementById('wiz-range-highclass');
+        const highOctEl  = document.getElementById('wiz-range-highoct');
+
+        const current = wizardNoteRanges[gesture] || null;
+
+        function setMode(isFull) {
+            if (fullBtn)    fullBtn.classList.toggle('active', isFull);
+            if (customBtn)  customBtn.classList.toggle('active', !isFull);
+            if (customWrap) customWrap.style.display = isFull ? 'none' : 'block';
+        }
+
+        const startFull = !current || current.fullRange !== false;
+        setMode(startFull);
+
+        if (!current || current.fullRange !== false) {
+            if (lowClassEl)  lowClassEl.value  = 'C';
+            if (lowOctEl)    lowOctEl.value    = '3';
+            if (highClassEl) highClassEl.value = 'C';
+            if (highOctEl)   highOctEl.value   = '5';
+        } else {
+            if (lowClassEl)  lowClassEl.value  = (current.low  || 'C3').replace(/[-\d]+$/, '');
+            if (lowOctEl)    lowOctEl.value    = ((current.low  || 'C3').match(/[-\d]+$/) || ['3'])[0];
+            if (highClassEl) highClassEl.value = (current.high || 'C5').replace(/[-\d]+$/, '');
+            if (highOctEl)   highOctEl.value   = ((current.high || 'C5').match(/[-\d]+$/) || ['5'])[0];
+        }
+
+        if (fullBtn)   fullBtn.onclick   = () => setMode(true);
+        if (customBtn) customBtn.onclick = () => setMode(false);
+
+        const nextBtn = document.getElementById('wiz-range-next');
+        if (nextBtn) {
+            nextBtn.onclick = () => {
+                captureRangeFromSharedPanel(gesture);
+                advanceWizardToNextGesture();
+            };
+        }
+        const cancelBtn = document.getElementById('wiz-range-cancel');
+        if (cancelBtn) cancelBtn.onclick = () => closeAutoCalModal();
+    }
+
+    function captureRangeFromSharedPanel(gesture) {
+        const fullBtn = document.getElementById('wiz-range-full-btn');
+        const isFull  = !fullBtn || fullBtn.classList.contains('active');
+        if (isFull) { wizardNoteRanges[gesture] = { fullRange: true }; return; }
+
+        const lowClassEl = document.getElementById('wiz-range-lowclass');
+        const lowOctEl   = document.getElementById('wiz-range-lowoct');
+        const highClassEl= document.getElementById('wiz-range-highclass');
+        const highOctEl  = document.getElementById('wiz-range-highoct');
+
+        const lowRaw  = `${lowClassEl  ? lowClassEl.value  : 'C'}${lowOctEl  ? lowOctEl.value  : '3'}`;
+        const highRaw = `${highClassEl ? highClassEl.value : 'C'}${highOctEl ? highOctEl.value : '5'}`;
+        const low  = parseAbsoluteNote(lowRaw);
+        const high = parseAbsoluteNote(highRaw);
+        if (!low || !high) { wizardNoteRanges[gesture] = { fullRange: true }; return; }
+
+        if (low.midi <= high.midi) {
+            wizardNoteRanges[gesture] = { fullRange: false, low: low.canonical, high: high.canonical, lowMidi: low.midi, highMidi: high.midi };
+        } else {
+            wizardNoteRanges[gesture] = { fullRange: false, low: high.canonical, high: low.canonical, lowMidi: high.midi, highMidi: low.midi };
+        }
+    }
+
+    function activateScalingForGesture(gesture) {
+        const btn = document.getElementById(gesture + 'Scaling');
+        if (!btn) return;
+        if (!btn.classList.contains('active')) btn.click();
+    }
+
     /* ── Apply suggested results to Manual Calibration ──────── */
 
     function applyResults(results, gestureFilter) {
@@ -119,9 +329,17 @@
             if (!r) return; // skipped or failed
             if (r.min     !== null) writeManualInput(g, 'Min',       r.min);
             if (r.max     !== null) writeManualInput(g, 'Max',       r.max);
-            if (r.minChange !== null) writeManualInput(g, 'MinChange', r.minChange);
             if (r.umbral  !== null) writeManualInput(g, 'Umbral',    r.umbral);
+            activateScalingForGesture(g);
         });
+
+        const existingRanges = loadGestureNoteRanges();
+        const mergedRanges = { ...existingRanges };
+        GESTURES.forEach(g => {
+            if (gestureFilter && !gestureFilter.includes(g)) return;
+            mergedRanges[g] = wizardNoteRanges[g] || null;
+        });
+        saveGestureNoteRanges(mergedRanges);
     }
 
     /* ═══════════════════════════════════════════════════════
@@ -132,6 +350,7 @@
         const modal = document.getElementById('manualCalModal');
         if (!modal) return;
         modal.classList.add('open');
+        refreshMcalNoteRanges(); // always sync UI from storage when opening
         // Scroll to specific gesture row if requested (per-gesture Calibrate btn)
         if (scrollToGesture) {
             requestAnimationFrame(() => {
@@ -188,10 +407,83 @@
     let wizardResults   = {};       // keyed by gesture
     let wizardBaseline  = {};       // neutral frame medians
     let wizardGestureFilter = null; // null = all, or ['mouthOpen'] etc.
+    let wizardBypassState = null;   // UI/mode snapshot restored when wizard closes
+    let wizardNoteRanges = {};      // optional per-gesture note ranges
+
+    const NOTE_INDEX = { C:0, 'C#':1, DB:1, D:2, 'D#':3, EB:3, E:4, F:5, 'F#':6, GB:6, G:7, 'G#':8, AB:8, A:9, 'A#':10, BB:10, B:11 };
 
     /* ── helpers ── */
 
     function wizEl(id) { return document.getElementById(id); }
+
+    function isActiveBtn(id) {
+        const el = document.getElementById(id);
+        return !!(el && el.classList.contains('active'));
+    }
+
+    function setBtnActiveByClick(id, shouldBeActive) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const isActive = el.classList.contains('active');
+        if (isActive !== shouldBeActive) el.click();
+    }
+
+    function snapshotAndApplyWizardBypass() {
+        if (wizardBypassState) return;
+
+        const mute = {};
+        const solo = {};
+        GESTURES.forEach(g => {
+            mute[g] = isActiveBtn(g + 'Mute');
+            solo[g] = isActiveBtn(g + 'Solo');
+        });
+
+        wizardBypassState = {
+            mute,
+            solo,
+            thereminActive: isActiveBtn('thereminToggle'),
+            percussionActive: isActiveBtn('percussionToggle'),
+        };
+
+        // Silence app modes during wizard (raw tracking only)
+        setBtnActiveByClick('thereminToggle', false);
+        setBtnActiveByClick('percussionToggle', false);
+
+        // Ensure all gesture inputs are available for detection
+        GESTURES.forEach(g => {
+            setBtnActiveByClick(g + 'Solo', false);
+            setBtnActiveByClick(g + 'Mute', false);
+        });
+    }
+
+    function restoreWizardBypassState() {
+        if (!wizardBypassState) return;
+
+        GESTURES.forEach(g => {
+            setBtnActiveByClick(g + 'Mute', !!wizardBypassState.mute[g]);
+            setBtnActiveByClick(g + 'Solo', !!wizardBypassState.solo[g]);
+        });
+
+        setBtnActiveByClick('thereminToggle', !!wizardBypassState.thereminActive);
+        setBtnActiveByClick('percussionToggle', !!wizardBypassState.percussionActive);
+
+        // Re-fire the active theremin sub-mode radio (notas/synth) so script.js
+        // re-runs its mode setup: restores mouthOpenNotas active state, re-wires
+        // the Tone audio chain, and re-applies mute preferences for that mode.
+        if (wizardBypassState.thereminActive) {
+            setTimeout(() => {
+                const notesRadio = document.getElementById('thereminNotesOption');
+                const synthRadio = document.getElementById('thereminSynthOption');
+                if (notesRadio && notesRadio.checked) {
+                    notesRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                } else if (synthRadio && synthRadio.checked) {
+                    synthRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }, 60);
+        }
+
+        wizardBypassState = null;
+    }
 
     function showWizardStep(idx) {
         document.querySelectorAll('#autoCalModal .wizard-step').forEach(el => el.classList.remove('active'));
@@ -224,11 +516,12 @@
         if (modal) modal.classList.add('open');
     }
 
-    function closeAutoCalModal() {
+    function closeAutoCalModal(skipRestore) {
         const modal = document.getElementById('autoCalModal');
         if (modal) modal.classList.remove('open');
         stopCurrentCollector();
         wizardActive = false;
+        if (!skipRestore) restoreWizardBypassState();
     }
 
     /* ── Neutral baseline capture (Step 0) ───────────────── */
@@ -237,7 +530,7 @@
         console.log('[MIDImyFACE Wizard] Starting neutral step (step 0)');
         showWizardStep(0);
         setWizBar(0, 0);
-        setWizStatus(0, 'Waiting for stable face…');
+        setWizStatus(0, 'Waiting for stable face...');
         wizardBaseline = {};
 
         const samples = {}; // gesture → []
@@ -259,14 +552,14 @@
 
             if (!anyPresent) {
                 stableStart = null;
-                setWizStatus(0, 'No face detected — look at the camera…');
+                setWizStatus(0, 'No face detected - look at the camera...');
                 return;
             }
 
             // If FaceMesh hasn't actually started yet (all values are still 0), wait
             if (!faceMeshActive) {
                 stableStart = null;
-                setWizStatus(0, 'Initializing camera and face detection…');
+                setWizStatus(0, 'Initializing camera and face detection...');
                 return;
             }
 
@@ -278,7 +571,7 @@
             // Need at least 10 samples per present gesture before evaluating
             const presentGestures = GESTURES.filter(g => samples[g].length >= 10);
             if (presentGestures.length === 0) {
-                setWizStatus(0, 'Collecting baseline…');
+                setWizStatus(0, 'Collecting baseline...');
                 return;
             }
 
@@ -289,7 +582,7 @@
 
             if (unstable) {
                 stableStart = null;
-                setWizStatus(0, 'Hold still…');
+                setWizStatus(0, 'Hold still...');
                 setWizBar(0, 0);
                 return;
             }
@@ -298,7 +591,7 @@
             const elapsed = Date.now() - stableStart;
             const pct = Math.min(100, (elapsed / NEUTRAL_STABLE_MS) * 100);
             setWizBar(0, pct);
-            setWizStatus(0, 'Good — hold still…');
+            setWizStatus(0, 'Good - hold still...');
 
             if (elapsed >= NEUTRAL_STABLE_MS) {
                 clearInterval(sampleTimer);
@@ -311,7 +604,7 @@
                         noise:  s.length ? (mad(s) || 0.5) : 1,
                     };
                 });
-                setWizStatus(0, '✓ Baseline captured!');
+                setWizStatus(0, 'Baseline captured.');
                 setTimeout(() => advanceWizardToNextGesture(), 500);
             }
         }, SAMPLE_INTERVAL_MS);
@@ -323,7 +616,7 @@
             console.log('[MIDImyFACE Wizard] Neutral step timeout fired. faceMeshActive=' + faceMeshActive);
             if (!faceMeshActive) {
                 console.log('[MIDImyFACE Wizard] *** Neutral step: Auto-advancing (no face data detected after 9s)');
-                setWizStatus(0, 'Camera not initialized. Proceeding to gesture steps…');
+                setWizStatus(0, 'Camera not initialized. Proceeding to gesture steps...');
                 setTimeout(() => {
                     console.log('[MIDImyFACE Wizard] *** Advancing from neutral to gesture steps...');
                     advanceWizardToNextGesture();
@@ -332,7 +625,7 @@
             }
             
             console.log('[MIDImyFACE Wizard] Neutral step timeout: faceMeshActive=true, showing Retry button');
-            setWizStatus(0, '✗ No face detected. Check camera permissions and ensure good lighting.');
+            setWizStatus(0, 'No face detected. Check camera permissions and ensure good lighting.');
             setWizBar(0, 0);
             const btnArea = document.querySelector('#wiz-step-0 .wizard-buttons');
             if (btnArea && !btnArea.querySelector('.retry-btn')) {
@@ -352,15 +645,16 @@
     function runGestureStep(stepIdx, gesture) {
         showWizardStep(stepIdx);
         setWizBar(stepIdx, 0);
-        setWizStatus(stepIdx, 'Capturing…');
+        setWizStatus(stepIdx, 'Capturing...');
 
         const samples      = [];
         const baseline     = wizardBaseline[gesture] || { median: 0, noise: 1 };
         const noiseFloor   = baseline.noise || 0.5;
         const snrRequired  = RANGE_SNR[gesture] || 4;
-        const minRange     = noiseFloor * snrRequired;
+        const minRange     = Math.max(noiseFloor * snrRequired, ABS_MIN_RANGE[gesture] || 8);
         const isWink       = gesture === 'leftWink' || gesture === 'rightWink';
         const isBipolar    = gesture === 'noseX' || gesture === 'noseY';
+        const stepStartTs  = Date.now();
 
         let advanceHoldStart = null;
         let sampleTimer, timeoutTimer, tbarRaf;
@@ -368,6 +662,15 @@
         stopCurrentCollector();
 
         sampleTimer = setInterval(() => {
+            const elapsed = Date.now() - stepStartTs;
+
+            if (elapsed < STEP_PREP_MS) {
+                const left = Math.ceil((STEP_PREP_MS - elapsed) / 1000);
+                setWizStatus(stepIdx, `Get ready... starting in ${left}s`);
+                setWizBar(stepIdx, 0);
+                return;
+            }
+
             // Accept 0 as valid (noseX/Y can legitimately be 0 or near-0)
             const liveEl = document.getElementById(gesture + '-live');
             const modEl  = document.getElementById(gesture + 'Value');
@@ -391,25 +694,26 @@
                 if (!advanceHoldStart) advanceHoldStart = Date.now();
                 const held = Date.now() - advanceHoldStart;
                 const holdPct = Math.min(100, (held / ADVANCE_HOLD_MS) * 100);
+                const remainingMinMs = Math.max(0, STEP_MIN_DURATION_MS - elapsed);
 
                 if (isWink) {
-                    setWizStatus(stepIdx, `✓ Activation detected — hold… ${Math.round(holdPct)}%`);
+                    setWizStatus(stepIdx, `Activation detected - hold ${Math.round(holdPct)}%` + (remainingMinMs > 0 ? ` | keep moving ${Math.ceil(remainingMinMs / 1000)}s` : ''));
                 } else {
-                    setWizStatus(stepIdx, `✓ Good range (${range.toFixed(1)}) — keep going…`);
+                    setWizStatus(stepIdx, `Good range (${range.toFixed(1)}) - keep going` + (remainingMinMs > 0 ? ` ${Math.ceil(remainingMinMs / 1000)}s` : ''));
                 }
 
-                if (held >= ADVANCE_HOLD_MS) {
+                if (held >= ADVANCE_HOLD_MS && elapsed >= STEP_MIN_DURATION_MS) {
                     clearInterval(sampleTimer);
                     clearTimeout(timeoutTimer);
                     cancelAnimationFrame(tbarRaf);
                     storeGestureResult(gesture, samples, baseline, isBipolar, isWink);
-                    setWizStatus(stepIdx, `✓ Captured!`);
-                    setTimeout(() => advanceWizardToNextGesture(), 400);
+                    setWizStatus(stepIdx, `Captured. Choose your note range...`);
+                    setTimeout(() => showRangeStep(gesture), 400);
                 }
             } else {
                 advanceHoldStart = null;
                 if (samples.length > 15) {
-                    setWizStatus(stepIdx, `Need more movement… (range: ${range.toFixed(1)}, need: ${minRange.toFixed(1)})`);
+                    setWizStatus(stepIdx, `Need more movement (range: ${range.toFixed(1)}, need: ${minRange.toFixed(1)})`);
                 }
             }
         }, SAMPLE_INTERVAL_MS);
@@ -481,35 +785,17 @@
 
         let p5  = percentile(samples, 5);
         let p95 = percentile(samples, 95);
-        let base = baseline.median;
         let noise = baseline.noise || 0.5;
 
         let min, max, minChange, umbral;
 
-        if (isWink) {
-            // Threshold activation style
-            // p95 = peak activation, p5 = resting
-            const restingVal = percentile(samples, 15);
-            const peakVal    = percentile(samples, 85);
-            min       = Math.round(p5);
-            max       = Math.round(p95);
-            umbral    = Math.round(restingVal + (peakVal - restingVal) * 0.45);
-            minChange = Math.max(2, Math.round(noise * 1.5));
+        // Raw-domain calibration for all gestures.
+        min       = Math.round(p5);
+        max       = Math.round(p95);
+        minChange = null;
 
-        } else if (isBipolar) {
-            // Bipolar: centered around baseline
-            min       = Math.round(p5);
-            max       = Math.round(p95);
-            minChange = Math.max(3, Math.round(noise * 2));
-            umbral    = Math.round(base + (p95 - base) * 0.5);
-
-        } else {
-            // Unipolar (mouth, smile): open-close or relaxed-to-peak
-            min       = Math.round(Math.max(0, p5));
-            max       = Math.round(p95);
-            minChange = Math.max(3, Math.round(noise * 2));
-            umbral    = Math.round(min + (max - min) * 0.35);
-        }
+        // Keep trigger threshold neutral for auto-calibration.
+        umbral    = 0;
 
         wizardResults[gesture] = { min, max, minChange, umbral };
     }
@@ -517,33 +803,40 @@
     /* ── Wizard step sequencer ─────────────────────────────── */
 
     function advanceWizardToNextGesture() {
-        console.log('[MIDImyFACE Wizard] advanceWizardToNextGesture: current wizardStep=' + wizardStep);
+        console.log('[MIDImyFACE Wizard] advanceWizardToNextGesture: wizardStep=' + wizardStep + ', WIZARD_STEPS.length=' + WIZARD_STEPS.length);
         stopCurrentCollector();
         // Find next step index
         // If gestureFilter active, skip steps not in filter
         let next = wizardStep + 1;
+        console.log('[MIDImyFACE Wizard]   Loop: next=' + next + ', limit=' + (WIZARD_STEPS.length - 1) + ', gestures=' + WIZARD_STEPS.join(','));
         while (next < WIZARD_STEPS.length - 1) {
             const g = WIZARD_STEPS[next];
             if (!g || g === '__review__') break;
             if (!wizardGestureFilter || wizardGestureFilter.includes(g)) break;
             next++;
         }
-        console.log('[MIDImyFACE Wizard] Advancing to step ' + next);
+        console.log('[MIDImyFACE Wizard] *** Advancing to step ' + next);
         runWizardStep(next);
     }
 
     function runWizardStep(idx) {
-        console.log('[MIDImyFACE Wizard] runWizardStep: idx=' + idx + ', WIZARD_STEPS.length=' + WIZARD_STEPS.length);
-        wizardStep = idx;  // *** UPDATE: Always track current step ***
+        console.log('[MIDImyFACE Wizard] >>> runWizardStep: idx=' + idx + ', WIZARD_STEPS.length=' + WIZARD_STEPS.length);
+        wizardStep = idx;  // UPDATE: Always track current step
         if (idx >= WIZARD_STEPS.length) {
-            console.log('[MIDImyFACE Wizard] idx >= WIZARD_STEPS.length, showing review');
+            console.log('[MIDImyFACE Wizard] *** JUMP TO REVIEW: idx >= length (' + idx + ' >= ' + WIZARD_STEPS.length + ')');
             showReview();
             return;
         }
+
+        if (idx === 0) {
+            runNeutralStep();
+            return;
+        }
+
         const key = WIZARD_STEPS[idx];
-        console.log('[MIDImyFACE Wizard] runWizardStep: key at idx ' + idx + ' is "' + key + '"');
+        console.log('[MIDImyFACE Wizard]   Step key: ' + key);
         if (!key || key === '__review__') {
-            console.log('[MIDImyFACE Wizard] key is null or __review__, showing review');
+            console.log('[MIDImyFACE Wizard] *** JUMP TO REVIEW: key is null/review');
             showReview();
             return;
         }
@@ -554,11 +847,7 @@
             if (btn) btn.onclick = () => closeAutoCalModal();
         });
 
-        if (idx === 0) {
-            runNeutralStep();
-        } else {
-            runGestureStep(idx, key);
-        }
+        runGestureStep(idx, key);
     }
 
     /* ── Review screen ──────────────────────────────────────── */
@@ -578,6 +867,11 @@
             const curMax   = getManualValue(g, 'Max');
             const curUmb   = getManualValue(g, 'Umbral');
             const curMC    = getManualValue(g, 'MinChange');
+            const noteCfg = wizardNoteRanges[g] || { fullRange: true };
+            const noteRange = (noteCfg.fullRange || !noteCfg.low || !noteCfg.high)
+                ? 'Full MIDI'
+                : `${noteCfg.low} - ${noteCfg.high}`;
+            const minChangeText = `${curMC ?? '—'} → <span class="suggested">unchanged</span>`;
 
             if (!r) {
                 return `<tr class="skipped">
@@ -589,8 +883,9 @@
                 <td>${GESTURE_LABELS[g]}</td>
                 <td>${curMin ?? '—'} → <span class="suggested">${r.min}</span></td>
                 <td>${curMax ?? '—'} → <span class="suggested">${r.max}</span></td>
-                <td>${curMC  ?? '—'} → <span class="suggested">${r.minChange}</span></td>
+                <td>${minChangeText}</td>
                 <td>${curUmb ?? '—'} → <span class="suggested">${r.umbral}</span></td>
+                <td>${noteRange}</td>
             </tr>`;
         }).join('');
 
@@ -603,6 +898,7 @@
                         <th>Max (cur→sug)</th>
                         <th>MinChange</th>
                         <th>Threshold</th>
+                        <th>Note Range</th>
                     </tr>
                 </thead>
                 <tbody>${rows}</tbody>
@@ -612,9 +908,21 @@
         // Apply button
         const applyBtn = wizEl('wiz-apply');
         if (applyBtn) {
-            applyBtn.onclick = () => {
+            applyBtn.onclick = async () => {
+                // Apply calibration values first
                 applyResults(wizardResults, wizardGestureFilter);
-                closeAutoCalModal();
+                // Close modal visually but defer bypass-state restore until Tone is live
+                closeAutoCalModal(true /* skipRestore */);
+                // Await Tone AudioContext resume so theremin activates against a live context
+                try {
+                    if (window.Tone && typeof window.Tone.start === 'function') {
+                        await window.Tone.start();
+                    }
+                } catch (_) {}
+                // Now restore bypass (re-enables theremin/percussion) with live audio
+                restoreWizardBypassState();
+                // Sync manual cal note-range UI with newly saved ranges
+                refreshMcalNoteRanges();
                 // Flash manual cal button briefly
                 const manBtn = document.getElementById('openManualCalBtn');
                 if (manBtn) {
@@ -646,9 +954,13 @@
         // gestureFilter: null (all gestures) or array like ['mouthOpen']
         wizardResults      = {};
         wizardBaseline     = {};
+        wizardNoteRanges   = loadGestureNoteRanges();
         wizardGestureFilter = gestureFilter || null;
         wizardActive       = true;
         wizardStep         = 0;  // *** RESET: Always start at step 0 ***
+
+        // Wizard-only bypass: unmute inputs, disable solos and silence sound modes.
+        snapshotAndApplyWizardBypass();
 
         // Clean up from previous run: remove retry buttons, reset status displays
         document.querySelectorAll('#autoCalModal .retry-btn').forEach(el => el.remove());
@@ -657,8 +969,8 @@
         [0,1,2,3,4,5,6].forEach(i => {
             const status = wizEl('wiz-status-' + i);
             if (status) {
-                if (i === 0) status.textContent = 'Waiting for stable face…';
-                else status.textContent = 'Capturing…';
+                if (i === 0) status.textContent = 'Waiting for stable face...';
+                else status.textContent = 'Capturing...';
             }
             const bar = wizEl('wiz-bar-' + i);
             if (bar) bar.style.width = '0%';
@@ -687,6 +999,86 @@
         runWizardStep(0); // always start with neutral
     }
 
+    /* ── Manual Calibration Note Ranges ─────────────────── */
+
+    // updateMcalVis and saveMcalRange are shared between init and refresh — hoist them
+    function _updateMcalVis(gesture) {
+        const fullEl = document.getElementById(`mcal-fullrange-${gesture}`);
+        const wrapEl = document.getElementById(`mcal-customrange-${gesture}`);
+        if (!fullEl || !wrapEl) return;
+        wrapEl.style.display = fullEl.checked ? 'none' : 'flex';
+    }
+
+    function _saveMcalRange(gesture) {
+        const fullEl = document.getElementById(`mcal-fullrange-${gesture}`);
+        if (!fullEl) return;
+        const ranges = loadGestureNoteRanges();
+        if (fullEl.checked) {
+            ranges[gesture] = { fullRange: true };
+        } else {
+            const lowCls  = document.getElementById(`mcal-lowclass-${gesture}`);
+            const lowOct  = document.getElementById(`mcal-lowoct-${gesture}`);
+            const highCls = document.getElementById(`mcal-highclass-${gesture}`);
+            const highOct = document.getElementById(`mcal-highoct-${gesture}`);
+            const lowRaw  = `${lowCls ? lowCls.value : 'C'}${lowOct ? lowOct.value : '3'}`;
+            const highRaw = `${highCls ? highCls.value : 'C'}${highOct ? highOct.value : '5'}`;
+            const low  = parseAbsoluteNote(lowRaw);
+            const high = parseAbsoluteNote(highRaw);
+            if (low && high) {
+                if (low.midi <= high.midi) {
+                    ranges[gesture] = { fullRange: false, low: low.canonical, high: high.canonical, lowMidi: low.midi, highMidi: high.midi };
+                } else {
+                    ranges[gesture] = { fullRange: false, low: high.canonical, high: low.canonical, lowMidi: high.midi, highMidi: low.midi };
+                }
+            } else {
+                ranges[gesture] = { fullRange: true };
+            }
+        }
+        saveGestureNoteRanges(ranges);
+    }
+
+    /* Populate manual-cal note-range rows from current localStorage state.
+       Called every time the Manual Cal modal opens and after Apply. */
+    function refreshMcalNoteRanges() {
+        const ranges = loadGestureNoteRanges();
+        GESTURES.forEach(gesture => {
+            const fullEl  = document.getElementById(`mcal-fullrange-${gesture}`);
+            const lowCls  = document.getElementById(`mcal-lowclass-${gesture}`);
+            const lowOct  = document.getElementById(`mcal-lowoct-${gesture}`);
+            const highCls = document.getElementById(`mcal-highclass-${gesture}`);
+            const highOct = document.getElementById(`mcal-highoct-${gesture}`);
+            if (!fullEl) return;
+            const cur = ranges[gesture] || null;
+            if (cur && cur.fullRange === false) {
+                fullEl.checked = false;
+                const lowMatch  = (cur.low  || 'C3').match(/^([A-G]#?)([-\d]+)$/);
+                const highMatch = (cur.high || 'C5').match(/^([A-G]#?)([-\d]+)$/);
+                if (lowMatch  && lowCls  && lowOct)  { lowCls.value  = lowMatch[1];  lowOct.value  = lowMatch[2]; }
+                if (highMatch && highCls && highOct) { highCls.value = highMatch[1]; highOct.value = highMatch[2]; }
+            } else {
+                fullEl.checked = true;
+            }
+            _updateMcalVis(gesture);
+        });
+    }
+
+    /* Wire event listeners once at page init. Populate initial values via refreshMcalNoteRanges. */
+    function initManualCalNoteRanges() {
+        GESTURES.forEach(gesture => {
+            const fullEl  = document.getElementById(`mcal-fullrange-${gesture}`);
+            const lowCls  = document.getElementById(`mcal-lowclass-${gesture}`);
+            const lowOct  = document.getElementById(`mcal-lowoct-${gesture}`);
+            const highCls = document.getElementById(`mcal-highclass-${gesture}`);
+            const highOct = document.getElementById(`mcal-highoct-${gesture}`);
+            if (!fullEl) return;
+            fullEl.addEventListener('change', () => { _updateMcalVis(gesture); _saveMcalRange(gesture); });
+            [lowCls, lowOct, highCls, highOct].forEach(el => {
+                if (el) el.addEventListener('change', () => _saveMcalRange(gesture));
+            });
+        });
+        refreshMcalNoteRanges(); // populate on first load
+    }
+
     /* ═══════════════════════════════════════════════════════
        WIRING — event listeners
     ═══════════════════════════════════════════════════════ */
@@ -706,6 +1098,8 @@
                 if (e.target === manModal) closeManualCal();
             });
         }
+
+        initManualCalNoteRanges();
 
         /* Per-gesture Calibrate buttons (compact rows on main page) */
         document.querySelectorAll('.gesture-calibrate-btn').forEach(btn => {

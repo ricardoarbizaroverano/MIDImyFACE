@@ -555,16 +555,74 @@
         margin-bottom: 6px;
     }
     .wizard-instruction {
-        font-size: 17px;
-        color: lime;
-        margin: 10px 0;
-        line-height: 1.55;
+        font-size: 20px;
+        font-weight: 700;
+        color: #d6ff8f;
+        margin: 12px 0;
+        line-height: 1.7;
+        padding: 10px 12px;
+        border: 1px solid #3d6f20;
+        background: #0f2200;
+        border-radius: 6px;
     }
     .wizard-status {
-        font-size: 13px;
-        color: #88ff44;
-        min-height: 22px;
-        margin: 6px 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: #baff72;
+        min-height: 26px;
+        margin: 8px 0;
+    }
+    .wizard-demo-wrap {
+        width: 100%;
+        margin: 10px 0 12px;
+        padding: 8px;
+        border: 1px solid #2a5a18;
+        background: #0b1800;
+        border-radius: 6px;
+        text-align: center;
+    }
+    .wizard-demo {
+        width: 100%;
+        max-height: 190px;
+        object-fit: contain;
+        border-radius: 4px;
+        image-rendering: auto;
+    }
+    .wizard-range {
+        margin: 8px 0;
+        padding: 8px;
+        border: 1px solid #275e16;
+        background: #0b1f00;
+        border-radius: 5px;
+        color: #baff72;
+        font-size: 12px;
+    }
+    .wiz-range-choice-wrap { display:flex; gap:12px; margin:20px 0 10px 0; justify-content:center; }
+    .wiz-range-opt { flex:1; max-width:180px; padding:14px 8px; font-size:13px; text-align:center; border:2px solid #2f7c16; background:#000; color:#9dff57; border-radius:5px; cursor:pointer; }
+    .wiz-range-opt.active { background:#275e16; color:#baff72; border-color:#9dff57; font-weight:bold; }
+    .mcal-noterange-row { border-top:1px dashed #1a3a09; padding-top:5px; margin-top:0; gap:6px; flex-wrap:wrap; min-height:unset; }
+    .mcal-noterange-row .gesture-name { font-size:10px; color:#555; }
+    .mcal-fullrange-lbl { font-size:11px; color:#baff72; display:flex; align-items:center; gap:4px; white-space:nowrap; }
+    .mcal-customrange { display:none; gap:4px; align-items:center; font-size:11px; color:#9dff57; flex-wrap:wrap; }
+    .mcal-customrange select, .mcal-customrange input[type="number"] { background:#000; color:#9dff57; border:1px solid #2f7c16; padding:2px 4px; font-size:11px; border-radius:3px; }
+    .mcal-customrange select { width:55px; }
+    .mcal-customrange input[type="number"] { width:40px; }
+    .wizard-range-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 6px;
+    }
+    .wizard-range select,
+    .wizard-range input[type="number"] {
+        background: #000;
+        color: #9dff57;
+        border: 1px solid #2f7c16;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 12px;
+        padding: 4px 6px;
+        width: auto;
     }
     .wizard-bar-wrap {
         width: 100%;
@@ -707,8 +765,8 @@
 
     <!-- Calibration Action Buttons -->
     <div class="calibration-actions">
-        <button class="cal-action-btn" id="openManualCalBtn" data-i18n="manualCalibrationBtn">⚙ Calibración Manual</button>
-        <button class="cal-action-btn" id="openAutoCalBtn" data-i18n="automaticCalibrationBtn">✦ Auto Calibración</button>
+        <button class="cal-action-btn" id="openManualCalBtn" data-i18n="manualCalibrationBtn">Calibración Manual</button>
+        <button class="cal-action-btn" id="openAutoCalBtn" data-i18n="automaticCalibrationBtn">Auto Calibración</button>
     </div>
 
     <!-- Gesture Rows (main page) — raw value + CC + MIDI buttons + per-gesture calibrate -->
@@ -910,7 +968,7 @@
 
         <!-- INVITE MODE: auto-shown when ?invite_token= is present in the URL -->
         <div id="inviteModePanel" class="hidden">
-            <div class="invite-banner">🎵 Sesión en curso &mdash; introduce tu nombre para entrar</div>
+            <div class="invite-banner">Sesión en curso &mdash; introduce tu nombre para entrar</div>
             <div class="row">
                 <label for="inviteNameInput">Tu nombre</label>
                 <input id="inviteNameInput" class="input-range wide" placeholder="Tu nombre...">
@@ -955,7 +1013,7 @@
     <div id="manualCalModal" class="cal-overlay">
         <div class="cal-modal-box">
             <button class="cal-close-btn" id="closeManualCalBtn">&times;</button>
-            <h2 class="cal-modal-title">⚙ Manual Calibration</h2>
+            <h2 class="cal-modal-title">Manual Calibration</h2>
             <p style="font-size:12px;color:gray;margin:0 0 12px 0;">
                 Edit values directly. Changes take effect immediately. These are the active calibration values at runtime.
             </p>
@@ -971,6 +1029,17 @@
                     <input type="number" id="mouthOpenMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="mouthOpenScaling" data-i18n="scaling">Escalar</button>
                 </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-mouthOpen" checked> Full MIDI</label>
+                    <div id="mcal-customrange-mouthOpen" class="mcal-customrange">
+                        <select id="mcal-lowclass-mouthOpen"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-mouthOpen" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-mouthOpen"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-mouthOpen" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
                 <!-- Sonrisa -->
                 <div class="gesture-row">
                     <div class="gesture-name" data-i18n="smile">Sonrisa</div>
@@ -979,6 +1048,17 @@
                     <input type="number" id="smileMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
                     <input type="number" id="smileMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="smileScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-smile" checked> Full MIDI</label>
+                    <div id="mcal-customrange-smile" class="mcal-customrange">
+                        <select id="mcal-lowclass-smile"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-smile" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-smile"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-smile" type="number" min="-1" max="9" value="5">
+                    </div>
                 </div>
                 <!-- Guiño Izq. -->
                 <div class="gesture-row">
@@ -989,6 +1069,17 @@
                     <input type="number" id="leftWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="leftWinkScaling" data-i18n="scaling">Escalar</button>
                 </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-leftWink" checked> Full MIDI</label>
+                    <div id="mcal-customrange-leftWink" class="mcal-customrange">
+                        <select id="mcal-lowclass-leftWink"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-leftWink" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-leftWink"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-leftWink" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
                 <!-- Guiño Der. -->
                 <div class="gesture-row">
                     <div class="gesture-name" data-i18n="rightWink">Guiño Der.</div>
@@ -997,6 +1088,17 @@
                     <input type="number" id="rightWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
                     <input type="number" id="rightWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="rightWinkScaling" data-i18n="scaling">Escalar</button>
+                </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-rightWink" checked> Full MIDI</label>
+                    <div id="mcal-customrange-rightWink" class="mcal-customrange">
+                        <select id="mcal-lowclass-rightWink"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-rightWink" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-rightWink"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-rightWink" type="number" min="-1" max="9" value="5">
+                    </div>
                 </div>
                 <!-- Nariz X -->
                 <div class="gesture-row">
@@ -1007,6 +1109,17 @@
                     <input type="number" id="noseXMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="noseXScaling" data-i18n="scaling">Escalar</button>
                 </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-noseX" checked> Full MIDI</label>
+                    <div id="mcal-customrange-noseX" class="mcal-customrange">
+                        <select id="mcal-lowclass-noseX"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-noseX" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-noseX"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-noseX" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
                 <!-- Nariz Y -->
                 <div class="gesture-row">
                     <div class="gesture-name" data-i18n="noseY">Nariz Y</div>
@@ -1016,6 +1129,17 @@
                     <input type="number" id="noseYMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="noseYScaling" data-i18n="scaling">Escalar</button>
                 </div>
+                <div class="gesture-row mcal-noterange-row">
+                    <div class="gesture-name">Note Range</div>
+                    <label class="mcal-fullrange-lbl"><input type="checkbox" id="mcal-fullrange-noseY" checked> Full MIDI</label>
+                    <div id="mcal-customrange-noseY" class="mcal-customrange">
+                        <select id="mcal-lowclass-noseY"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-lowoct-noseY" type="number" min="-1" max="9" value="3">
+                        <span>-</span>
+                        <select id="mcal-highclass-noseY"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="mcal-highoct-noseY" type="number" min="-1" max="9" value="5">
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1024,13 +1148,16 @@
     <div id="autoCalModal" class="cal-overlay">
         <div class="cal-modal-box">
             <button class="cal-close-btn" id="closeAutoCalBtn">&times;</button>
-            <h2 class="cal-modal-title" data-i18n="wizard.title">✦ Automatic Calibration</h2>
+            <h2 class="cal-modal-title" data-i18n="wizard.title">Automatic Calibration</h2>
 
             <!-- Step 0: Neutral -->
             <div class="wizard-step" id="wiz-step-0">
                 <div class="wizard-progress" data-i18n="wizard.step_1_neutral">Step 1 / 8 — Neutral Face</div>
                 <div class="wizard-instruction" data-i18n="wizard.step_1_instr">Look at the camera, keep a neutral face, and stay at the same distance.</div>
-                <div class="wizard-status" id="wiz-status-0" data-i18n="wizard.waiting">Waiting for stable face…</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-still.gif" alt="Neutral face reference" onerror="this.onerror=null;this.src='wizard-still.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-0" data-i18n="wizard.waiting">Waiting for stable face...</div>
                 <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-0"></div></div>
                 <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-0"></div></div>
                 <div class="wizard-buttons">
@@ -1042,7 +1169,10 @@
             <div class="wizard-step" id="wiz-step-1">
                 <div class="wizard-progress" id="wiz-prog-1" data-i18n="wizard.step_2_mouth">Step 2 / 8 — Mouth</div>
                 <div class="wizard-instruction" data-i18n="wizard.step_2_instr">Open and close your mouth naturally two or three times.</div>
-                <div class="wizard-status" id="wiz-status-1" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-mouth.gif" alt="Mouth gesture reference" onerror="this.onerror=null;this.src='wizard-mouth.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-1" data-i18n="wizard.capturing">Capturing...</div>
                 <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-1"></div></div>
                 <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-1"></div></div>
                 <div class="wizard-buttons">
@@ -1055,7 +1185,10 @@
             <div class="wizard-step" id="wiz-step-2">
                 <div class="wizard-progress" id="wiz-prog-2" data-i18n="wizard.step_3_smile">Step 3 / 8 — Smile</div>
                 <div class="wizard-instruction" data-i18n="wizard.step_3_instr">Smile and relax naturally two or three times.</div>
-                <div class="wizard-status" id="wiz-status-2" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-smile.gif" alt="Smile gesture reference" onerror="this.onerror=null;this.src='wizard-smile.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-2" data-i18n="wizard.capturing">Capturing...</div>
                 <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-2"></div></div>
                 <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-2"></div></div>
                 <div class="wizard-buttons">
@@ -1068,7 +1201,10 @@
             <div class="wizard-step" id="wiz-step-3">
                 <div class="wizard-progress" id="wiz-prog-3" data-i18n="wizard.step_4_left">Step 4 / 8 — Left Eye</div>
                 <div class="wizard-instruction" data-i18n="wizard.step_4_instr">Blink or wink your left eye twice.</div>
-                <div class="wizard-status" id="wiz-status-3" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-Lblink.gif" alt="Left blink gesture reference" onerror="this.onerror=null;this.src='wizard-Lblink.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-3" data-i18n="wizard.capturing">Capturing...</div>
                 <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-3"></div></div>
                 <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-3"></div></div>
                 <div class="wizard-buttons">
@@ -1081,7 +1217,10 @@
             <div class="wizard-step" id="wiz-step-4">
                 <div class="wizard-progress" id="wiz-prog-4" data-i18n="wizard.step_5_right">Step 5 / 8 — Right Eye</div>
                 <div class="wizard-instruction" data-i18n="wizard.step_5_instr">Blink or wink your right eye twice.</div>
-                <div class="wizard-status" id="wiz-status-4" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-Rblink.gif" alt="Right blink gesture reference" onerror="this.onerror=null;this.src='wizard-Rblink.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-4" data-i18n="wizard.capturing">Capturing...</div>
                 <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-4"></div></div>
                 <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-4"></div></div>
                 <div class="wizard-buttons">
@@ -1094,7 +1233,10 @@
             <div class="wizard-step" id="wiz-step-5">
                 <div class="wizard-progress" id="wiz-prog-5" data-i18n="wizard.step_6_noseX">Step 6 / 8 — Head Left / Right</div>
                 <div class="wizard-instruction" data-i18n="wizard.step_6_instr">Move your head left and right naturally.</div>
-                <div class="wizard-status" id="wiz-status-5" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-noseX.gif" alt="Nose X gesture reference" onerror="this.onerror=null;this.src='wizard-noseX.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-5" data-i18n="wizard.capturing">Capturing...</div>
                 <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-5"></div></div>
                 <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-5"></div></div>
                 <div class="wizard-buttons">
@@ -1107,12 +1249,41 @@
             <div class="wizard-step" id="wiz-step-6">
                 <div class="wizard-progress" id="wiz-prog-6" data-i18n="wizard.step_7_noseY">Step 7 / 8 — Head Up / Down</div>
                 <div class="wizard-instruction" data-i18n="wizard.step_7_instr">Move your head up and down naturally.</div>
-                <div class="wizard-status" id="wiz-status-6" data-i18n="wizard.capturing">Capturing…</div>
+                <div class="wizard-demo-wrap">
+                    <img class="wizard-demo" src="assets/wizard-gifs/wizard-noseY.gif" alt="Nose Y gesture reference" onerror="this.onerror=null;this.src='wizard-noseY.gif';">
+                </div>
+                <div class="wizard-status" id="wiz-status-6" data-i18n="wizard.capturing">Capturing...</div>
                 <div class="wizard-bar-wrap"><div class="wizard-bar" id="wiz-bar-6"></div></div>
                 <div class="wizard-timeout-wrap"><div class="wizard-timeout-bar" id="wiz-tbar-6"></div></div>
                 <div class="wizard-buttons">
                     <button class="wizard-btn" id="wiz-skip-6" data-i18n="wizard.skip">Skip</button>
                     <button class="wizard-btn danger" id="wiz-cancel-6" data-i18n="wizard.cancel">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Range Selection Step (shared interstitial shown after each gesture capture) -->
+            <div class="wizard-step" id="wiz-step-range">
+                <div class="wizard-progress" id="wiz-range-progress">Musical Range</div>
+                <div class="wizard-instruction" id="wiz-range-instr" style="margin-bottom:8px;">
+                    Do you want to use the full MIDI note range, or choose a specific musical range for this gesture?
+                </div>
+                <div class="wiz-range-choice-wrap">
+                    <button class="wizard-btn wiz-range-opt active" id="wiz-range-full-btn">Full MIDI Range</button>
+                    <button class="wizard-btn wiz-range-opt" id="wiz-range-custom-btn">Custom Range</button>
+                </div>
+                <div id="wiz-range-custom-wrap" style="display:none; margin-top:12px;">
+                    <div class="wizard-range-row">
+                        <span>Low</span>
+                        <select id="wiz-range-lowclass"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="wiz-range-lowoct" type="number" min="-1" max="9" value="3" style="width:50px;">
+                        <span>High</span>
+                        <select id="wiz-range-highclass"><option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option></select>
+                        <input id="wiz-range-highoct" type="number" min="-1" max="9" value="5" style="width:50px;">
+                    </div>
+                </div>
+                <div class="wizard-buttons">
+                    <button class="wizard-btn primary" id="wiz-range-next">Next</button>
+                    <button class="wizard-btn danger" id="wiz-range-cancel">Cancel</button>
                 </div>
             </div>
 
@@ -1210,51 +1381,310 @@
     <script>
         let translations = {};
         let currentLanguage = 'es'; // Idioma predeterminado
+        let translationsReady = false;
 
-        // Fetch the translations JSON file
+        // Fallback translations in case fetch fails (minimal set)
+        const fallbackTranslations = {
+            "es": {
+                "dynamicsWithWink": "Dinámica con Guiño",
+                "dynamicsWithMouth": "Dinámica con Boca",
+                "automaticCalibrationBtn": "Auto Calibración",
+                "manualCalibrationBtn": "Calibración Manual",
+                "wizard": {
+                    "title": "Calibración Automática",
+                    "step_1_neutral": "Paso 1 / 8 — Cara Neutral",
+                    "step_1_instr": "Mira la cámara, mantén una cara neutral y quédate a la misma distancia.",
+                    "step_2_mouth": "Paso 2 / 8 — Boca",
+                    "step_2_instr": "Abre y cierra la boca naturalmente dos o tres veces.",
+                    "skip": "Omitir",
+                    "cancel": "Cancelar",
+                    "apply": "Aplicar",
+                    "retryAll": "Reintentar Todo",
+                    "capturing": "Capturando..."
+                }
+            },
+            "en": {
+                "dynamicsWithWink": "Dynamics with Wink",
+                "dynamicsWithMouth": "Dynamics with Mouth",
+                "automaticCalibrationBtn": "Auto Calibration",
+                "manualCalibrationBtn": "Manual Calibration",
+                "wizard": {
+                    "title": "Automatic Calibration",
+                    "step_1_neutral": "Step 1 / 8 — Neutral Face",
+                    "step_1_instr": "Look at the camera, keep a neutral face, and stay at the same distance.",
+                    "step_2_mouth": "Step 2 / 8 — Mouth",
+                    "step_2_instr": "Open and close your mouth naturally two or three times.",
+                    "skip": "Skip",
+                    "cancel": "Cancel",
+                    "apply": "Apply",
+                    "retryAll": "Retry All",
+                    "capturing": "Capturing..."
+                }
+            }
+        };
+
+        // Fetch the translations JSON file with better error handling
         fetch('translations.json')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load translations.json: ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('[MIDImyFACE] Translations loaded successfully');
                 translations = data;
+                translationsReady = true;
+                applyTranslations(currentLanguage);
+            })
+            .catch(error => {
+                console.error('[MIDImyFACE] Error loading translations.json:', error);
+                console.log('[MIDImyFACE] Using fallback translations');
+                translations = fallbackTranslations;
+                translationsReady = true;
                 applyTranslations(currentLanguage);
             });
 
         // Function to apply translations based on the selected language
         function applyTranslations(language) {
-    document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        const text = getNestedTranslation(translations[language], key);
-        if (text) {
-            element.innerHTML = text;
+            if (!translationsReady) {
+                console.warn('[MIDImyFACE] Translations not ready yet, will retry on next call');
+                return;
+            }
+            console.log('[MIDImyFACE] Applying translations for language: ' + language);
+            let appliedCount = 0;
+            
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const text = getNestedTranslation(translations[language], key);
+                if (text) {
+                    element.innerHTML = text;
+                    appliedCount++;
+                }
+            });
+            console.log('[MIDImyFACE] Applied ' + appliedCount + ' text translations');
+            
+            // Manejar placeholders
+            let placeholderCount = 0;
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-i18n-placeholder');
+                const text = getNestedTranslation(translations[language], key);
+                if (text) {
+                    element.setAttribute('placeholder', text);
+                    placeholderCount++;
+                }
+            });
+            if (placeholderCount > 0) console.log('[MIDImyFACE] Applied ' + placeholderCount + ' placeholder translations');
+            
+            // Manejar elementos option
+            let optionCount = 0;
+            document.querySelectorAll('option[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const text = getNestedTranslation(translations[language], key);
+                if (text) {
+                    element.textContent = text;
+                    optionCount++;
+                }
+            });
+            if (optionCount > 0) console.log('[MIDImyFACE] Applied ' + optionCount + ' option translations');
         }
-    });
-    // Manejar placeholders
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-        const key = element.getAttribute('data-i18n-placeholder');
-        const text = getNestedTranslation(translations[language], key);
-        if (text) element.setAttribute('placeholder', text);
-    });
-    // Manejar elementos option
-    document.querySelectorAll('option[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        const text = getNestedTranslation(translations[language], key);
-        if (text) {
-            element.textContent = text;
-        }
-    });
-}
 
         function getNestedTranslation(obj, key) {
-            return key.split('.').reduce((o, i) => o ? o[i] : null, obj);
+            const fromObj = (source) => {
+                if (!source) return null;
+                const value = key.split('.').reduce((o, i) => (o && typeof o === 'object') ? o[i] : null, source);
+                if (value === undefined || value === null || value === '') return null;
+                return value;
+            };
+            const direct = fromObj(obj);
+            if (direct) return direct;
+            const inCurrent = fromObj(translations[currentLanguage]);
+            if (inCurrent) return inCurrent;
+            const inSpanish = fromObj(translations.es);
+            if (inSpanish) return inSpanish;
+            const inEnglish = fromObj(translations.en);
+            if (inEnglish) return inEnglish;
+            return null;
         }
 
         // Event listener for the language switcher
-        document.getElementById('languageSwitcher').addEventListener('change', (event) => {
-            currentLanguage = event.target.value;
-            applyTranslations(currentLanguage);
+        const langSwitcher = document.getElementById('languageSwitcher');
+        if (langSwitcher) {
+            langSwitcher.addEventListener('change', (event) => {
+                currentLanguage = event.target.value;
+                console.log('[MIDImyFACE] Language switched to: ' + currentLanguage);
+                applyTranslations(currentLanguage);
+                setTimeout(() => applyTranslations(currentLanguage), 150);
+                setTimeout(() => applyTranslations(currentLanguage), 500);
+            });
+        }
+
+        window.addEventListener('load', () => {
+            setTimeout(() => applyTranslations(currentLanguage), 120);
+            setTimeout(() => applyTranslations(currentLanguage), 450);
+            setTimeout(() => applyTranslations(currentLanguage), 900);
         });
     </script>
      <script src="calibration.js"></script>
+     <script>
+/* ── MIDImyFACE Note-Range Interceptor ────────────────────────────────────
+   Remaps every Tone.js triggerAttack note to the gesture's custom range.
+
+   Core math:
+     1. Identify the gesture from gestureActiveNotes[gesture] === incomingMidi
+     2. Read the live raw sensor value from currentGestureValues[gesture]
+     3. Read calibrated min/max from the Manual Cal DOM inputs
+     4. Compute proportion = (rawValue - calMin) / (calMax - calMin)
+     5. Map → targetMidi = low + proportion × (high - low)
+     6. Snap to nearest on-scale note within [low, high]
+
+   This gives true proportional mapping: minimum gesture → lowest note,
+   maximum gesture → highest note, linear in between.                       ── */
+(function () {
+    'use strict';
+
+    // ── Scale / key helpers (mirrors calibration.js) ─────────────────────
+    const PITCH_CLASS = {C:0,'C#':1,DB:1,D:2,'D#':3,EB:3,E:4,F:5,'F#':6,GB:6,G:7,'G#':8,AB:8,A:9,'A#':10,BB:10,B:11};
+    const SCALE_IVLS  = {
+        major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
+        phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
+        aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
+        pentatonic:[0,2,4,7,9], blues:[0,3,5,6,7,10], bebop:[0,2,4,5,7,9,10,11],
+        harmonic_minor:[0,2,3,5,7,8,11], melodic_minor:[0,2,3,5,7,9,11],
+        chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
+    };
+
+    function getKeyPc() {
+        try { const v=(document.getElementById('rootNoteSelect')||{}).value||'C'; return PITCH_CLASS[v.toUpperCase()]??0; } catch(_){return 0;}
+    }
+    function getScaleIvs() {
+        try { const v=(document.getElementById('scaleSelect')||{}).value||'chromatic'; return SCALE_IVLS[v]||SCALE_IVLS.chromatic; } catch(_){return SCALE_IVLS.chromatic;}
+    }
+
+    // All MIDI notes in [low,high] that belong to the current scale/key.
+    // Falls back to every semitone if no scale notes fit.
+    function buildAllowed(low, high) {
+        const kpc=getKeyPc(), ivs=getScaleIvs(), out=[];
+        for (let n=low; n<=high; n++) { if (ivs.includes(((n-kpc)%12+12)%12)) out.push(n); }
+        return out.length ? out : Array.from({length:high-low+1},(_,i)=>low+i);
+    }
+
+    // Nearest note in `allowed` to `target`.
+    function snapNearest(target, allowed) {
+        let best=allowed[0], bestD=Infinity;
+        for (const n of allowed) { const d=Math.abs(n-target); if (d<bestD){bestD=d; best=n;} }
+        return best;
+    }
+
+    // ── Calibration bounds from Manual Cal inputs ─────────────────────────
+    function getCalBounds(gesture) {
+        const minEl=document.getElementById(gesture+'Min');
+        const maxEl=document.getElementById(gesture+'Max');
+        const min=parseFloat(minEl&&minEl.value);
+        const max=parseFloat(maxEl&&maxEl.value);
+        return (Number.isFinite(min)&&Number.isFinite(max)&&max>min) ? {min,max} : null;
+    }
+
+    // ── Desired note range from localStorage ─────────────────────────────
+    function loadRanges() {
+        try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges')||'{}'); } catch(_){return{};}
+    }
+
+    // ── Core remap ────────────────────────────────────────────────────────
+    // gesture: string key. incomingMidi: MIDI int from quantizeToScale.
+    function remapMidi(incomingMidi, gesture) {
+        if (!gesture) return incomingMidi;
+        const range = loadRanges()[gesture];
+        if (!range || range.fullRange) return incomingMidi;
+
+        const low  = Math.round(Number(range.lowMidi));
+        const high = Math.round(Number(range.highMidi));
+        if (!Number.isFinite(low)||!Number.isFinite(high)||low>=high) return incomingMidi;
+
+        // Proportion from live raw sensor value + calibration bounds
+        const rawVal = window.currentGestureValues ? Number(window.currentGestureValues[gesture]) : NaN;
+        const cal    = getCalBounds(gesture);
+        let proportion;
+        if (cal && Number.isFinite(rawVal)) {
+            proportion = Math.max(0, Math.min(1, (rawVal - cal.min) / (cal.max - cal.min)));
+        } else {
+            // Fallback: position of incomingMidi within C2(36)–C7(96), a conservative
+            // estimate of quantizeToScale's output range.
+            proportion = Math.max(0, Math.min(1, (incomingMidi - 36) / 60));
+        }
+
+        const targetMidi = Math.round(low + proportion * (high - low));
+        const allowed    = buildAllowed(low, high);
+        return allowed.length ? snapNearest(targetMidi, allowed) : incomingMidi;
+    }
+
+    // ── Gesture lookup ────────────────────────────────────────────────────
+    // script.js sets gestureActiveNotes[gesture] = quantizeResult BEFORE
+    // calling playSynthNoteWhenReady, so this lookup is reliable at attack time.
+    function gestureForNote(midi) {
+        const ga = window.gestureActiveNotes;
+        if (!ga) return null;
+        for (const [g,n] of Object.entries(ga)) { if (n===midi) return g; }
+        return null;
+    }
+
+    // ── Tone note conversion ──────────────────────────────────────────────
+    function toMidi(note) {
+        if (typeof note==='number') return Math.round(note);
+        try { return Math.round(window.Tone.Frequency(note).toMidi()); } catch(_){return -1;}
+    }
+    function toNote(midi) {
+        try { return window.Tone.Frequency(midi,'midi').toNote(); } catch(_){return midi;}
+    }
+
+    // Track original→remapped for triggerRelease so notes end cleanly
+    const _attackMap = new Map();
+
+    // ── Prototype patch ───────────────────────────────────────────────────
+    function wrapProto(cls, method, isRelease) {
+        const orig = cls.prototype[method];
+        if (!orig || orig.__mmfMapped) return;
+        cls.prototype[method] = function(note, ...rest) {
+            let mapped = note;
+            try {
+                const mIn = toMidi(note);
+                if (mIn >= 0 && mIn <= 127) {
+                    let mOut;
+                    if (isRelease) {
+                        mOut = _attackMap.has(mIn) ? _attackMap.get(mIn) : mIn;
+                        _attackMap.delete(mIn);
+                    } else {
+                        const gesture = gestureForNote(mIn);
+                        mOut = remapMidi(mIn, gesture);
+                        if (mOut !== mIn) _attackMap.set(mIn, mOut);
+                    }
+                    if (mOut !== mIn) mapped = toNote(mOut);
+                }
+            } catch(_) {}
+            return orig.call(this, mapped, ...rest);
+        };
+        cls.prototype[method].__mmfMapped = true;
+    }
+
+    function applyWrap() {
+        if (!window.Tone) return false;
+        ['Sampler','PolySynth','Synth'].forEach(name => {
+            const C = window.Tone[name];
+            if (!C||!C.prototype) return;
+            wrapProto(C, 'triggerAttack',         false);
+            wrapProto(C, 'triggerAttackRelease',  false);
+            wrapProto(C, 'triggerRelease',        true);
+        });
+        console.log('[MIDImyFACE] note-range interceptor active (proportional mapping)');
+        return true;
+    }
+
+    if (!applyWrap()) {
+        const t = setInterval(()=>{ if(applyWrap()) clearInterval(t); }, 100);
+        setTimeout(()=>clearInterval(t), 8000);
+    }
+})();
+    </script>
      <script src="script.js"></script>
      <script src="ws-bridge.js"></script>
      <script>
@@ -1288,6 +1718,252 @@
         applyDefaults();
         setTimeout(applyDefaults, 150);
         setTimeout(applyDefaults, 600);
+    });
+})();
+
+/* ── Audio unlock for reliable Notes playback ────────────────────────────── */
+(function () {
+    let unlocked = false;
+
+    function ensureAudioUnlocked() {
+        if (unlocked) return;
+        try {
+            if (window.Tone && typeof window.Tone.start === 'function') {
+                window.Tone.start().then(() => { unlocked = true; }).catch(() => {});
+            }
+        } catch (_) {}
+    }
+
+    function bindUnlock(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', ensureAudioUnlocked);
+    }
+
+    window.addEventListener('load', () => {
+        ['mouthOpenNotas','smileNotas','leftWinkNotas','rightWinkNotas','noseXNotas','noseYNotas','thereminToggle','instructionButton','openAutoCalBtn','openManualCalBtn'].forEach(bindUnlock);
+        document.addEventListener('pointerdown', ensureAudioUnlocked, { once: true });
+        document.addEventListener('keydown', ensureAudioUnlocked, { once: true });
+    });
+})();
+
+/* ── Trigger precedence: percussion ON => all gestures are Disparador ───── */
+(function () {
+    const GESTURES = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY'];
+    const triggerPrefs = {};
+
+    function btn(id) { return document.getElementById(id); }
+    function isActive(id) { const el = btn(id); return !!(el && el.classList.contains('active')); }
+
+    function setActiveByClick(id, wanted) {
+        const el = btn(id);
+        if (!el) return;
+        const active = el.classList.contains('active');
+        if (active !== wanted) el.click();
+    }
+
+    function rememberCurrentPrefs() {
+        GESTURES.forEach((g) => {
+            triggerPrefs[g] = isActive(`${g}Disparador`);
+        });
+    }
+
+    function applyEffectiveTriggerState() {
+        const percOn = isActive('percussionToggle');
+        if (percOn) {
+            GESTURES.forEach((g) => setActiveByClick(`${g}Disparador`, true));
+        } else {
+            GESTURES.forEach((g) => setActiveByClick(`${g}Disparador`, !!triggerPrefs[g]));
+        }
+    }
+
+    window.addEventListener('load', () => {
+        rememberCurrentPrefs();
+        GESTURES.forEach((g) => {
+            const el = btn(`${g}Disparador`);
+            if (!el) return;
+            el.addEventListener('click', () => {
+                if (!isActive('percussionToggle')) {
+                    triggerPrefs[g] = isActive(`${g}Disparador`);
+                }
+            });
+        });
+
+        const percussion = btn('percussionToggle');
+        if (percussion) {
+            percussion.addEventListener('click', () => {
+                setTimeout(() => {
+                    if (isActive('percussionToggle')) rememberCurrentPrefs();
+                    applyEffectiveTriggerState();
+                }, 30);
+            });
+        }
+
+        setTimeout(applyEffectiveTriggerState, 120);
+    });
+})();
+
+/* ── Gesture note-range mapping (key + scale aware) ─────────────────────── */
+(function () {
+    const CHANNEL_TO_GESTURE = {
+        1: 'mouthOpen',
+        2: 'smile',
+        3: 'leftWink',
+        4: 'rightWink',
+        5: 'noseX',
+        6: 'noseY'
+    };
+
+    const PITCH_CLASS = {
+        C: 0, 'C#': 1, DB: 1,
+        D: 2, 'D#': 3, EB: 3,
+        E: 4,
+        F: 5, 'F#': 6, GB: 6,
+        G: 7, 'G#': 8, AB: 8,
+        A: 9, 'A#': 10, BB: 10,
+        B: 11
+    };
+
+    const SCALE_INTERVALS = {
+        major: [0, 2, 4, 5, 7, 9, 11],
+        minor: [0, 2, 3, 5, 7, 8, 10],
+        dorian: [0, 2, 3, 5, 7, 9, 10],
+        phrygian: [0, 1, 3, 5, 7, 8, 10],
+        lydian: [0, 2, 4, 6, 7, 9, 11],
+        mixolydian: [0, 2, 4, 5, 7, 9, 10],
+        aeolian: [0, 2, 3, 5, 7, 8, 10],
+        locrian: [0, 1, 3, 5, 6, 8, 10],
+        pentatonic: [0, 2, 4, 7, 9],
+        blues: [0, 3, 5, 6, 7, 10],
+        bebop: [0, 2, 4, 5, 7, 9, 10, 11],
+        harmonic_minor: [0, 2, 3, 5, 7, 8, 11],
+        melodic_minor: [0, 2, 3, 5, 7, 9, 11],
+        chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    };
+
+    const activeMappedNotes = new Map();
+
+    function getSelectedScale() {
+        const el = document.getElementById('scaleSelect');
+        return (el && el.value) ? el.value : 'chromatic';
+    }
+
+    function getSelectedKey() {
+        const el = document.getElementById('rootNoteSelect');
+        return (el && el.value) ? String(el.value).toUpperCase() : 'C';
+    }
+
+    function loadGestureRanges() {
+        try {
+            const raw = localStorage.getItem('mmfGestureNoteRanges');
+            return raw ? JSON.parse(raw) : {};
+        } catch (_) {
+            return {};
+        }
+    }
+
+    function buildAllowedNotes(lowMidi, highMidi, keyName, scaleName) {
+        const keyPc = PITCH_CLASS[keyName] ?? 0;
+        const intervals = SCALE_INTERVALS[scaleName] || SCALE_INTERVALS.chromatic;
+        const allowed = [];
+        for (let note = lowMidi; note <= highMidi; note += 1) {
+            const rel = ((note - keyPc) % 12 + 12) % 12;
+            if (intervals.includes(rel)) allowed.push(note);
+        }
+        if (!allowed.length) {
+            for (let note = lowMidi; note <= highMidi; note += 1) allowed.push(note);
+        }
+        return allowed;
+    }
+
+    function inferGesture(payload) {
+        if (!payload || typeof payload !== 'object') return null;
+        if (payload.gesture) return String(payload.gesture);
+        if (payload.name) return String(payload.name);
+        const ch = Number(payload.channel);
+        return CHANNEL_TO_GESTURE[ch] || null;
+    }
+
+    function clampMidi(note) {
+        const n = Math.round(Number(note));
+        if (!Number.isFinite(n)) return null;
+        return Math.max(0, Math.min(127, n));
+    }
+
+    function mapGestureNote(originalNote, gesture) {
+        const ranges = loadGestureRanges();
+        const range = ranges && ranges[gesture];
+        const note = clampMidi(originalNote);
+        if (!range || !Number.isFinite(note)) return note;
+        if (range.fullRange) return note;
+
+        const low = Number(range.lowMidi);
+        const high = Number(range.highMidi);
+        if (!Number.isFinite(low) || !Number.isFinite(high)) return note;
+
+        const lowMidi = Math.max(0, Math.min(127, Math.min(low, high)));
+        const highMidi = Math.max(0, Math.min(127, Math.max(low, high)));
+        if (lowMidi === highMidi) return lowMidi;
+
+        const allowed = buildAllowedNotes(lowMidi, highMidi, getSelectedKey(), getSelectedScale());
+        if (!allowed.length) return note;
+
+        const norm = note / 127;
+        const idx = Math.max(0, Math.min(allowed.length - 1, Math.round(norm * (allowed.length - 1))));
+        return allowed[idx];
+    }
+
+    function isNoteOn(type) {
+        const t = String(type || '').toLowerCase();
+        return t.includes('note_on') || t === 'noteon';
+    }
+
+    function isNoteOff(type) {
+        const t = String(type || '').toLowerCase();
+        return t.includes('note_off') || t === 'noteoff';
+    }
+
+    function wrapMmfEmit() {
+        if (window.__MMF_NOTE_RANGE_MAPPER_WRAPPED__) return true;
+        if (typeof window.mmfEmit !== 'function') return false;
+
+        const originalEmit = window.mmfEmit;
+
+        window.mmfEmit = function (type, payload) {
+            let nextPayload = payload;
+            try {
+                if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'note')) {
+                    const gesture = inferGesture(payload);
+                    const rawNote = clampMidi(payload.note);
+                    if (gesture && Number.isFinite(rawNote)) {
+                        const key = `${gesture}:${rawNote}`;
+                        if (isNoteOn(type)) {
+                            const mapped = mapGestureNote(rawNote, gesture);
+                            activeMappedNotes.set(key, mapped);
+                            nextPayload = { ...payload, note: mapped };
+                        } else if (isNoteOff(type)) {
+                            const remembered = activeMappedNotes.get(key);
+                            const mapped = Number.isFinite(remembered) ? remembered : mapGestureNote(rawNote, gesture);
+                            activeMappedNotes.delete(key);
+                            nextPayload = { ...payload, note: mapped };
+                        }
+                    }
+                }
+            } catch (_) {}
+            return originalEmit.call(this, type, nextPayload);
+        };
+
+        window.__MMF_NOTE_RANGE_MAPPER_WRAPPED__ = true;
+        console.log('[MIDImyFACE] Gesture note-range mapper active');
+        return true;
+    }
+
+    window.addEventListener('load', () => {
+        if (wrapMmfEmit()) return;
+        const t = setInterval(() => {
+            if (wrapMmfEmit()) clearInterval(t);
+        }, 250);
+        setTimeout(() => clearInterval(t), 12000);
     });
 })();
 
@@ -1371,7 +2047,7 @@
     if (panel)       { panel.classList.remove('hidden'); panel.setAttribute('aria-hidden', 'false'); }
     if (invitePanel) invitePanel.classList.remove('hidden');
     if (manualPanel) manualPanel.classList.add('hidden');
-    if (toggle)      { toggle.textContent = '🎵 Sesión activa'; toggle.setAttribute('aria-expanded', 'true'); }
+    if (toggle)      { toggle.textContent = 'Sesión activa'; toggle.setAttribute('aria-expanded', 'true'); }
 
     let inviteParticipantName = '';
     let inviteConnected = false;
@@ -1379,7 +2055,7 @@
     function renderInviteIdle() {
         if (!invitePanel) return;
         invitePanel.innerHTML = `
-            <div class="invite-banner">🎵 Sesión en curso — toca “Conectar” y escribe tu nombre</div>
+            <div class="invite-banner">Sesión en curso — toca "Conectar" y escribe tu nombre</div>
             <div class="row">
                 <button id="inviteOpenPromptButton" class="toggle-button">Conectar a la sesión</button>
             </div>
