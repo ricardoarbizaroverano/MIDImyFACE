@@ -490,6 +490,29 @@
         overflow: hidden;
         white-space: nowrap;
     }
+    .gesture-note-name {
+        font-size: 12px;
+        color: #88cc88;
+        min-width: 32px;
+        margin-left: 3px;
+        white-space: nowrap;
+    }
+    .gesture-summary-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 0 4px 0;
+        border-bottom: 1px solid #333;
+        margin-bottom: 4px;
+        font-size: 10px;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .gesture-summary-header .h-name { width: 100px; text-align: right; }
+    .gesture-summary-header .h-raw  { width: 55px;  text-align: left; }
+    .gesture-summary-header .h-midi { width: 46px;  text-align: center; }
+    .gesture-summary-header .h-note { min-width: 32px; margin-left: 3px; }
     .gesture-summary-row .input-range.umbral-inline {
         width: 42px;
         font-size: 12px;
@@ -772,11 +795,18 @@
     <!-- Gesture Rows (main page) — raw value + CC + MIDI buttons + per-gesture calibrate -->
     <div class="gesture-summary">
 
+        <div class="gesture-summary-header">
+            <div class="h-name">Gesture</div>
+            <div class="h-raw">Raw</div>
+            <div class="h-midi">MIDI#</div>
+            <div class="h-note">Note</div>
+        </div>
+
         <!-- Boca / Mouth -->
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="mouthOpen">Boca</div>
             <div class="gesture-summary-value" id="mouthOpen-live">0</div>
-            <div class="gesture-midi-val" id="mouthOpenCC"></div>
+            <div class="gesture-midi-val" id="mouthOpenCC"></div><span class="gesture-note-name" id="mouthOpenNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="mouthOpen" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="mouthOpenMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="mouthOpenSolo" data-i18n="solo">Solo</button>
@@ -790,7 +820,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="smile">Sonrisa</div>
             <div class="gesture-summary-value" id="smile-live">0</div>
-            <div class="gesture-midi-val" id="smileCC"></div>
+            <div class="gesture-midi-val" id="smileCC"></div><span class="gesture-note-name" id="smileNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="smile" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="smileMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="smileSolo" data-i18n="solo">Solo</button>
@@ -804,7 +834,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="leftWink">Guiño Izq.</div>
             <div class="gesture-summary-value" id="leftWink-live">0</div>
-            <div class="gesture-midi-val" id="leftWinkCC"></div>
+            <div class="gesture-midi-val" id="leftWinkCC"></div><span class="gesture-note-name" id="leftWinkNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="leftWink" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="leftWinkMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="leftWinkSolo" data-i18n="solo">Solo</button>
@@ -818,7 +848,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="rightWink">Guiño Der.</div>
             <div class="gesture-summary-value" id="rightWink-live">0</div>
-            <div class="gesture-midi-val" id="rightWinkCC"></div>
+            <div class="gesture-midi-val" id="rightWinkCC"></div><span class="gesture-note-name" id="rightWinkNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="rightWink" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="rightWinkMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="rightWinkSolo" data-i18n="solo">Solo</button>
@@ -832,7 +862,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="noseX">Nariz X</div>
             <div class="gesture-summary-value" id="noseX-live">0</div>
-            <div class="gesture-midi-val" id="noseXCC"></div>
+            <div class="gesture-midi-val" id="noseXCC"></div><span class="gesture-note-name" id="noseXNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="noseX" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="noseXMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="noseXSolo" data-i18n="solo">Solo</button>
@@ -846,7 +876,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="noseY">Nariz Y</div>
             <div class="gesture-summary-value" id="noseY-live">0</div>
-            <div class="gesture-midi-val" id="noseYCC"></div>
+            <div class="gesture-midi-val" id="noseYCC"></div><span class="gesture-note-name" id="noseYNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="noseY" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="noseYMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="noseYSolo" data-i18n="solo">Solo</button>
@@ -1527,120 +1557,42 @@
     </script>
      <script src="loader.js"></script>
      <script>
-/* ── MIDImyFACE Note-Range Interceptor ────────────────────────────────────
-   Remaps every Tone.js triggerAttack note to the gesture's custom range.
-
-   Core math:
-     1. Identify the gesture from gestureActiveNotes[gesture] === incomingMidi
-     2. Read the live raw sensor value from currentGestureValues[gesture]
-     3. Read calibrated min/max from the Manual Cal DOM inputs
-     4. Compute proportion = (rawValue - calMin) / (calMax - calMin)
-     5. Map → targetMidi = low + proportion × (high - low)
-     6. Snap to nearest on-scale note within [low, high]
-
-   This gives true proportional mapping: minimum gesture → lowest note,
-   maximum gesture → highest note, linear in between.                       ── */
+// MIDImyFACE Tone.js note-range interceptor
+// Consumes window.__mmfNoteRemap populated synchronously by the mmfEmit wrapper.
 (function () {
     'use strict';
 
-    // ── Scale / key helpers (mirrors calibration.js) ─────────────────────
-    const PITCH_CLASS = {C:0,'C#':1,DB:1,D:2,'D#':3,EB:3,E:4,F:5,'F#':6,GB:6,G:7,'G#':8,AB:8,A:9,'A#':10,BB:10,B:11};
-    const SCALE_IVLS  = {
-        major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
-        phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
-        aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
-        pentatonic:[0,2,4,7,9], blues:[0,3,5,6,7,10], bebop:[0,2,4,5,7,9,10,11],
-        harmonic_minor:[0,2,3,5,7,8,11], melodic_minor:[0,2,3,5,7,9,11],
-        chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
-    };
+    const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
-    function getKeyPc() {
-        try { const v=(document.getElementById('rootNoteSelect')||{}).value||'C'; return PITCH_CLASS[v.toUpperCase()]??0; } catch(_){return 0;}
+    function toMidi(note) {
+        if (typeof note === 'number') return Math.round(note);
+        try { return Math.round(window.Tone.Frequency(note).toMidi()); } catch(_) { return -1; }
     }
-    function getScaleIvs() {
-        try { const v=(document.getElementById('scaleSelect')||{}).value||'chromatic'; return SCALE_IVLS[v]||SCALE_IVLS.chromatic; } catch(_){return SCALE_IVLS.chromatic;}
+    function toNote(midi) {
+        try { return window.Tone.Frequency(midi, 'midi').toNote(); } catch(_) { return midi; }
+    }
+    function midiToName(midi) {
+        const m = Math.round(midi);
+        return NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1);
     }
 
-    // All MIDI notes in [low,high] that belong to the current scale/key.
-    // Falls back to every semitone if no scale notes fit.
-    function buildAllowed(low, high) {
-        const kpc=getKeyPc(), ivs=getScaleIvs(), out=[];
-        for (let n=low; n<=high; n++) { if (ivs.includes(((n-kpc)%12+12)%12)) out.push(n); }
-        return out.length ? out : Array.from({length:high-low+1},(_,i)=>low+i);
-    }
-
-    // Nearest note in `allowed` to `target`.
-    function snapNearest(target, allowed) {
-        let best=allowed[0], bestD=Infinity;
-        for (const n of allowed) { const d=Math.abs(n-target); if (d<bestD){bestD=d; best=n;} }
-        return best;
-    }
-
-    // ── Calibration bounds from Manual Cal inputs ─────────────────────────
-    function getCalBounds(gesture) {
-        const minEl=document.getElementById(gesture+'Min');
-        const maxEl=document.getElementById(gesture+'Max');
-        const min=parseFloat(minEl&&minEl.value);
-        const max=parseFloat(maxEl&&maxEl.value);
-        return (Number.isFinite(min)&&Number.isFinite(max)&&max>min) ? {min,max} : null;
-    }
-
-    // ── Desired note range from localStorage ─────────────────────────────
-    function loadRanges() {
-        try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges')||'{}'); } catch(_){return{};}
-    }
-
-    // ── Core remap ────────────────────────────────────────────────────────
-    // gesture: string key. incomingMidi: MIDI int from quantizeToScale.
-    function remapMidi(incomingMidi, gesture) {
-        if (!gesture) return incomingMidi;
-        const range = loadRanges()[gesture];
-        if (!range || range.fullRange) return incomingMidi;
-
-        const low  = Math.round(Number(range.lowMidi));
-        const high = Math.round(Number(range.highMidi));
-        if (!Number.isFinite(low)||!Number.isFinite(high)||low>=high) return incomingMidi;
-
-        // Proportion from live raw sensor value + calibration bounds
-        const rawVal = window.currentGestureValues ? Number(window.currentGestureValues[gesture]) : NaN;
-        const cal    = getCalBounds(gesture);
-        let proportion;
-        if (cal && Number.isFinite(rawVal)) {
-            proportion = Math.max(0, Math.min(1, (rawVal - cal.min) / (cal.max - cal.min)));
-        } else {
-            // Fallback: position of incomingMidi within C2(36)–C7(96), a conservative
-            // estimate of quantizeToScale's output range.
-            proportion = Math.max(0, Math.min(1, (incomingMidi - 36) / 60));
+    // Consume pre-computed remap from mmfEmit wrapper.
+    // Uses fuzzy match (±12 semitones) to handle coerceNoteToSampler drift.
+    function consumeRemap(mIn) {
+        const remap = window.__mmfNoteRemap;
+        if (!remap) return null;
+        if (remap[mIn]) { const r = remap[mIn]; delete remap[mIn]; return r; }
+        let bestKey = null, bestDist = Infinity;
+        for (const k of Object.keys(remap)) {
+            const d = Math.abs(Number(k) - mIn);
+            if (d < bestDist && d <= 12) { bestDist = d; bestKey = k; }
         }
-
-        const targetMidi = Math.round(low + proportion * (high - low));
-        const allowed    = buildAllowed(low, high);
-        return allowed.length ? snapNearest(targetMidi, allowed) : incomingMidi;
-    }
-
-    // ── Gesture lookup ────────────────────────────────────────────────────
-    // script.js sets gestureActiveNotes[gesture] = quantizeResult BEFORE
-    // calling playSynthNoteWhenReady, so this lookup is reliable at attack time.
-    function gestureForNote(midi) {
-        const ga = window.gestureActiveNotes;
-        if (!ga) return null;
-        for (const [g,n] of Object.entries(ga)) { if (n===midi) return g; }
+        if (bestKey !== null) { const r = remap[bestKey]; delete remap[bestKey]; return r; }
         return null;
     }
 
-    // ── Tone note conversion ──────────────────────────────────────────────
-    function toMidi(note) {
-        if (typeof note==='number') return Math.round(note);
-        try { return Math.round(window.Tone.Frequency(note).toMidi()); } catch(_){return -1;}
-    }
-    function toNote(midi) {
-        try { return window.Tone.Frequency(midi,'midi').toNote(); } catch(_){return midi;}
-    }
-
-    // Track original→remapped for triggerRelease so notes end cleanly
     const _attackMap = new Map();
 
-    // ── Prototype patch ───────────────────────────────────────────────────
     function wrapProto(cls, method, isRelease) {
         const orig = cls.prototype[method];
         if (!orig || orig.__mmfMapped) return;
@@ -1654,8 +1606,14 @@
                         mOut = _attackMap.has(mIn) ? _attackMap.get(mIn) : mIn;
                         _attackMap.delete(mIn);
                     } else {
-                        const gesture = gestureForNote(mIn);
-                        mOut = remapMidi(mIn, gesture);
+                        const remap = consumeRemap(mIn);
+                        if (remap) {
+                            mOut = remap.remapped;
+                            const el = document.getElementById(remap.gesture + 'NoteDisplay');
+                            if (el) el.textContent = midiToName(mOut);
+                        } else {
+                            mOut = mIn;
+                        }
                         if (mOut !== mIn) _attackMap.set(mIn, mOut);
                     }
                     if (mOut !== mIn) mapped = toNote(mOut);
@@ -1670,24 +1628,53 @@
         if (!window.Tone) return false;
         ['Sampler','PolySynth','Synth'].forEach(name => {
             const C = window.Tone[name];
-            if (!C||!C.prototype) return;
-            wrapProto(C, 'triggerAttack',         false);
-            wrapProto(C, 'triggerAttackRelease',  false);
-            wrapProto(C, 'triggerRelease',        true);
+            if (!C || !C.prototype) return;
+            wrapProto(C, 'triggerAttack',        false);
+            wrapProto(C, 'triggerAttackRelease', false);
+            wrapProto(C, 'triggerRelease',       true);
         });
-        console.log('[MIDImyFACE] note-range interceptor active (proportional mapping)');
         return true;
     }
 
     if (!applyWrap()) {
-        const t = setInterval(()=>{ if(applyWrap()) clearInterval(t); }, 100);
-        setTimeout(()=>clearInterval(t), 8000);
+        const t = setInterval(() => { if (applyWrap()) clearInterval(t); }, 100);
+        setTimeout(() => clearInterval(t), 8000);
     }
 })();
     </script>
      <script src="script.js"></script>
      <script src="ws-bridge.js"></script>
      <script>
+/* ── Live MIDI note display loop ─────────────────────────────────────────── */
+(function () {
+    const GESTURES = ['mouthOpen','smile','leftWink','rightWink','noseX','noseY'];
+    const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    function midiToName(m) { return NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1); }
+    function isNotesMode(g) {
+        const btn = document.getElementById(g+'Notas');
+        return btn && btn.classList.contains('active');
+    }
+    function tick() {
+        const ga = window.gestureActiveNotes;
+        if (ga) {
+            for (const g of GESTURES) {
+                const ccEl   = document.getElementById(g+'CC');
+                const nameEl = document.getElementById(g+'NoteDisplay');
+                const n = ga[g];
+                if (isNotesMode(g) && n !== null && n !== undefined && Number.isFinite(Number(n))) {
+                    const midi = Math.round(Number(n));
+                    if (ccEl)   ccEl.textContent   = midi;
+                    if (nameEl) nameEl.textContent = midiToName(midi);
+                } else if (isNotesMode(g)) {
+                    if (ccEl)   ccEl.textContent   = '\u2014';
+                    if (nameEl) nameEl.textContent = '';
+                }
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+})();
 /* ── Force startup gesture defaults (no solo, mouth unmuted, others muted) ── */
 (function () {
     const FACE_GESTURES = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY'];
@@ -1806,42 +1793,32 @@
 /* ── Gesture note-range mapping (key + scale aware) ─────────────────────── */
 (function () {
     const CHANNEL_TO_GESTURE = {
-        1: 'mouthOpen',
-        2: 'smile',
-        3: 'leftWink',
-        4: 'rightWink',
-        5: 'noseX',
-        6: 'noseY'
+        1: 'mouthOpen', 2: 'smile', 3: 'leftWink',
+        4: 'rightWink', 5: 'noseX', 6: 'noseY'
     };
 
     const PITCH_CLASS = {
-        C: 0, 'C#': 1, DB: 1,
-        D: 2, 'D#': 3, EB: 3,
-        E: 4,
-        F: 5, 'F#': 6, GB: 6,
-        G: 7, 'G#': 8, AB: 8,
-        A: 9, 'A#': 10, BB: 10,
-        B: 11
+        C: 0, 'C#': 1, DB: 1, D: 2, 'D#': 3, EB: 3, E: 4,
+        F: 5, 'F#': 6, GB: 6, G: 7, 'G#': 8, AB: 8,
+        A: 9, 'A#': 10, BB: 10, B: 11
     };
+    const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
     const SCALE_INTERVALS = {
-        major: [0, 2, 4, 5, 7, 9, 11],
-        minor: [0, 2, 3, 5, 7, 8, 10],
-        dorian: [0, 2, 3, 5, 7, 9, 10],
-        phrygian: [0, 1, 3, 5, 7, 8, 10],
-        lydian: [0, 2, 4, 6, 7, 9, 11],
-        mixolydian: [0, 2, 4, 5, 7, 9, 10],
-        aeolian: [0, 2, 3, 5, 7, 8, 10],
-        locrian: [0, 1, 3, 5, 6, 8, 10],
-        pentatonic: [0, 2, 4, 7, 9],
-        blues: [0, 3, 5, 6, 7, 10],
-        bebop: [0, 2, 4, 5, 7, 9, 10, 11],
-        harmonic_minor: [0, 2, 3, 5, 7, 8, 11],
-        melodic_minor: [0, 2, 3, 5, 7, 9, 11],
-        chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
+        phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
+        aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
+        pentatonic:[0,2,4,7,9], blues:[0,3,5,6,7,10], bebop:[0,2,4,5,7,9,10,11],
+        harmonic_minor:[0,2,3,5,7,8,11], melodic_minor:[0,2,3,5,7,9,11],
+        chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
     };
 
-    const activeMappedNotes = new Map();
+    window.__mmfNoteRemap = window.__mmfNoteRemap || {};
+
+    function midiToName(midi) {
+        const m = Math.round(midi);
+        return NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1);
+    }
 
     function getSelectedScale() {
         const el = document.getElementById('scaleSelect');
@@ -1854,74 +1831,80 @@
     }
 
     function loadGestureRanges() {
-        try {
-            const raw = localStorage.getItem('mmfGestureNoteRanges');
-            return raw ? JSON.parse(raw) : {};
-        } catch (_) {
-            return {};
-        }
+        try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges') || '{}'); } catch (_) { return {}; }
     }
 
-    function buildAllowedNotes(lowMidi, highMidi, keyName, scaleName) {
-        const keyPc = PITCH_CLASS[keyName] ?? 0;
-        const intervals = SCALE_INTERVALS[scaleName] || SCALE_INTERVALS.chromatic;
+    function buildAllowedNotes(lowMidi, highMidi) {
+        const keyPc = PITCH_CLASS[getSelectedKey()] ?? 0;
+        const intervals = SCALE_INTERVALS[getSelectedScale()] || SCALE_INTERVALS.chromatic;
         const allowed = [];
-        for (let note = lowMidi; note <= highMidi; note += 1) {
-            const rel = ((note - keyPc) % 12 + 12) % 12;
-            if (intervals.includes(rel)) allowed.push(note);
+        for (let n = lowMidi; n <= highMidi; n++) {
+            if (intervals.includes(((n - keyPc) % 12 + 12) % 12)) allowed.push(n);
         }
-        if (!allowed.length) {
-            for (let note = lowMidi; note <= highMidi; note += 1) allowed.push(note);
-        }
+        if (!allowed.length) { for (let n = lowMidi; n <= highMidi; n++) allowed.push(n); }
         return allowed;
     }
 
-    function inferGesture(payload) {
-        if (!payload || typeof payload !== 'object') return null;
-        if (payload.gesture) return String(payload.gesture);
-        if (payload.name) return String(payload.name);
-        const ch = Number(payload.channel);
-        return CHANNEL_TO_GESTURE[ch] || null;
+    function snapNearest(target, allowed) {
+        let best = allowed[0], bestD = Infinity;
+        for (const n of allowed) { const d = Math.abs(n - target); if (d < bestD) { bestD = d; best = n; } }
+        return best;
+    }
+
+    function getCalBounds(gesture) {
+        const minEl = document.getElementById(gesture + 'Min');
+        const maxEl = document.getElementById(gesture + 'Max');
+        const min = parseFloat(minEl && minEl.value);
+        const max = parseFloat(maxEl && maxEl.value);
+        return (Number.isFinite(min) && Number.isFinite(max) && max > min) ? { min, max } : null;
+    }
+
+    // Reverse-lookup: which gesture currently holds this MIDI note?
+    function gestureForNote(midi) {
+        const ga = window.gestureActiveNotes;
+        if (!ga) return null;
+        for (const [g, n] of Object.entries(ga)) { if (n === midi) return g; }
+        return null;
     }
 
     function clampMidi(note) {
         const n = Math.round(Number(note));
-        if (!Number.isFinite(n)) return null;
-        return Math.max(0, Math.min(127, n));
+        return Number.isFinite(n) ? Math.max(0, Math.min(127, n)) : null;
     }
 
-    function mapGestureNote(originalNote, gesture) {
+    // Core remap using live sensor proportion through calibration bounds
+    function mapGestureNoteProportional(originalNote, gesture) {
         const ranges = loadGestureRanges();
         const range = ranges && ranges[gesture];
-        const note = clampMidi(originalNote);
-        if (!range || !Number.isFinite(note)) return note;
-        if (range.fullRange) return note;
+        if (!range || range.fullRange) return originalNote;
 
-        const low = Number(range.lowMidi);
-        const high = Number(range.highMidi);
-        if (!Number.isFinite(low) || !Number.isFinite(high)) return note;
+        const low  = Math.max(0, Math.min(127, Math.round(Number(range.lowMidi))));
+        const high = Math.max(0, Math.min(127, Math.round(Number(range.highMidi))));
+        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) return originalNote;
 
-        const lowMidi = Math.max(0, Math.min(127, Math.min(low, high)));
-        const highMidi = Math.max(0, Math.min(127, Math.max(low, high)));
-        if (lowMidi === highMidi) return lowMidi;
+        const rawVal = window.currentGestureValues ? Number(window.currentGestureValues[gesture]) : NaN;
+        const cal = getCalBounds(gesture);
+        let proportion;
+        if (cal && Number.isFinite(rawVal)) {
+            proportion = Math.max(0, Math.min(1, (rawVal - cal.min) / (cal.max - cal.min)));
+        } else {
+            proportion = Math.max(0, Math.min(1, (originalNote - 36) / 60));
+        }
 
-        const allowed = buildAllowedNotes(lowMidi, highMidi, getSelectedKey(), getSelectedScale());
-        if (!allowed.length) return note;
-
-        const norm = note / 127;
-        const idx = Math.max(0, Math.min(allowed.length - 1, Math.round(norm * (allowed.length - 1))));
-        return allowed[idx];
+        const targetMidi = Math.round(low + proportion * (high - low));
+        const allowed = buildAllowedNotes(low, high);
+        return allowed.length ? snapNearest(targetMidi, allowed) : originalNote;
     }
 
-    function isNoteOn(type) {
-        const t = String(type || '').toLowerCase();
-        return t.includes('note_on') || t === 'noteon';
+    function updateNoteDisplay(gesture, midiNote) {
+        const el = document.getElementById(gesture + 'NoteDisplay');
+        if (el) el.textContent = (midiNote !== null && Number.isFinite(midiNote)) ? midiToName(midiNote) : '';
     }
 
-    function isNoteOff(type) {
-        const t = String(type || '').toLowerCase();
-        return t.includes('note_off') || t === 'noteoff';
-    }
+    const activeMappedNotes = new Map();
+
+    function isNoteOn(type)  { const t = String(type || '').toLowerCase(); return t.includes('note_on')  || t === 'noteon'; }
+    function isNoteOff(type) { const t = String(type || '').toLowerCase(); return t.includes('note_off') || t === 'noteoff'; }
 
     function wrapMmfEmit() {
         if (window.__MMF_NOTE_RANGE_MAPPER_WRAPPED__) return true;
@@ -1933,19 +1916,33 @@
             let nextPayload = payload;
             try {
                 if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'note')) {
-                    const gesture = inferGesture(payload);
                     const rawNote = clampMidi(payload.note);
-                    if (gesture && Number.isFinite(rawNote)) {
-                        const key = `${gesture}:${rawNote}`;
+                    if (Number.isFinite(rawNote)) {
                         if (isNoteOn(type)) {
-                            const mapped = mapGestureNote(rawNote, gesture);
-                            activeMappedNotes.set(key, mapped);
+                            const gesture = gestureForNote(rawNote)
+                                         || (payload.gesture ? String(payload.gesture) : null)
+                                         || CHANNEL_TO_GESTURE[Number(payload.channel)] || null;
+
+                            const mapped = gesture ? mapGestureNoteProportional(rawNote, gesture) : rawNote;
+
+                            if (gesture) {
+                                window.__mmfNoteRemap[rawNote] = { gesture, remapped: mapped };
+                            }
+
+                            activeMappedNotes.set(rawNote, mapped);
                             nextPayload = { ...payload, note: mapped };
+                            if (gesture) updateNoteDisplay(gesture, mapped);
+
                         } else if (isNoteOff(type)) {
-                            const remembered = activeMappedNotes.get(key);
-                            const mapped = Number.isFinite(remembered) ? remembered : mapGestureNote(rawNote, gesture);
-                            activeMappedNotes.delete(key);
+                            const gesture = gestureForNote(rawNote)
+                                         || (payload.gesture ? String(payload.gesture) : null)
+                                         || CHANNEL_TO_GESTURE[Number(payload.channel)] || null;
+                            const remembered = activeMappedNotes.get(rawNote);
+                            const mapped = Number.isFinite(remembered) ? remembered : rawNote;
+                            activeMappedNotes.delete(rawNote);
+                            delete window.__mmfNoteRemap[rawNote];
                             nextPayload = { ...payload, note: mapped };
+                            if (gesture) updateNoteDisplay(gesture, null);
                         }
                     }
                 }
@@ -1954,15 +1951,12 @@
         };
 
         window.__MMF_NOTE_RANGE_MAPPER_WRAPPED__ = true;
-        console.log('[MIDImyFACE] Gesture note-range mapper active');
         return true;
     }
 
     window.addEventListener('load', () => {
         if (wrapMmfEmit()) return;
-        const t = setInterval(() => {
-            if (wrapMmfEmit()) clearInterval(t);
-        }, 250);
+        const t = setInterval(() => { if (wrapMmfEmit()) clearInterval(t); }, 250);
         setTimeout(() => clearInterval(t), 12000);
     });
 })();

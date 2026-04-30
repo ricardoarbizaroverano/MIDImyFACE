@@ -48,6 +48,92 @@
         margin: 10px auto;
     }
 
+    .face-loading-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 130;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.45s ease, visibility 0.45s ease;
+        background: radial-gradient(circle at center, rgba(0, 32, 0, 0.28), rgba(0, 0, 0, 0.86) 72%);
+        backdrop-filter: blur(2px);
+    }
+
+    .face-loading-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .face-loading-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        width: min(82%, 520px);
+        padding: 24px 26px;
+        text-align: center;
+        border: 1px solid rgba(120, 255, 120, 0.55);
+        background: rgba(0, 0, 0, 0.72);
+        box-shadow: 0 0 22px rgba(80, 255, 80, 0.14);
+        transform: translateY(8px) scale(0.985);
+        transition: transform 0.45s ease, box-shadow 0.45s ease;
+    }
+
+    .face-loading-overlay.visible .face-loading-card {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 0 30px rgba(80, 255, 80, 0.2);
+    }
+
+    .face-loading-spinner {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        border: 3px solid rgba(120, 255, 120, 0.18);
+        border-top-color: lime;
+        border-right-color: rgba(170, 255, 0, 0.85);
+        box-shadow: 0 0 18px rgba(80, 255, 80, 0.16);
+        animation: mmfSpinner 1s linear infinite;
+    }
+
+    .face-loading-title {
+        font-size: 22px;
+        color: lime;
+        letter-spacing: 0.02em;
+        text-shadow: 0 0 10px rgba(80, 255, 80, 0.12);
+    }
+
+    .face-loading-subtitle {
+        font-size: 13px;
+        color: #8abf8a;
+        line-height: 1.45;
+        min-height: 38px;
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+
+    .face-loading-subtitle.tip-swap {
+        opacity: 0;
+        transform: translateY(7px);
+    }
+
+    .face-loading-dots {
+        color: #6f9f6f;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    @keyframes mmfSpinner {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
     canvas {
         position: absolute;
         z-index: 100;
@@ -729,7 +815,16 @@
     <br><br>
 
     <!-- Video Container -->
-    <div id="videoContainer"></div>
+    <div id="videoContainer">
+        <div id="faceLoadingOverlay" class="face-loading-overlay visible" aria-live="polite" aria-hidden="false">
+            <div class="face-loading-card">
+                <div class="face-loading-spinner" aria-hidden="true"></div>
+                <div class="face-loading-title" id="faceLoadingTitle">Looking for your face…</div>
+                <div class="face-loading-subtitle" id="faceLoadingTip">Make sure your face is clearly visible to the camera.</div>
+                <div class="face-loading-dots">camera • face tracking • landmarks</div>
+            </div>
+        </div>
+    </div>
 
     <!-- Controles de Modo -->
     <div class="mode-controls">
@@ -2229,6 +2324,114 @@
         if (wrapTimer) clearInterval(wrapTimer);
         if (pollTimer) clearInterval(pollTimer);
     });
+})();
+
+/* ── Face-search overlay for no-face state ───────────────────────────────── */
+(function () {
+    const NO_FACE_AFTER_MS = 1400;
+    const TIP_ROTATE_MS = 3000;
+    const TIP_FADE_MS = 220;
+
+    const COPY = {
+        es: {
+            title: 'Buscando tu rostro…',
+            tips: [
+                'Permite el acceso a la cámara.',
+                'Muestra bien tu cara a la cámara.',
+                'Evita luz fuerte detrás de ti.',
+                'Mantén una distancia cómoda.',
+                'Prueba cambiar tu posición.'
+            ]
+        },
+        en: {
+            title: 'Looking for your face…',
+            tips: [
+                'Allow camera access.',
+                'Keep your face clearly visible.',
+                'Avoid strong backlight.',
+                'Stay at a comfortable distance.',
+                'Try changing your position.'
+            ]
+        }
+    };
+
+    let lastFaceTs = 0;
+    let tipIndex = 0;
+    let tipTimer = null;
+    let visTimer = null;
+
+    function getLanguage() {
+        const value = (document.getElementById('languageSwitcher') || {}).value || 'es';
+        return COPY[value] ? value : 'es';
+    }
+
+    function getEls() {
+        return {
+            overlay: document.getElementById('faceLoadingOverlay'),
+            title: document.getElementById('faceLoadingTitle'),
+            tip: document.getElementById('faceLoadingTip')
+        };
+    }
+
+    function applyCopy(forceTipReset) {
+        const lang = getLanguage();
+        const pack = COPY[lang];
+        const { title, tip } = getEls();
+        if (title) title.textContent = pack.title;
+        if (!tip) return;
+        if (forceTipReset) tipIndex = 0;
+        tip.textContent = pack.tips[tipIndex % pack.tips.length];
+    }
+
+    function rotateTip() {
+        const lang = getLanguage();
+        const pack = COPY[lang];
+        const { tip } = getEls();
+        if (!tip || !pack.tips.length) return;
+        tip.classList.add('tip-swap');
+        setTimeout(() => {
+            tipIndex = (tipIndex + 1) % pack.tips.length;
+            tip.textContent = pack.tips[tipIndex];
+            tip.classList.remove('tip-swap');
+        }, TIP_FADE_MS);
+    }
+
+    function setOverlayVisible(visible) {
+        const { overlay } = getEls();
+        if (!overlay) return;
+        overlay.classList.toggle('visible', visible);
+        overlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    }
+
+    function refreshVisibility() {
+        const hasRecentFace = lastFaceTs && (Date.now() - lastFaceTs) < NO_FACE_AFTER_MS;
+        setOverlayVisible(!hasRecentFace);
+    }
+
+    function start() {
+        applyCopy(true);
+        refreshVisibility();
+        if (!tipTimer) tipTimer = setInterval(rotateTip, TIP_ROTATE_MS);
+        if (!visTimer) visTimer = setInterval(refreshVisibility, 250);
+    }
+
+    window.addEventListener('face/landmarks', (event) => {
+        const detail = event && event.detail;
+        const points = detail && Array.isArray(detail.points) ? detail.points : [];
+        if (points.length >= 20) lastFaceTs = Date.now();
+        refreshVisibility();
+    });
+
+    window.addEventListener('load', start);
+    window.addEventListener('beforeunload', () => {
+        if (tipTimer) clearInterval(tipTimer);
+        if (visTimer) clearInterval(visTimer);
+    });
+
+    const languageSwitcher = document.getElementById('languageSwitcher');
+    if (languageSwitcher) {
+        languageSwitcher.addEventListener('change', () => applyCopy(true));
+    }
 })();
 
 /* ── Invite-link auto-join ────────────────────────────────────────────────── */
