@@ -497,6 +497,22 @@
         margin-left: 3px;
         white-space: nowrap;
     }
+    .gesture-summary-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 0 4px 0;
+        border-bottom: 1px solid #333;
+        margin-bottom: 4px;
+        font-size: 10px;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .gesture-summary-header .h-name { width: 100px; text-align: right; }
+    .gesture-summary-header .h-raw  { width: 55px;  text-align: left; }
+    .gesture-summary-header .h-midi { width: 46px;  text-align: center; }
+    .gesture-summary-header .h-note { min-width: 32px; margin-left: 3px; }
     .gesture-summary-row .input-range.umbral-inline {
         width: 42px;
         font-size: 12px;
@@ -778,6 +794,13 @@
 
     <!-- Gesture Rows (main page) — raw value + CC + MIDI buttons + per-gesture calibrate -->
     <div class="gesture-summary">
+
+        <div class="gesture-summary-header">
+            <div class="h-name">Gesture</div>
+            <div class="h-raw">Raw</div>
+            <div class="h-midi">MIDI#</div>
+            <div class="h-note">Note</div>
+        </div>
 
         <!-- Boca / Mouth -->
         <div class="gesture-summary-row">
@@ -1622,6 +1645,36 @@
      <script src="script.js"></script>
      <script src="ws-bridge.js"></script>
      <script>
+/* ── Live MIDI note display loop ─────────────────────────────────────────── */
+(function () {
+    const GESTURES = ['mouthOpen','smile','leftWink','rightWink','noseX','noseY'];
+    const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    function midiToName(m) { return NOTE_NAMES[((m%12)+12)%12]+(Math.floor(m/12)-1); }
+    function isNotesMode(g) {
+        const btn = document.getElementById(g+'Notas');
+        return btn && btn.classList.contains('active');
+    }
+    function tick() {
+        const ga = window.gestureActiveNotes;
+        if (ga) {
+            for (const g of GESTURES) {
+                const ccEl   = document.getElementById(g+'CC');
+                const nameEl = document.getElementById(g+'NoteDisplay');
+                const n = ga[g];
+                if (isNotesMode(g) && n !== null && n !== undefined && Number.isFinite(Number(n))) {
+                    const midi = Math.round(Number(n));
+                    if (ccEl)   ccEl.textContent   = midi;
+                    if (nameEl) nameEl.textContent = midiToName(midi);
+                } else if (isNotesMode(g)) {
+                    if (ccEl)   ccEl.textContent   = '\u2014';
+                    if (nameEl) nameEl.textContent = '';
+                }
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+})();
 /* ── Force startup gesture defaults (no solo, mouth unmuted, others muted) ── */
 (function () {
     const FACE_GESTURES = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY'];
