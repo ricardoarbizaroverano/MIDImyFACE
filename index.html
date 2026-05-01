@@ -863,19 +863,19 @@
             <div id="thereminNotesOptions" class="theremin-suboptions">
                 <label for="midiInstrumentSelect" data-i18n="midiInstrumentSelect.label">Instrumento MIDI:</label>
                 <select id="midiInstrumentSelect" class="dropdown">
-                    <option value="piano" data-i18n="midiInstrumentSelect.piano">Piano</option>
-                    <option value="guitar" data-i18n="midiInstrumentSelect.guitar">Guitarra</option>
-                    <option value="strings" data-i18n="midiInstrumentSelect.strings">Strings</option>
-                    <option value="stringSpicatto" data-i18n="midiInstrumentSelect.stringSpicatto">S. Spicatto</option>
-                    <option value="musicBox" selected data-i18n="midiInstrumentSelect.musicBox">Caja de Música</option>
-                    <option value="flauta" data-i18n="midiInstrumentSelect.flauta">Flauta</option>
-                    <option value="pad" data-i18n="midiInstrumentSelect.pad">Pad</option>
-                    <option value="marimba" data-i18n="midiInstrumentSelect.marimba">Marimba</option>
-                    <option value="trumpet" data-i18n="midiInstrumentSelect.trumpet">Trompeta</option>
-                    <option value="bass" data-i18n="midiInstrumentSelect.bass">Bajo</option>
-                    <option value="choir" data-i18n="midiInstrumentSelect.choir">Voz</option>
-                    <option value="synthesizer" data-i18n="midiInstrumentSelect.synthesizer">Sintetizador</option>
-                    <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Armónico</option>
+                    <option value="piano" data-i18n="midiInstrumentSelect.piano">Piano (Full C-1–G9)</option>
+                    <option value="guitar" data-i18n="midiInstrumentSelect.guitar">Guitarra (A3–A5)</option>
+                    <option value="strings" data-i18n="midiInstrumentSelect.strings">Strings (A3–A5)</option>
+                    <option value="stringSpicatto" data-i18n="midiInstrumentSelect.stringSpicatto">S. Spicatto (A#3–A#5)</option>
+                    <option value="musicBox" selected data-i18n="midiInstrumentSelect.musicBox">Caja de Música (D3–G4)</option>
+                    <option value="flauta" data-i18n="midiInstrumentSelect.flauta">Flauta (C3–C5)</option>
+                    <option value="pad" data-i18n="midiInstrumentSelect.pad">Pad (Full C-1–G9)</option>
+                    <option value="marimba" data-i18n="midiInstrumentSelect.marimba">Marimba (A3–A5)</option>
+                    <option value="trumpet" data-i18n="midiInstrumentSelect.trumpet">Trompeta (G#3–G#5)</option>
+                    <option value="bass" data-i18n="midiInstrumentSelect.bass">Bajo (C2–G3)</option>
+                    <option value="choir" data-i18n="midiInstrumentSelect.choir">Voz (A3–A5)</option>
+                    <option value="synthesizer" data-i18n="midiInstrumentSelect.synthesizer">Sintetizador (Full C-1–G9)</option>
+                    <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Armónico (B3–B5)</option>
                 </select>
             </div>
         </div>
@@ -1807,6 +1807,20 @@
 })();
     </script>
      <script src="script.js"></script>
+     <script>
+(function () {
+    'use strict';
+
+    function normalizeMidi(note) {
+        const midi = Math.round(Number(note));
+        return Number.isFinite(midi) ? Math.max(0, Math.min(127, midi)) : note;
+    }
+
+    window.coerceNoteToSampler = function (note) {
+        return normalizeMidi(note);
+    };
+})();
+    </script>
      <script src="ws-bridge.js"></script>
      <script>
 /* ── Live MIDI note display loop ─────────────────────────────────────────── */
