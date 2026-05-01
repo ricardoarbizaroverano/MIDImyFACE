@@ -1656,21 +1656,26 @@
 (function () {
     'use strict';
 
-    const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-    const PITCH_CLASS = { C:0,'C#':1,DB:1,D:2,'D#':3,EB:3,E:4,F:5,'F#':6,GB:6,G:7,'G#':8,AB:8,A:9,'A#':10,BB:10,B:11 };
-    const SCALE_IVLS = {
-        major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
-        phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
-        aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
-        pentatonic:[0,2,4,7,9], blues:[0,3,5,6,7,10], bebop:[0,2,4,5,7,9,10,11],
-        harmonic_minor:[0,2,3,5,7,8,11], melodic_minor:[0,2,3,5,7,9,11],
-        chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
-    };
-
-    function midiToName(midi) {
-        const m = Math.round(midi);
-        return NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
-    }
+    const NOTE_NAMES = window.__MMF_NOTE_NAMES || (window.__MMF_NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']);
+    const INSTRUMENT_RANGES = window.__MMF_INSTRUMENT_RANGES || (window.__MMF_INSTRUMENT_RANGES = {
+        piano: null,
+        pad: null,
+        synthesizer: null,
+        guitar: { low: 57, high: 81 },
+        strings: { low: 57, high: 81 },
+        stringSpicatto: { low: 58, high: 82 },
+        musicBox: { low: 50, high: 67 },
+        flauta: { low: 48, high: 72 },
+        marimba: { low: 57, high: 81 },
+        trumpet: { low: 56, high: 80 },
+        bass: { low: 36, high: 55 },
+        choir: { low: 57, high: 81 },
+        harmonic: { low: 59, high: 83 }
+    });
+    const midiToName = window.__MMF_MIDI_TO_NAME || (window.__MMF_MIDI_TO_NAME = function (midi) {
+        const m = Math.round(Number(midi));
+        return window.__MMF_NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+    });
     function toMidi(note) {
         if (typeof note === 'number') return Math.round(note);
         try { return Math.round(window.Tone.Frequency(note).toMidi()); } catch(_) { return -1; }
@@ -1678,45 +1683,18 @@
     function toNote(midi) {
         try { return window.Tone.Frequency(midi, 'midi').toNote(); } catch(_) { return midi; }
     }
-    function getKeyPc() {
-        try {
-            const value = ((document.getElementById('rootNoteSelect') || {}).value || 'C').toUpperCase();
-            return PITCH_CLASS[value] ?? 0;
-        } catch (_) {
-            return 0;
-        }
-    }
-    function getScaleIntervals() {
-        try {
-            const value = (document.getElementById('scaleSelect') || {}).value || 'chromatic';
-            return SCALE_IVLS[value] || SCALE_IVLS.chromatic;
-        } catch (_) {
-            return SCALE_IVLS.chromatic;
-        }
-    }
-    function buildAllowed(low, high) {
-        const keyPc = getKeyPc();
-        const intervals = getScaleIntervals();
-        const allowed = [];
-        for (let midi = low; midi <= high; midi += 1) {
-            if (intervals.includes(((midi - keyPc) % 12 + 12) % 12)) allowed.push(midi);
-        }
-        return allowed.length ? allowed : Array.from({ length: high - low + 1 }, (_, index) => low + index);
-    }
-    function snapNearest(target, allowed) {
-        let best = allowed[0], bestDist = Infinity;
-        for (const midi of allowed) {
-            const dist = Math.abs(midi - target);
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = midi;
-            }
-        }
-        return best;
-    }
     function loadRanges() {
         try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges') || '{}'); } catch (_) { return {}; }
     }
+    const getSelectedInstrument = window.__MMF_GET_SELECTED_INSTRUMENT || (window.__MMF_GET_SELECTED_INSTRUMENT = function () {
+        const el = document.getElementById('midiInstrumentSelect');
+        return (el && el.value) ? String(el.value) : 'musicBox';
+    });
+    const isPlayableForInstrument = window.__MMF_IS_PLAYABLE_FOR_INSTRUMENT || (window.__MMF_IS_PLAYABLE_FOR_INSTRUMENT = function (midi) {
+        const range = window.__MMF_INSTRUMENT_RANGES[getSelectedInstrument()];
+        if (!range) return true;
+        return midi >= range.low && midi <= range.high;
+    });
     function getCalBounds(gesture) {
         const minEl = document.getElementById(gesture + 'Min');
         const maxEl = document.getElementById(gesture + 'Max');
@@ -1742,13 +1720,15 @@
         return null;
     }
     function remapMidi(incomingMidi, gesture) {
-        if (!gesture) return incomingMidi;
+        if (!gesture) return isPlayableForInstrument(incomingMidi) ? incomingMidi : null;
         const range = loadRanges()[gesture];
-        if (!range || range.fullRange) return incomingMidi;
+        if (!range || range.fullRange) return isPlayableForInstrument(incomingMidi) ? incomingMidi : null;
 
         const low = Math.round(Number(range.lowMidi));
         const high = Math.round(Number(range.highMidi));
-        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) return incomingMidi;
+        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) {
+            return isPlayableForInstrument(incomingMidi) ? incomingMidi : null;
+        }
 
         const cal = getCalBounds(gesture);
         const rawValue = getRawValue(gesture);
@@ -1760,8 +1740,8 @@
         }
 
         const targetMidi = Math.round(low + proportion * (high - low));
-        const allowed = buildAllowed(Math.max(0, low), Math.min(127, high));
-        return allowed.length ? snapNearest(targetMidi, allowed) : incomingMidi;
+        const clamped = Math.max(0, Math.min(127, targetMidi));
+        return isPlayableForInstrument(clamped) ? clamped : null;
     }
 
     const attackMap = new Map();
@@ -1776,11 +1756,24 @@
                 if (incomingMidi >= 0 && incomingMidi <= 127) {
                     let outgoingMidi;
                     if (isRelease) {
-                        outgoingMidi = attackMap.has(incomingMidi) ? attackMap.get(incomingMidi) : incomingMidi;
-                        attackMap.delete(incomingMidi);
+                        if (attackMap.has(incomingMidi)) {
+                            outgoingMidi = attackMap.get(incomingMidi);
+                            attackMap.delete(incomingMidi);
+                            if (outgoingMidi === null) return this;
+                        } else {
+                            outgoingMidi = incomingMidi;
+                        }
                     } else {
                         const gesture = gestureForNote(incomingMidi);
                         outgoingMidi = remapMidi(incomingMidi, gesture);
+                        if (outgoingMidi === null) {
+                            attackMap.set(incomingMidi, null);
+                            if (gesture) {
+                                const noteEl = document.getElementById(gesture + 'NoteDisplay');
+                                if (noteEl) noteEl.textContent = '';
+                            }
+                            return this;
+                        }
                         if (outgoingMidi !== incomingMidi) attackMap.set(incomingMidi, outgoingMidi);
                         if (gesture) {
                             const noteEl = document.getElementById(gesture + 'NoteDisplay');
@@ -1820,68 +1813,16 @@
 (function () {
     const GESTURES = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY'];
     const CHANNEL_TO_GESTURE = { 1: 'mouthOpen', 2: 'smile', 3: 'leftWink', 4: 'rightWink', 5: 'noseX', 6: 'noseY' };
-    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    const PITCH_CLASS = { C: 0, 'C#': 1, DB: 1, D: 2, 'D#': 3, EB: 3, E: 4, F: 5, 'F#': 6, GB: 6, G: 7, 'G#': 8, AB: 8, A: 9, 'A#': 10, BB: 10, B: 11 };
-    const SCALE_IVLS = {
-        major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
-        phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
-        aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
-        pentatonic:[0,2,4,7,9], blues:[0,3,5,6,7,10], bebop:[0,2,4,5,7,9,10,11],
-        harmonic_minor:[0,2,3,5,7,8,11], melodic_minor:[0,2,3,5,7,9,11], chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
-    };
-
+    const NOTE_NAMES = window.__MMF_NOTE_NAMES;
+    const INSTRUMENT_RANGES = window.__MMF_INSTRUMENT_RANGES;
     const lastActualNotes = Object.create(null);
     const lastActualAt = Object.create(null);
 
-    function midiToName(midi) {
-        const m = Math.round(Number(midi));
-        return NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
-    }
+    const midiToName = window.__MMF_MIDI_TO_NAME;
 
     function isNotesMode(gesture) {
         const btn = document.getElementById(gesture + 'Notas');
         return !!(btn && btn.classList.contains('active'));
-    }
-
-    function getSelectedKeyPc() {
-        try {
-            const value = ((document.getElementById('rootNoteSelect') || {}).value || 'C').toUpperCase();
-            return PITCH_CLASS[value] ?? 0;
-        } catch (_) {
-            return 0;
-        }
-    }
-
-    function getSelectedScaleIntervals() {
-        try {
-            const value = (document.getElementById('scaleSelect') || {}).value || 'chromatic';
-            return SCALE_IVLS[value] || SCALE_IVLS.chromatic;
-        } catch (_) {
-            return SCALE_IVLS.chromatic;
-        }
-    }
-
-    function buildAllowed(low, high) {
-        const keyPc = getSelectedKeyPc();
-        const ivs = getSelectedScaleIntervals();
-        const out = [];
-        for (let note = low; note <= high; note += 1) {
-            if (ivs.includes(((note - keyPc) % 12 + 12) % 12)) out.push(note);
-        }
-        return out.length ? out : Array.from({ length: high - low + 1 }, (_, index) => low + index);
-    }
-
-    function snapNearest(target, allowed) {
-        let best = allowed[0];
-        let bestDist = Infinity;
-        for (const note of allowed) {
-            const dist = Math.abs(note - target);
-            if (dist < bestDist) {
-                bestDist = dist;
-                best = note;
-            }
-        }
-        return best;
     }
 
     function loadRanges() {
@@ -1891,6 +1832,9 @@
             return {};
         }
     }
+
+    const getSelectedInstrument = window.__MMF_GET_SELECTED_INSTRUMENT;
+    const isPlayableForInstrument = window.__MMF_IS_PLAYABLE_FOR_INSTRUMENT;
 
     function getRawValue(gesture) {
         const liveEl = document.getElementById(gesture + '-live');
@@ -1920,8 +1864,8 @@
 
         const proportion = Math.max(0, Math.min(1, (rawValue - cal.min) / (cal.max - cal.min)));
         const target = Math.round(low + proportion * (high - low));
-        const allowed = buildAllowed(Math.max(0, low), Math.min(127, high));
-        return allowed.length ? snapNearest(target, allowed) : target;
+        const clamped = Math.max(0, Math.min(127, target));
+        return isPlayableForInstrument(clamped) ? clamped : null;
     }
 
     function inferGestureFromDetail(detail) {
@@ -2097,59 +2041,20 @@
         4: 'rightWink', 5: 'noseX', 6: 'noseY'
     };
 
-    const PITCH_CLASS = {
-        C: 0, 'C#': 1, DB: 1, D: 2, 'D#': 3, EB: 3, E: 4,
-        F: 5, 'F#': 6, GB: 6, G: 7, 'G#': 8, AB: 8,
-        A: 9, 'A#': 10, BB: 10, B: 11
-    };
-    const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const INSTRUMENT_RANGES = window.__MMF_INSTRUMENT_RANGES;
 
-    const SCALE_INTERVALS = {
-        major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
-        phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
-        aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
-        pentatonic:[0,2,4,7,9], blues:[0,3,5,6,7,10], bebop:[0,2,4,5,7,9,10,11],
-        harmonic_minor:[0,2,3,5,7,8,11], melodic_minor:[0,2,3,5,7,9,11],
-        chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
-    };
+    const NOTE_NAMES = window.__MMF_NOTE_NAMES;
 
     window.__mmfNoteRemap = window.__mmfNoteRemap || {};
 
-    function midiToName(midi) {
-        const m = Math.round(midi);
-        return NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1);
-    }
-
-    function getSelectedScale() {
-        const el = document.getElementById('scaleSelect');
-        return (el && el.value) ? el.value : 'chromatic';
-    }
-
-    function getSelectedKey() {
-        const el = document.getElementById('rootNoteSelect');
-        return (el && el.value) ? String(el.value).toUpperCase() : 'C';
-    }
+    const midiToName = window.__MMF_MIDI_TO_NAME;
 
     function loadGestureRanges() {
         try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges') || '{}'); } catch (_) { return {}; }
     }
 
-    function buildAllowedNotes(lowMidi, highMidi) {
-        const keyPc = PITCH_CLASS[getSelectedKey()] ?? 0;
-        const intervals = SCALE_INTERVALS[getSelectedScale()] || SCALE_INTERVALS.chromatic;
-        const allowed = [];
-        for (let n = lowMidi; n <= highMidi; n++) {
-            if (intervals.includes(((n - keyPc) % 12 + 12) % 12)) allowed.push(n);
-        }
-        if (!allowed.length) { for (let n = lowMidi; n <= highMidi; n++) allowed.push(n); }
-        return allowed;
-    }
-
-    function snapNearest(target, allowed) {
-        let best = allowed[0], bestD = Infinity;
-        for (const n of allowed) { const d = Math.abs(n - target); if (d < bestD) { bestD = d; best = n; } }
-        return best;
-    }
+    const getSelectedInstrument = window.__MMF_GET_SELECTED_INSTRUMENT;
+    const isPlayableForInstrument = window.__MMF_IS_PLAYABLE_FOR_INSTRUMENT;
 
     function getCalBounds(gesture) {
         const minEl = document.getElementById(gesture + 'Min');
@@ -2176,11 +2081,13 @@
     function mapGestureNoteProportional(originalNote, gesture) {
         const ranges = loadGestureRanges();
         const range = ranges && ranges[gesture];
-        if (!range || range.fullRange) return originalNote;
+        if (!range || range.fullRange) return isPlayableForInstrument(originalNote) ? originalNote : null;
 
         const low  = Math.max(0, Math.min(127, Math.round(Number(range.lowMidi))));
         const high = Math.max(0, Math.min(127, Math.round(Number(range.highMidi))));
-        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) return originalNote;
+        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) {
+            return isPlayableForInstrument(originalNote) ? originalNote : null;
+        }
 
         const rawVal = window.currentGestureValues ? Number(window.currentGestureValues[gesture]) : NaN;
         const cal = getCalBounds(gesture);
@@ -2192,8 +2099,8 @@
         }
 
         const targetMidi = Math.round(low + proportion * (high - low));
-        const allowed = buildAllowedNotes(low, high);
-        return allowed.length ? snapNearest(targetMidi, allowed) : originalNote;
+        const clamped = Math.max(0, Math.min(127, targetMidi));
+        return isPlayableForInstrument(clamped) ? clamped : null;
     }
 
     function updateNoteDisplay(gesture, midiNote) {
@@ -2223,13 +2130,19 @@
                                          || (payload.gesture ? String(payload.gesture) : null)
                                          || CHANNEL_TO_GESTURE[Number(payload.channel)] || null;
 
-                            const mapped = gesture ? mapGestureNoteProportional(rawNote, gesture) : rawNote;
+                            const mapped = gesture
+                                ? mapGestureNoteProportional(rawNote, gesture)
+                                : (isPlayableForInstrument(rawNote) ? rawNote : null);
 
                             if (gesture) {
                                 window.__mmfNoteRemap[rawNote] = { gesture, remapped: mapped };
                             }
 
                             activeMappedNotes.set(rawNote, mapped);
+                            if (mapped === null) {
+                                if (gesture) updateNoteDisplay(gesture, null);
+                                return;
+                            }
                             nextPayload = { ...payload, note: mapped };
                             if (gesture) updateNoteDisplay(gesture, mapped);
 
@@ -2237,10 +2150,17 @@
                             const gesture = gestureForNote(rawNote)
                                          || (payload.gesture ? String(payload.gesture) : null)
                                          || CHANNEL_TO_GESTURE[Number(payload.channel)] || null;
+                            const hasRemembered = activeMappedNotes.has(rawNote);
                             const remembered = activeMappedNotes.get(rawNote);
-                            const mapped = Number.isFinite(remembered) ? remembered : rawNote;
+                            const mapped = hasRemembered
+                                ? (Number.isFinite(remembered) ? remembered : null)
+                                : rawNote;
                             activeMappedNotes.delete(rawNote);
                             delete window.__mmfNoteRemap[rawNote];
+                            if (!Number.isFinite(mapped)) {
+                                if (gesture) updateNoteDisplay(gesture, null);
+                                return;
+                            }
                             nextPayload = { ...payload, note: mapped };
                             if (gesture) updateNoteDisplay(gesture, null);
                         }
@@ -2258,6 +2178,52 @@
         if (wrapMmfEmit()) return;
         const t = setInterval(() => { if (wrapMmfEmit()) clearInterval(t); }, 250);
         setTimeout(() => clearInterval(t), 12000);
+    });
+})();
+
+/* ── Instrument dropdown labels with playable ranges ─────────────────────── */
+(function () {
+    const RANGE_SUFFIX = {
+        piano: '(Full C-1–G9)',
+        pad: '(Full C-1–G9)',
+        synthesizer: '(Full C-1–G9)',
+        guitar: '(A3–A5)',
+        strings: '(A3–A5)',
+        stringSpicatto: '(A#3–A#5)',
+        musicBox: '(D3–G4)',
+        flauta: '(C3–C5)',
+        marimba: '(A3–A5)',
+        trumpet: '(G#3–G#5)',
+        bass: '(C2–G3)',
+        choir: '(A3–A5)',
+        harmonic: '(B3–B5)'
+    };
+
+    function applyInstrumentRangeLabels() {
+        const select = document.getElementById('midiInstrumentSelect');
+        if (!select) return;
+        for (const option of Array.from(select.options)) {
+            const suffix = RANGE_SUFFIX[option.value];
+            if (!suffix) continue;
+            if (!option.dataset.baseLabel) {
+                option.dataset.baseLabel = option.textContent.replace(/\s*\([^)]*\)\s*$/, '').trim();
+            }
+            option.textContent = `${option.dataset.baseLabel} ${suffix}`;
+        }
+    }
+
+    window.addEventListener('load', () => {
+        applyInstrumentRangeLabels();
+        setTimeout(applyInstrumentRangeLabels, 150);
+        setTimeout(applyInstrumentRangeLabels, 500);
+
+        const languageSwitcher = document.getElementById('languageSwitcher');
+        if (languageSwitcher) {
+            languageSwitcher.addEventListener('change', () => {
+                setTimeout(applyInstrumentRangeLabels, 50);
+                setTimeout(applyInstrumentRangeLabels, 250);
+            });
+        }
     });
 })();
 

@@ -48,6 +48,92 @@
         margin: 10px auto;
     }
 
+    .face-loading-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 130;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.45s ease, visibility 0.45s ease;
+        background: radial-gradient(circle at center, rgba(0, 32, 0, 0.28), rgba(0, 0, 0, 0.86) 72%);
+        backdrop-filter: blur(2px);
+    }
+
+    .face-loading-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .face-loading-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        width: min(82%, 520px);
+        padding: 24px 26px;
+        text-align: center;
+        border: 1px solid rgba(120, 255, 120, 0.55);
+        background: rgba(0, 0, 0, 0.72);
+        box-shadow: 0 0 22px rgba(80, 255, 80, 0.14);
+        transform: translateY(8px) scale(0.985);
+        transition: transform 0.45s ease, box-shadow 0.45s ease;
+    }
+
+    .face-loading-overlay.visible .face-loading-card {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 0 30px rgba(80, 255, 80, 0.2);
+    }
+
+    .face-loading-spinner {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        border: 3px solid rgba(120, 255, 120, 0.18);
+        border-top-color: lime;
+        border-right-color: rgba(170, 255, 0, 0.85);
+        box-shadow: 0 0 18px rgba(80, 255, 80, 0.16);
+        animation: mmfSpinner 1s linear infinite;
+    }
+
+    .face-loading-title {
+        font-size: 22px;
+        color: lime;
+        letter-spacing: 0.02em;
+        text-shadow: 0 0 10px rgba(80, 255, 80, 0.12);
+    }
+
+    .face-loading-subtitle {
+        font-size: 13px;
+        color: #8abf8a;
+        line-height: 1.45;
+        min-height: 38px;
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+
+    .face-loading-subtitle.tip-swap {
+        opacity: 0;
+        transform: translateY(7px);
+    }
+
+    .face-loading-dots {
+        color: #6f9f6f;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    @keyframes mmfSpinner {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
     canvas {
         position: absolute;
         z-index: 100;
@@ -490,6 +576,29 @@
         overflow: hidden;
         white-space: nowrap;
     }
+    .gesture-note-name {
+        font-size: 12px;
+        color: #88cc88;
+        min-width: 32px;
+        margin-left: 3px;
+        white-space: nowrap;
+    }
+    .gesture-summary-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 0 4px 0;
+        border-bottom: 1px solid #333;
+        margin-bottom: 4px;
+        font-size: 10px;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .gesture-summary-header .h-name { width: 100px; text-align: right; }
+    .gesture-summary-header .h-raw  { width: 55px;  text-align: left; }
+    .gesture-summary-header .h-midi { width: 46px;  text-align: center; }
+    .gesture-summary-header .h-note { min-width: 32px; margin-left: 3px; }
     .gesture-summary-row .input-range.umbral-inline {
         width: 42px;
         font-size: 12px;
@@ -706,7 +815,16 @@
     <br><br>
 
     <!-- Video Container -->
-    <div id="videoContainer"></div>
+    <div id="videoContainer">
+        <div id="faceLoadingOverlay" class="face-loading-overlay visible" aria-live="polite" aria-hidden="false">
+            <div class="face-loading-card">
+                <div class="face-loading-spinner" aria-hidden="true"></div>
+                <div class="face-loading-title" id="faceLoadingTitle">Looking for your face…</div>
+                <div class="face-loading-subtitle" id="faceLoadingTip">Make sure your face is clearly visible to the camera.</div>
+                <div class="face-loading-dots">camera • face tracking • landmarks</div>
+            </div>
+        </div>
+    </div>
 
     <!-- Controles de Modo -->
     <div class="mode-controls">
@@ -772,11 +890,18 @@
     <!-- Gesture Rows (main page) — raw value + CC + MIDI buttons + per-gesture calibrate -->
     <div class="gesture-summary">
 
+        <div class="gesture-summary-header">
+            <div class="h-name">Gesture</div>
+            <div class="h-raw">Raw</div>
+            <div class="h-midi">MIDI#</div>
+            <div class="h-note">Note</div>
+        </div>
+
         <!-- Boca / Mouth -->
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="mouthOpen">Boca</div>
             <div class="gesture-summary-value" id="mouthOpen-live">0</div>
-            <div class="gesture-midi-val" id="mouthOpenCC"></div>
+            <div class="gesture-midi-val" id="mouthOpenCC"></div><span class="gesture-note-name" id="mouthOpenNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="mouthOpen" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="mouthOpenMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="mouthOpenSolo" data-i18n="solo">Solo</button>
@@ -790,7 +915,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="smile">Sonrisa</div>
             <div class="gesture-summary-value" id="smile-live">0</div>
-            <div class="gesture-midi-val" id="smileCC"></div>
+            <div class="gesture-midi-val" id="smileCC"></div><span class="gesture-note-name" id="smileNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="smile" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="smileMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="smileSolo" data-i18n="solo">Solo</button>
@@ -804,7 +929,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="leftWink">Guiño Izq.</div>
             <div class="gesture-summary-value" id="leftWink-live">0</div>
-            <div class="gesture-midi-val" id="leftWinkCC"></div>
+            <div class="gesture-midi-val" id="leftWinkCC"></div><span class="gesture-note-name" id="leftWinkNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="leftWink" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="leftWinkMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="leftWinkSolo" data-i18n="solo">Solo</button>
@@ -818,7 +943,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="rightWink">Guiño Der.</div>
             <div class="gesture-summary-value" id="rightWink-live">0</div>
-            <div class="gesture-midi-val" id="rightWinkCC"></div>
+            <div class="gesture-midi-val" id="rightWinkCC"></div><span class="gesture-note-name" id="rightWinkNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="rightWink" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="rightWinkMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="rightWinkSolo" data-i18n="solo">Solo</button>
@@ -832,7 +957,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="noseX">Nariz X</div>
             <div class="gesture-summary-value" id="noseX-live">0</div>
-            <div class="gesture-midi-val" id="noseXCC"></div>
+            <div class="gesture-midi-val" id="noseXCC"></div><span class="gesture-note-name" id="noseXNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="noseX" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="noseXMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="noseXSolo" data-i18n="solo">Solo</button>
@@ -846,7 +971,7 @@
         <div class="gesture-summary-row">
             <div class="gesture-summary-name" data-i18n="noseY">Nariz Y</div>
             <div class="gesture-summary-value" id="noseY-live">0</div>
-            <div class="gesture-midi-val" id="noseYCC"></div>
+            <div class="gesture-midi-val" id="noseYCC"></div><span class="gesture-note-name" id="noseYNoteDisplay"></span>
             <button class="gesture-calibrate-btn" data-cal-gesture="noseY" data-i18n="calibrate">Calibrar</button>
             <button class="toggle-button" id="noseYMute" data-i18n="mute">Mute</button>
             <button class="toggle-button" id="noseYSolo" data-i18n="solo">Solo</button>
@@ -1527,25 +1652,13 @@
     </script>
      <script src="loader.js"></script>
      <script>
-/* ── MIDImyFACE Note-Range Interceptor ────────────────────────────────────
-   Remaps every Tone.js triggerAttack note to the gesture's custom range.
-
-   Core math:
-     1. Identify the gesture from gestureActiveNotes[gesture] === incomingMidi
-     2. Read the live raw sensor value from currentGestureValues[gesture]
-     3. Read calibrated min/max from the Manual Cal DOM inputs
-     4. Compute proportion = (rawValue - calMin) / (calMax - calMin)
-     5. Map → targetMidi = low + proportion × (high - low)
-     6. Snap to nearest on-scale note within [low, high]
-
-   This gives true proportional mapping: minimum gesture → lowest note,
-   maximum gesture → highest note, linear in between.                       ── */
+// MIDImyFACE Tone.js note-range interceptor — independent proportional remap
 (function () {
     'use strict';
 
-    // ── Scale / key helpers (mirrors calibration.js) ─────────────────────
-    const PITCH_CLASS = {C:0,'C#':1,DB:1,D:2,'D#':3,EB:3,E:4,F:5,'F#':6,GB:6,G:7,'G#':8,AB:8,A:9,'A#':10,BB:10,B:11};
-    const SCALE_IVLS  = {
+    const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const PITCH_CLASS = { C:0,'C#':1,DB:1,D:2,'D#':3,EB:3,E:4,F:5,'F#':6,GB:6,G:7,'G#':8,AB:8,A:9,'A#':10,BB:10,B:11 };
+    const SCALE_IVLS = {
         major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
         phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
         aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
@@ -1554,140 +1667,314 @@
         chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
     };
 
+    function midiToName(midi) {
+        const m = Math.round(midi);
+        return NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+    }
+    function toMidi(note) {
+        if (typeof note === 'number') return Math.round(note);
+        try { return Math.round(window.Tone.Frequency(note).toMidi()); } catch(_) { return -1; }
+    }
+    function toNote(midi) {
+        try { return window.Tone.Frequency(midi, 'midi').toNote(); } catch(_) { return midi; }
+    }
     function getKeyPc() {
-        try { const v=(document.getElementById('rootNoteSelect')||{}).value||'C'; return PITCH_CLASS[v.toUpperCase()]??0; } catch(_){return 0;}
+        try {
+            const value = ((document.getElementById('rootNoteSelect') || {}).value || 'C').toUpperCase();
+            return PITCH_CLASS[value] ?? 0;
+        } catch (_) {
+            return 0;
+        }
     }
-    function getScaleIvs() {
-        try { const v=(document.getElementById('scaleSelect')||{}).value||'chromatic'; return SCALE_IVLS[v]||SCALE_IVLS.chromatic; } catch(_){return SCALE_IVLS.chromatic;}
+    function getScaleIntervals() {
+        try {
+            const value = (document.getElementById('scaleSelect') || {}).value || 'chromatic';
+            return SCALE_IVLS[value] || SCALE_IVLS.chromatic;
+        } catch (_) {
+            return SCALE_IVLS.chromatic;
+        }
     }
-
-    // All MIDI notes in [low,high] that belong to the current scale/key.
-    // Falls back to every semitone if no scale notes fit.
     function buildAllowed(low, high) {
-        const kpc=getKeyPc(), ivs=getScaleIvs(), out=[];
-        for (let n=low; n<=high; n++) { if (ivs.includes(((n-kpc)%12+12)%12)) out.push(n); }
-        return out.length ? out : Array.from({length:high-low+1},(_,i)=>low+i);
+        const keyPc = getKeyPc();
+        const intervals = getScaleIntervals();
+        const allowed = [];
+        for (let midi = low; midi <= high; midi += 1) {
+            if (intervals.includes(((midi - keyPc) % 12 + 12) % 12)) allowed.push(midi);
+        }
+        return allowed.length ? allowed : Array.from({ length: high - low + 1 }, (_, index) => low + index);
     }
-
-    // Nearest note in `allowed` to `target`.
     function snapNearest(target, allowed) {
-        let best=allowed[0], bestD=Infinity;
-        for (const n of allowed) { const d=Math.abs(n-target); if (d<bestD){bestD=d; best=n;} }
+        let best = allowed[0], bestDist = Infinity;
+        for (const midi of allowed) {
+            const dist = Math.abs(midi - target);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = midi;
+            }
+        }
         return best;
     }
-
-    // ── Calibration bounds from Manual Cal inputs ─────────────────────────
-    function getCalBounds(gesture) {
-        const minEl=document.getElementById(gesture+'Min');
-        const maxEl=document.getElementById(gesture+'Max');
-        const min=parseFloat(minEl&&minEl.value);
-        const max=parseFloat(maxEl&&maxEl.value);
-        return (Number.isFinite(min)&&Number.isFinite(max)&&max>min) ? {min,max} : null;
-    }
-
-    // ── Desired note range from localStorage ─────────────────────────────
     function loadRanges() {
-        try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges')||'{}'); } catch(_){return{};}
+        try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges') || '{}'); } catch (_) { return {}; }
     }
-
-    // ── Core remap ────────────────────────────────────────────────────────
-    // gesture: string key. incomingMidi: MIDI int from quantizeToScale.
+    function getCalBounds(gesture) {
+        const minEl = document.getElementById(gesture + 'Min');
+        const maxEl = document.getElementById(gesture + 'Max');
+        const min = parseFloat(minEl && minEl.value);
+        const max = parseFloat(maxEl && maxEl.value);
+        return (Number.isFinite(min) && Number.isFinite(max) && max > min) ? { min, max } : null;
+    }
+    function getRawValue(gesture) {
+        if (window.currentGestureValues && Number.isFinite(Number(window.currentGestureValues[gesture]))) {
+            return Number(window.currentGestureValues[gesture]);
+        }
+        const sourceEl = document.getElementById(gesture + 'Value');
+        const liveEl = document.getElementById(gesture + '-live');
+        const raw = parseFloat((sourceEl && sourceEl.textContent) || (liveEl && liveEl.textContent) || '');
+        return Number.isFinite(raw) ? raw : NaN;
+    }
+    function gestureForNote(midi) {
+        const active = window.gestureActiveNotes;
+        if (!active) return null;
+        for (const [gesture, note] of Object.entries(active)) {
+            if (note === midi) return gesture;
+        }
+        return null;
+    }
     function remapMidi(incomingMidi, gesture) {
         if (!gesture) return incomingMidi;
         const range = loadRanges()[gesture];
         if (!range || range.fullRange) return incomingMidi;
 
-        const low  = Math.round(Number(range.lowMidi));
+        const low = Math.round(Number(range.lowMidi));
         const high = Math.round(Number(range.highMidi));
-        if (!Number.isFinite(low)||!Number.isFinite(high)||low>=high) return incomingMidi;
+        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) return incomingMidi;
 
-        // Proportion from live raw sensor value + calibration bounds
-        const rawVal = window.currentGestureValues ? Number(window.currentGestureValues[gesture]) : NaN;
-        const cal    = getCalBounds(gesture);
+        const cal = getCalBounds(gesture);
+        const rawValue = getRawValue(gesture);
         let proportion;
-        if (cal && Number.isFinite(rawVal)) {
-            proportion = Math.max(0, Math.min(1, (rawVal - cal.min) / (cal.max - cal.min)));
+        if (cal && Number.isFinite(rawValue)) {
+            proportion = Math.max(0, Math.min(1, (rawValue - cal.min) / (cal.max - cal.min)));
         } else {
-            // Fallback: position of incomingMidi within C2(36)–C7(96), a conservative
-            // estimate of quantizeToScale's output range.
             proportion = Math.max(0, Math.min(1, (incomingMidi - 36) / 60));
         }
 
         const targetMidi = Math.round(low + proportion * (high - low));
-        const allowed    = buildAllowed(low, high);
+        const allowed = buildAllowed(Math.max(0, low), Math.min(127, high));
         return allowed.length ? snapNearest(targetMidi, allowed) : incomingMidi;
     }
 
-    // ── Gesture lookup ────────────────────────────────────────────────────
-    // script.js sets gestureActiveNotes[gesture] = quantizeResult BEFORE
-    // calling playSynthNoteWhenReady, so this lookup is reliable at attack time.
-    function gestureForNote(midi) {
-        const ga = window.gestureActiveNotes;
-        if (!ga) return null;
-        for (const [g,n] of Object.entries(ga)) { if (n===midi) return g; }
-        return null;
-    }
+    const attackMap = new Map();
 
-    // ── Tone note conversion ──────────────────────────────────────────────
-    function toMidi(note) {
-        if (typeof note==='number') return Math.round(note);
-        try { return Math.round(window.Tone.Frequency(note).toMidi()); } catch(_){return -1;}
-    }
-    function toNote(midi) {
-        try { return window.Tone.Frequency(midi,'midi').toNote(); } catch(_){return midi;}
-    }
-
-    // Track original→remapped for triggerRelease so notes end cleanly
-    const _attackMap = new Map();
-
-    // ── Prototype patch ───────────────────────────────────────────────────
     function wrapProto(cls, method, isRelease) {
-        const orig = cls.prototype[method];
-        if (!orig || orig.__mmfMapped) return;
+        const original = cls.prototype[method];
+        if (!original || original.__mmfMapped) return;
         cls.prototype[method] = function(note, ...rest) {
             let mapped = note;
             try {
-                const mIn = toMidi(note);
-                if (mIn >= 0 && mIn <= 127) {
-                    let mOut;
+                const incomingMidi = toMidi(note);
+                if (incomingMidi >= 0 && incomingMidi <= 127) {
+                    let outgoingMidi;
                     if (isRelease) {
-                        mOut = _attackMap.has(mIn) ? _attackMap.get(mIn) : mIn;
-                        _attackMap.delete(mIn);
+                        outgoingMidi = attackMap.has(incomingMidi) ? attackMap.get(incomingMidi) : incomingMidi;
+                        attackMap.delete(incomingMidi);
                     } else {
-                        const gesture = gestureForNote(mIn);
-                        mOut = remapMidi(mIn, gesture);
-                        if (mOut !== mIn) _attackMap.set(mIn, mOut);
+                        const gesture = gestureForNote(incomingMidi);
+                        outgoingMidi = remapMidi(incomingMidi, gesture);
+                        if (outgoingMidi !== incomingMidi) attackMap.set(incomingMidi, outgoingMidi);
+                        if (gesture) {
+                            const noteEl = document.getElementById(gesture + 'NoteDisplay');
+                            if (noteEl) noteEl.textContent = midiToName(outgoingMidi);
+                        }
                     }
-                    if (mOut !== mIn) mapped = toNote(mOut);
+                    if (outgoingMidi !== incomingMidi) mapped = toNote(outgoingMidi);
                 }
-            } catch(_) {}
-            return orig.call(this, mapped, ...rest);
+            } catch (_) {}
+            return original.call(this, mapped, ...rest);
         };
         cls.prototype[method].__mmfMapped = true;
     }
 
     function applyWrap() {
         if (!window.Tone) return false;
-        ['Sampler','PolySynth','Synth'].forEach(name => {
-            const C = window.Tone[name];
-            if (!C||!C.prototype) return;
-            wrapProto(C, 'triggerAttack',         false);
-            wrapProto(C, 'triggerAttackRelease',  false);
-            wrapProto(C, 'triggerRelease',        true);
+        ['Sampler', 'PolySynth', 'Synth'].forEach((name) => {
+            const Ctor = window.Tone[name];
+            if (!Ctor || !Ctor.prototype) return;
+            wrapProto(Ctor, 'triggerAttack', false);
+            wrapProto(Ctor, 'triggerAttackRelease', false);
+            wrapProto(Ctor, 'triggerRelease', true);
         });
-        console.log('[MIDImyFACE] note-range interceptor active (proportional mapping)');
         return true;
     }
 
     if (!applyWrap()) {
-        const t = setInterval(()=>{ if(applyWrap()) clearInterval(t); }, 100);
-        setTimeout(()=>clearInterval(t), 8000);
+        const timer = setInterval(() => { if (applyWrap()) clearInterval(timer); }, 100);
+        setTimeout(() => clearInterval(timer), 8000);
     }
 })();
     </script>
      <script src="script.js"></script>
      <script src="ws-bridge.js"></script>
      <script>
+/* ── Live MIDI note display loop ─────────────────────────────────────────── */
+(function () {
+    const GESTURES = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY'];
+    const CHANNEL_TO_GESTURE = { 1: 'mouthOpen', 2: 'smile', 3: 'leftWink', 4: 'rightWink', 5: 'noseX', 6: 'noseY' };
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const PITCH_CLASS = { C: 0, 'C#': 1, DB: 1, D: 2, 'D#': 3, EB: 3, E: 4, F: 5, 'F#': 6, GB: 6, G: 7, 'G#': 8, AB: 8, A: 9, 'A#': 10, BB: 10, B: 11 };
+    const SCALE_IVLS = {
+        major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
+        phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
+        aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
+        pentatonic:[0,2,4,7,9], blues:[0,3,5,6,7,10], bebop:[0,2,4,5,7,9,10,11],
+        harmonic_minor:[0,2,3,5,7,8,11], melodic_minor:[0,2,3,5,7,9,11], chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
+    };
+
+    const lastActualNotes = Object.create(null);
+    const lastActualAt = Object.create(null);
+
+    function midiToName(midi) {
+        const m = Math.round(Number(midi));
+        return NOTE_NAMES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+    }
+
+    function isNotesMode(gesture) {
+        const btn = document.getElementById(gesture + 'Notas');
+        return !!(btn && btn.classList.contains('active'));
+    }
+
+    function getSelectedKeyPc() {
+        try {
+            const value = ((document.getElementById('rootNoteSelect') || {}).value || 'C').toUpperCase();
+            return PITCH_CLASS[value] ?? 0;
+        } catch (_) {
+            return 0;
+        }
+    }
+
+    function getSelectedScaleIntervals() {
+        try {
+            const value = (document.getElementById('scaleSelect') || {}).value || 'chromatic';
+            return SCALE_IVLS[value] || SCALE_IVLS.chromatic;
+        } catch (_) {
+            return SCALE_IVLS.chromatic;
+        }
+    }
+
+    function buildAllowed(low, high) {
+        const keyPc = getSelectedKeyPc();
+        const ivs = getSelectedScaleIntervals();
+        const out = [];
+        for (let note = low; note <= high; note += 1) {
+            if (ivs.includes(((note - keyPc) % 12 + 12) % 12)) out.push(note);
+        }
+        return out.length ? out : Array.from({ length: high - low + 1 }, (_, index) => low + index);
+    }
+
+    function snapNearest(target, allowed) {
+        let best = allowed[0];
+        let bestDist = Infinity;
+        for (const note of allowed) {
+            const dist = Math.abs(note - target);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = note;
+            }
+        }
+        return best;
+    }
+
+    function loadRanges() {
+        try {
+            return JSON.parse(localStorage.getItem('mmfGestureNoteRanges') || '{}');
+        } catch (_) {
+            return {};
+        }
+    }
+
+    function getRawValue(gesture) {
+        const liveEl = document.getElementById(gesture + '-live');
+        const sourceEl = document.getElementById(gesture + 'Value');
+        const raw = parseFloat((sourceEl && sourceEl.textContent) || (liveEl && liveEl.textContent) || '');
+        return Number.isFinite(raw) ? raw : NaN;
+    }
+
+    function getCalBounds(gesture) {
+        const minEl = document.getElementById(gesture + 'Min');
+        const maxEl = document.getElementById(gesture + 'Max');
+        const min = parseFloat(minEl && minEl.value);
+        const max = parseFloat(maxEl && maxEl.value);
+        return (Number.isFinite(min) && Number.isFinite(max) && max > min) ? { min, max } : null;
+    }
+
+    function computeDisplayedMidi(gesture) {
+        const rawValue = getRawValue(gesture);
+        const cal = getCalBounds(gesture);
+        if (!Number.isFinite(rawValue) || !cal) return null;
+
+        const ranges = loadRanges();
+        const range = ranges[gesture];
+        const low = range && range.fullRange === false ? Math.round(Number(range.lowMidi)) : 36;
+        const high = range && range.fullRange === false ? Math.round(Number(range.highMidi)) : 96;
+        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) return null;
+
+        const proportion = Math.max(0, Math.min(1, (rawValue - cal.min) / (cal.max - cal.min)));
+        const target = Math.round(low + proportion * (high - low));
+        const allowed = buildAllowed(Math.max(0, low), Math.min(127, high));
+        return allowed.length ? snapNearest(target, allowed) : target;
+    }
+
+    function inferGestureFromDetail(detail) {
+        if (!detail || typeof detail !== 'object') return null;
+        if (detail.gesture) return String(detail.gesture);
+        if (detail.name) return String(detail.name);
+        return CHANNEL_TO_GESTURE[Number(detail.channel)] || null;
+    }
+
+    window.addEventListener('midi/note_on', (event) => {
+        const detail = event && event.detail;
+        const gesture = inferGestureFromDetail(detail);
+        const note = Math.round(Number(detail && detail.note));
+        if (!gesture || !Number.isFinite(note)) return;
+        lastActualNotes[gesture] = note;
+        lastActualAt[gesture] = Date.now();
+    });
+
+    window.addEventListener('midi/note_off', (event) => {
+        const detail = event && event.detail;
+        const gesture = inferGestureFromDetail(detail);
+        if (!gesture) return;
+        lastActualAt[gesture] = Date.now();
+    });
+
+    function tick() {
+        for (const gesture of GESTURES) {
+            const ccEl = document.getElementById(gesture + 'CC');
+            const noteEl = document.getElementById(gesture + 'NoteDisplay');
+            if (!ccEl || !noteEl) continue;
+
+            if (!isNotesMode(gesture)) {
+                noteEl.textContent = '';
+                continue;
+            }
+
+            const actual = lastActualNotes[gesture];
+            const actualAge = Date.now() - (lastActualAt[gesture] || 0);
+            const displayed = Number.isFinite(actual) && actualAge < 250 ? actual : computeDisplayedMidi(gesture);
+
+            if (Number.isFinite(displayed)) {
+                ccEl.textContent = String(Math.round(displayed));
+                noteEl.textContent = midiToName(displayed);
+            } else {
+                ccEl.textContent = '—';
+                noteEl.textContent = '';
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+
+    requestAnimationFrame(tick);
+})();
 /* ── Force startup gesture defaults (no solo, mouth unmuted, others muted) ── */
 (function () {
     const FACE_GESTURES = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY'];
@@ -1806,42 +2093,32 @@
 /* ── Gesture note-range mapping (key + scale aware) ─────────────────────── */
 (function () {
     const CHANNEL_TO_GESTURE = {
-        1: 'mouthOpen',
-        2: 'smile',
-        3: 'leftWink',
-        4: 'rightWink',
-        5: 'noseX',
-        6: 'noseY'
+        1: 'mouthOpen', 2: 'smile', 3: 'leftWink',
+        4: 'rightWink', 5: 'noseX', 6: 'noseY'
     };
 
     const PITCH_CLASS = {
-        C: 0, 'C#': 1, DB: 1,
-        D: 2, 'D#': 3, EB: 3,
-        E: 4,
-        F: 5, 'F#': 6, GB: 6,
-        G: 7, 'G#': 8, AB: 8,
-        A: 9, 'A#': 10, BB: 10,
-        B: 11
+        C: 0, 'C#': 1, DB: 1, D: 2, 'D#': 3, EB: 3, E: 4,
+        F: 5, 'F#': 6, GB: 6, G: 7, 'G#': 8, AB: 8,
+        A: 9, 'A#': 10, BB: 10, B: 11
     };
+    const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
     const SCALE_INTERVALS = {
-        major: [0, 2, 4, 5, 7, 9, 11],
-        minor: [0, 2, 3, 5, 7, 8, 10],
-        dorian: [0, 2, 3, 5, 7, 9, 10],
-        phrygian: [0, 1, 3, 5, 7, 8, 10],
-        lydian: [0, 2, 4, 6, 7, 9, 11],
-        mixolydian: [0, 2, 4, 5, 7, 9, 10],
-        aeolian: [0, 2, 3, 5, 7, 8, 10],
-        locrian: [0, 1, 3, 5, 6, 8, 10],
-        pentatonic: [0, 2, 4, 7, 9],
-        blues: [0, 3, 5, 6, 7, 10],
-        bebop: [0, 2, 4, 5, 7, 9, 10, 11],
-        harmonic_minor: [0, 2, 3, 5, 7, 8, 11],
-        melodic_minor: [0, 2, 3, 5, 7, 9, 11],
-        chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
+        phrygian:[0,1,3,5,7,8,10], lydian:[0,2,4,6,7,9,11], mixolydian:[0,2,4,5,7,9,10],
+        aeolian:[0,2,3,5,7,8,10], locrian:[0,1,3,5,6,8,10],
+        pentatonic:[0,2,4,7,9], blues:[0,3,5,6,7,10], bebop:[0,2,4,5,7,9,10,11],
+        harmonic_minor:[0,2,3,5,7,8,11], melodic_minor:[0,2,3,5,7,9,11],
+        chromatic:[0,1,2,3,4,5,6,7,8,9,10,11]
     };
 
-    const activeMappedNotes = new Map();
+    window.__mmfNoteRemap = window.__mmfNoteRemap || {};
+
+    function midiToName(midi) {
+        const m = Math.round(midi);
+        return NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1);
+    }
 
     function getSelectedScale() {
         const el = document.getElementById('scaleSelect');
@@ -1854,74 +2131,80 @@
     }
 
     function loadGestureRanges() {
-        try {
-            const raw = localStorage.getItem('mmfGestureNoteRanges');
-            return raw ? JSON.parse(raw) : {};
-        } catch (_) {
-            return {};
-        }
+        try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges') || '{}'); } catch (_) { return {}; }
     }
 
-    function buildAllowedNotes(lowMidi, highMidi, keyName, scaleName) {
-        const keyPc = PITCH_CLASS[keyName] ?? 0;
-        const intervals = SCALE_INTERVALS[scaleName] || SCALE_INTERVALS.chromatic;
+    function buildAllowedNotes(lowMidi, highMidi) {
+        const keyPc = PITCH_CLASS[getSelectedKey()] ?? 0;
+        const intervals = SCALE_INTERVALS[getSelectedScale()] || SCALE_INTERVALS.chromatic;
         const allowed = [];
-        for (let note = lowMidi; note <= highMidi; note += 1) {
-            const rel = ((note - keyPc) % 12 + 12) % 12;
-            if (intervals.includes(rel)) allowed.push(note);
+        for (let n = lowMidi; n <= highMidi; n++) {
+            if (intervals.includes(((n - keyPc) % 12 + 12) % 12)) allowed.push(n);
         }
-        if (!allowed.length) {
-            for (let note = lowMidi; note <= highMidi; note += 1) allowed.push(note);
-        }
+        if (!allowed.length) { for (let n = lowMidi; n <= highMidi; n++) allowed.push(n); }
         return allowed;
     }
 
-    function inferGesture(payload) {
-        if (!payload || typeof payload !== 'object') return null;
-        if (payload.gesture) return String(payload.gesture);
-        if (payload.name) return String(payload.name);
-        const ch = Number(payload.channel);
-        return CHANNEL_TO_GESTURE[ch] || null;
+    function snapNearest(target, allowed) {
+        let best = allowed[0], bestD = Infinity;
+        for (const n of allowed) { const d = Math.abs(n - target); if (d < bestD) { bestD = d; best = n; } }
+        return best;
+    }
+
+    function getCalBounds(gesture) {
+        const minEl = document.getElementById(gesture + 'Min');
+        const maxEl = document.getElementById(gesture + 'Max');
+        const min = parseFloat(minEl && minEl.value);
+        const max = parseFloat(maxEl && maxEl.value);
+        return (Number.isFinite(min) && Number.isFinite(max) && max > min) ? { min, max } : null;
+    }
+
+    // Reverse-lookup: which gesture currently holds this MIDI note?
+    function gestureForNote(midi) {
+        const ga = window.gestureActiveNotes;
+        if (!ga) return null;
+        for (const [g, n] of Object.entries(ga)) { if (n === midi) return g; }
+        return null;
     }
 
     function clampMidi(note) {
         const n = Math.round(Number(note));
-        if (!Number.isFinite(n)) return null;
-        return Math.max(0, Math.min(127, n));
+        return Number.isFinite(n) ? Math.max(0, Math.min(127, n)) : null;
     }
 
-    function mapGestureNote(originalNote, gesture) {
+    // Core remap using live sensor proportion through calibration bounds
+    function mapGestureNoteProportional(originalNote, gesture) {
         const ranges = loadGestureRanges();
         const range = ranges && ranges[gesture];
-        const note = clampMidi(originalNote);
-        if (!range || !Number.isFinite(note)) return note;
-        if (range.fullRange) return note;
+        if (!range || range.fullRange) return originalNote;
 
-        const low = Number(range.lowMidi);
-        const high = Number(range.highMidi);
-        if (!Number.isFinite(low) || !Number.isFinite(high)) return note;
+        const low  = Math.max(0, Math.min(127, Math.round(Number(range.lowMidi))));
+        const high = Math.max(0, Math.min(127, Math.round(Number(range.highMidi))));
+        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) return originalNote;
 
-        const lowMidi = Math.max(0, Math.min(127, Math.min(low, high)));
-        const highMidi = Math.max(0, Math.min(127, Math.max(low, high)));
-        if (lowMidi === highMidi) return lowMidi;
+        const rawVal = window.currentGestureValues ? Number(window.currentGestureValues[gesture]) : NaN;
+        const cal = getCalBounds(gesture);
+        let proportion;
+        if (cal && Number.isFinite(rawVal)) {
+            proportion = Math.max(0, Math.min(1, (rawVal - cal.min) / (cal.max - cal.min)));
+        } else {
+            proportion = Math.max(0, Math.min(1, (originalNote - 36) / 60));
+        }
 
-        const allowed = buildAllowedNotes(lowMidi, highMidi, getSelectedKey(), getSelectedScale());
-        if (!allowed.length) return note;
-
-        const norm = note / 127;
-        const idx = Math.max(0, Math.min(allowed.length - 1, Math.round(norm * (allowed.length - 1))));
-        return allowed[idx];
+        const targetMidi = Math.round(low + proportion * (high - low));
+        const allowed = buildAllowedNotes(low, high);
+        return allowed.length ? snapNearest(targetMidi, allowed) : originalNote;
     }
 
-    function isNoteOn(type) {
-        const t = String(type || '').toLowerCase();
-        return t.includes('note_on') || t === 'noteon';
+    function updateNoteDisplay(gesture, midiNote) {
+        const el = document.getElementById(gesture + 'NoteDisplay');
+        if (el) el.textContent = (midiNote !== null && Number.isFinite(midiNote)) ? midiToName(midiNote) : '';
     }
 
-    function isNoteOff(type) {
-        const t = String(type || '').toLowerCase();
-        return t.includes('note_off') || t === 'noteoff';
-    }
+    const activeMappedNotes = new Map();
+
+    function isNoteOn(type)  { const t = String(type || '').toLowerCase(); return t.includes('note_on')  || t === 'noteon'; }
+    function isNoteOff(type) { const t = String(type || '').toLowerCase(); return t.includes('note_off') || t === 'noteoff'; }
 
     function wrapMmfEmit() {
         if (window.__MMF_NOTE_RANGE_MAPPER_WRAPPED__) return true;
@@ -1933,19 +2216,33 @@
             let nextPayload = payload;
             try {
                 if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'note')) {
-                    const gesture = inferGesture(payload);
                     const rawNote = clampMidi(payload.note);
-                    if (gesture && Number.isFinite(rawNote)) {
-                        const key = `${gesture}:${rawNote}`;
+                    if (Number.isFinite(rawNote)) {
                         if (isNoteOn(type)) {
-                            const mapped = mapGestureNote(rawNote, gesture);
-                            activeMappedNotes.set(key, mapped);
+                            const gesture = gestureForNote(rawNote)
+                                         || (payload.gesture ? String(payload.gesture) : null)
+                                         || CHANNEL_TO_GESTURE[Number(payload.channel)] || null;
+
+                            const mapped = gesture ? mapGestureNoteProportional(rawNote, gesture) : rawNote;
+
+                            if (gesture) {
+                                window.__mmfNoteRemap[rawNote] = { gesture, remapped: mapped };
+                            }
+
+                            activeMappedNotes.set(rawNote, mapped);
                             nextPayload = { ...payload, note: mapped };
+                            if (gesture) updateNoteDisplay(gesture, mapped);
+
                         } else if (isNoteOff(type)) {
-                            const remembered = activeMappedNotes.get(key);
-                            const mapped = Number.isFinite(remembered) ? remembered : mapGestureNote(rawNote, gesture);
-                            activeMappedNotes.delete(key);
+                            const gesture = gestureForNote(rawNote)
+                                         || (payload.gesture ? String(payload.gesture) : null)
+                                         || CHANNEL_TO_GESTURE[Number(payload.channel)] || null;
+                            const remembered = activeMappedNotes.get(rawNote);
+                            const mapped = Number.isFinite(remembered) ? remembered : rawNote;
+                            activeMappedNotes.delete(rawNote);
+                            delete window.__mmfNoteRemap[rawNote];
                             nextPayload = { ...payload, note: mapped };
+                            if (gesture) updateNoteDisplay(gesture, null);
                         }
                     }
                 }
@@ -1954,15 +2251,12 @@
         };
 
         window.__MMF_NOTE_RANGE_MAPPER_WRAPPED__ = true;
-        console.log('[MIDImyFACE] Gesture note-range mapper active');
         return true;
     }
 
     window.addEventListener('load', () => {
         if (wrapMmfEmit()) return;
-        const t = setInterval(() => {
-            if (wrapMmfEmit()) clearInterval(t);
-        }, 250);
+        const t = setInterval(() => { if (wrapMmfEmit()) clearInterval(t); }, 250);
         setTimeout(() => clearInterval(t), 12000);
     });
 })();
@@ -2030,6 +2324,114 @@
         if (wrapTimer) clearInterval(wrapTimer);
         if (pollTimer) clearInterval(pollTimer);
     });
+})();
+
+/* ── Face-search overlay for no-face state ───────────────────────────────── */
+(function () {
+    const NO_FACE_AFTER_MS = 1400;
+    const TIP_ROTATE_MS = 3000;
+    const TIP_FADE_MS = 220;
+
+    const COPY = {
+        es: {
+            title: 'Buscando tu rostro…',
+            tips: [
+                'Permite el acceso a la cámara.',
+                'Muestra bien tu cara a la cámara.',
+                'Evita luz fuerte detrás de ti.',
+                'Mantén una distancia cómoda.',
+                'Prueba cambiar tu posición.'
+            ]
+        },
+        en: {
+            title: 'Looking for your face…',
+            tips: [
+                'Allow camera access.',
+                'Keep your face clearly visible.',
+                'Avoid strong backlight.',
+                'Stay at a comfortable distance.',
+                'Try changing your position.'
+            ]
+        }
+    };
+
+    let lastFaceTs = 0;
+    let tipIndex = 0;
+    let tipTimer = null;
+    let visTimer = null;
+
+    function getLanguage() {
+        const value = (document.getElementById('languageSwitcher') || {}).value || 'es';
+        return COPY[value] ? value : 'es';
+    }
+
+    function getEls() {
+        return {
+            overlay: document.getElementById('faceLoadingOverlay'),
+            title: document.getElementById('faceLoadingTitle'),
+            tip: document.getElementById('faceLoadingTip')
+        };
+    }
+
+    function applyCopy(forceTipReset) {
+        const lang = getLanguage();
+        const pack = COPY[lang];
+        const { title, tip } = getEls();
+        if (title) title.textContent = pack.title;
+        if (!tip) return;
+        if (forceTipReset) tipIndex = 0;
+        tip.textContent = pack.tips[tipIndex % pack.tips.length];
+    }
+
+    function rotateTip() {
+        const lang = getLanguage();
+        const pack = COPY[lang];
+        const { tip } = getEls();
+        if (!tip || !pack.tips.length) return;
+        tip.classList.add('tip-swap');
+        setTimeout(() => {
+            tipIndex = (tipIndex + 1) % pack.tips.length;
+            tip.textContent = pack.tips[tipIndex];
+            tip.classList.remove('tip-swap');
+        }, TIP_FADE_MS);
+    }
+
+    function setOverlayVisible(visible) {
+        const { overlay } = getEls();
+        if (!overlay) return;
+        overlay.classList.toggle('visible', visible);
+        overlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    }
+
+    function refreshVisibility() {
+        const hasRecentFace = lastFaceTs && (Date.now() - lastFaceTs) < NO_FACE_AFTER_MS;
+        setOverlayVisible(!hasRecentFace);
+    }
+
+    function start() {
+        applyCopy(true);
+        refreshVisibility();
+        if (!tipTimer) tipTimer = setInterval(rotateTip, TIP_ROTATE_MS);
+        if (!visTimer) visTimer = setInterval(refreshVisibility, 250);
+    }
+
+    window.addEventListener('face/landmarks', (event) => {
+        const detail = event && event.detail;
+        const points = detail && Array.isArray(detail.points) ? detail.points : [];
+        if (points.length >= 20) lastFaceTs = Date.now();
+        refreshVisibility();
+    });
+
+    window.addEventListener('load', start);
+    window.addEventListener('beforeunload', () => {
+        if (tipTimer) clearInterval(tipTimer);
+        if (visTimer) clearInterval(visTimer);
+    });
+
+    const languageSwitcher = document.getElementById('languageSwitcher');
+    if (languageSwitcher) {
+        languageSwitcher.addEventListener('change', () => applyCopy(true));
+    }
 })();
 
 /* ── Invite-link auto-join ────────────────────────────────────────────────── */
