@@ -863,19 +863,19 @@
             <div id="thereminNotesOptions" class="theremin-suboptions">
                 <label for="midiInstrumentSelect" data-i18n="midiInstrumentSelect.label">Instrumento MIDI:</label>
                 <select id="midiInstrumentSelect" class="dropdown">
-                    <option value="piano" data-i18n="midiInstrumentSelect.piano">Piano</option>
-                    <option value="guitar" data-i18n="midiInstrumentSelect.guitar">Guitarra</option>
-                    <option value="strings" data-i18n="midiInstrumentSelect.strings">Strings</option>
-                    <option value="stringSpicatto" data-i18n="midiInstrumentSelect.stringSpicatto">S. Spicatto</option>
-                    <option value="musicBox" selected data-i18n="midiInstrumentSelect.musicBox">Caja de Música</option>
-                    <option value="flauta" data-i18n="midiInstrumentSelect.flauta">Flauta</option>
-                    <option value="pad" data-i18n="midiInstrumentSelect.pad">Pad</option>
-                    <option value="marimba" data-i18n="midiInstrumentSelect.marimba">Marimba</option>
-                    <option value="trumpet" data-i18n="midiInstrumentSelect.trumpet">Trompeta</option>
-                    <option value="bass" data-i18n="midiInstrumentSelect.bass">Bajo</option>
-                    <option value="choir" data-i18n="midiInstrumentSelect.choir">Voz</option>
-                    <option value="synthesizer" data-i18n="midiInstrumentSelect.synthesizer">Sintetizador</option>
-                    <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Armónico</option>
+                    <option value="piano" data-i18n="midiInstrumentSelect.piano">Piano (Full C-1–G9)</option>
+                    <option value="guitar" data-i18n="midiInstrumentSelect.guitar">Guitarra (A3–A5)</option>
+                    <option value="strings" data-i18n="midiInstrumentSelect.strings">Strings (A3–A5)</option>
+                    <option value="stringSpicatto" data-i18n="midiInstrumentSelect.stringSpicatto">S. Spicatto (A#3–A#5)</option>
+                    <option value="musicBox" selected data-i18n="midiInstrumentSelect.musicBox">Caja de Música (D3–G4)</option>
+                    <option value="flauta" data-i18n="midiInstrumentSelect.flauta">Flauta (C3–C5)</option>
+                    <option value="pad" data-i18n="midiInstrumentSelect.pad">Pad (Full C-1–G9)</option>
+                    <option value="marimba" data-i18n="midiInstrumentSelect.marimba">Marimba (A3–A5)</option>
+                    <option value="trumpet" data-i18n="midiInstrumentSelect.trumpet">Trompeta (G#3–G#5)</option>
+                    <option value="bass" data-i18n="midiInstrumentSelect.bass">Bajo (C2–G3)</option>
+                    <option value="choir" data-i18n="midiInstrumentSelect.choir">Voz (A3–A5)</option>
+                    <option value="synthesizer" data-i18n="midiInstrumentSelect.synthesizer">Sintetizador (Full C-1–G9)</option>
+                    <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Armónico (B3–B5)</option>
                 </select>
             </div>
         </div>
@@ -1711,6 +1711,94 @@
         const raw = parseFloat((sourceEl && sourceEl.textContent) || (liveEl && liveEl.textContent) || '');
         return Number.isFinite(raw) ? raw : NaN;
     }
+    const SCALE_INTERVALS = window.__MMF_SCALE_INTERVALS || (window.__MMF_SCALE_INTERVALS = {
+        chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        major: [0, 2, 4, 5, 7, 9, 11],
+        minor: [0, 2, 3, 5, 7, 8, 10],
+        dorian: [0, 2, 3, 5, 7, 9, 10],
+        phrygian: [0, 1, 3, 5, 7, 8, 10],
+        lydian: [0, 2, 4, 6, 7, 9, 11],
+        mixolydian: [0, 2, 4, 5, 7, 9, 10],
+        aeolian: [0, 2, 3, 5, 7, 8, 10],
+        locrian: [0, 1, 3, 5, 6, 8, 10],
+        pentatonic: [0, 2, 4, 7, 9],
+        blues: [0, 3, 5, 6, 7, 10],
+        bebop: [0, 2, 4, 5, 7, 9, 10, 11],
+        harmonic_minor: [0, 2, 3, 5, 7, 8, 11],
+        melodic_minor: [0, 2, 3, 5, 7, 9, 11]
+    });
+    const noteNameToMidi = window.__MMF_NOTE_NAME_TO_MIDI || (window.__MMF_NOTE_NAME_TO_MIDI = function (noteName) {
+        const match = /^([A-G]#?)(-?\d)$/.exec(String(noteName || ''));
+        if (!match) return null;
+        const pitchClassMap = { C: 0, 'C#': 1, D: 2, 'D#': 3, E: 4, F: 5, 'F#': 6, G: 7, 'G#': 8, A: 9, 'A#': 10, B: 11 };
+        const pitchClass = pitchClassMap[match[1]];
+        const octave = Number(match[2]);
+        if (!Number.isFinite(pitchClass) || !Number.isFinite(octave)) return null;
+        return (octave + 1) * 12 + pitchClass;
+    });
+    function positiveModulo(value, divisor) {
+        return ((value % divisor) + divisor) % divisor;
+    }
+    function getSelectedScaleName() {
+        const el = document.getElementById('scaleSelect');
+        return (el && el.value) ? String(el.value) : 'chromatic';
+    }
+    function getSelectedRootNoteName() {
+        const el = document.getElementById('rootNoteSelect');
+        return (el && el.value) ? String(el.value) : 'C';
+    }
+    function loadGestureRanges() {
+        try { return JSON.parse(localStorage.getItem('mmfGestureNoteRanges') || '{}'); } catch (_) { return {}; }
+    }
+    function getGestureMidiSpan(gesture) {
+        const ranges = loadGestureRanges();
+        const range = ranges && ranges[gesture];
+        if (!range || range.fullRange) return { low: 0, high: 127 };
+
+        const low = Math.max(0, Math.min(127, Math.round(Number(range.lowMidi))));
+        const high = Math.max(0, Math.min(127, Math.round(Number(range.highMidi))));
+        if (!Number.isFinite(low) || !Number.isFinite(high) || high < low) return { low: 0, high: 127 };
+        return { low, high };
+    }
+    function buildAllowedNotes(low, high) {
+        const selectedScale = getSelectedScaleName();
+        const scaleIntervals = window.__MMF_SCALE_INTERVALS[selectedScale] || window.__MMF_SCALE_INTERVALS.chromatic;
+        if (!Array.isArray(scaleIntervals) || !scaleIntervals.length) return [];
+
+        const rootMidi = window.__MMF_NOTE_NAME_TO_MIDI(getSelectedRootNoteName() + '0');
+        const rootPitchClass = Number.isFinite(rootMidi) ? positiveModulo(rootMidi, 12) : 0;
+        const allowedPitchClasses = new Set(scaleIntervals.map((interval) => positiveModulo(rootPitchClass + interval, 12)));
+        const allowedNotes = [];
+
+        for (let midi = low; midi <= high; midi += 1) {
+            if (allowedPitchClasses.has(positiveModulo(midi, 12))) {
+                allowedNotes.push(midi);
+            }
+        }
+        return allowedNotes;
+    }
+    const computeGestureTargetMidi = window.__MMF_COMPUTE_GESTURE_TARGET_MIDI || (window.__MMF_COMPUTE_GESTURE_TARGET_MIDI = function (gesture, fallbackMidi) {
+        const rawValue = getRawValue(gesture);
+        const cal = getCalBounds(gesture);
+        const span = getGestureMidiSpan(gesture);
+        const allowedNotes = buildAllowedNotes(span.low, span.high);
+        if (!allowedNotes.length) return null;
+
+        let proportion = NaN;
+        if (cal && Number.isFinite(rawValue)) {
+            proportion = (rawValue - cal.min) / (cal.max - cal.min);
+        } else if (Number.isFinite(fallbackMidi) && span.high > span.low) {
+            proportion = (Number(fallbackMidi) - span.low) / (span.high - span.low);
+        }
+
+        if (!Number.isFinite(proportion)) return allowedNotes[0];
+        const clampedProportion = Math.max(0, Math.min(1, proportion));
+        const slotIndex = Math.min(
+            allowedNotes.length - 1,
+            Math.floor(clampedProportion * allowedNotes.length)
+        );
+        return allowedNotes[slotIndex];
+    });
     function gestureForNote(midi) {
         const active = window.gestureActiveNotes;
         if (!active) return null;
@@ -1721,27 +1809,9 @@
     }
     function remapMidi(incomingMidi, gesture) {
         if (!gesture) return isPlayableForInstrument(incomingMidi) ? incomingMidi : null;
-        const range = loadRanges()[gesture];
-        if (!range || range.fullRange) return isPlayableForInstrument(incomingMidi) ? incomingMidi : null;
-
-        const low = Math.round(Number(range.lowMidi));
-        const high = Math.round(Number(range.highMidi));
-        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) {
-            return isPlayableForInstrument(incomingMidi) ? incomingMidi : null;
-        }
-
-        const cal = getCalBounds(gesture);
-        const rawValue = getRawValue(gesture);
-        let proportion;
-        if (cal && Number.isFinite(rawValue)) {
-            proportion = Math.max(0, Math.min(1, (rawValue - cal.min) / (cal.max - cal.min)));
-        } else {
-            proportion = Math.max(0, Math.min(1, (incomingMidi - 36) / 60));
-        }
-
-        const targetMidi = Math.round(low + proportion * (high - low));
-        const clamped = Math.max(0, Math.min(127, targetMidi));
-        return isPlayableForInstrument(clamped) ? clamped : null;
+        const targetMidi = window.__MMF_COMPUTE_GESTURE_TARGET_MIDI(gesture, incomingMidi);
+        if (!Number.isFinite(targetMidi)) return null;
+        return isPlayableForInstrument(targetMidi) ? targetMidi : null;
     }
 
     const attackMap = new Map();
@@ -1770,7 +1840,8 @@
                             attackMap.set(incomingMidi, null);
                             if (gesture) {
                                 const noteEl = document.getElementById(gesture + 'NoteDisplay');
-                                if (noteEl) noteEl.textContent = '';
+                                const targetMidi = window.__MMF_COMPUTE_GESTURE_TARGET_MIDI(gesture, incomingMidi);
+                                if (noteEl) noteEl.textContent = Number.isFinite(targetMidi) ? midiToName(targetMidi) : '';
                             }
                             return this;
                         }
@@ -1807,6 +1878,20 @@
 })();
     </script>
      <script src="script.js"></script>
+     <script>
+(function () {
+    'use strict';
+
+    function normalizeMidi(note) {
+        const midi = Math.round(Number(note));
+        return Number.isFinite(midi) ? Math.max(0, Math.min(127, midi)) : note;
+    }
+
+    window.coerceNoteToSampler = function (note) {
+        return normalizeMidi(note);
+    };
+})();
+    </script>
      <script src="ws-bridge.js"></script>
      <script>
 /* ── Live MIDI note display loop ─────────────────────────────────────────── */
@@ -1852,20 +1937,7 @@
     }
 
     function computeDisplayedMidi(gesture) {
-        const rawValue = getRawValue(gesture);
-        const cal = getCalBounds(gesture);
-        if (!Number.isFinite(rawValue) || !cal) return null;
-
-        const ranges = loadRanges();
-        const range = ranges[gesture];
-        const low = range && range.fullRange === false ? Math.round(Number(range.lowMidi)) : 36;
-        const high = range && range.fullRange === false ? Math.round(Number(range.highMidi)) : 96;
-        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) return null;
-
-        const proportion = Math.max(0, Math.min(1, (rawValue - cal.min) / (cal.max - cal.min)));
-        const target = Math.round(low + proportion * (high - low));
-        const clamped = Math.max(0, Math.min(127, target));
-        return isPlayableForInstrument(clamped) ? clamped : null;
+        return window.__MMF_COMPUTE_GESTURE_TARGET_MIDI(gesture);
     }
 
     function inferGestureFromDetail(detail) {
@@ -2056,14 +2128,6 @@
     const getSelectedInstrument = window.__MMF_GET_SELECTED_INSTRUMENT;
     const isPlayableForInstrument = window.__MMF_IS_PLAYABLE_FOR_INSTRUMENT;
 
-    function getCalBounds(gesture) {
-        const minEl = document.getElementById(gesture + 'Min');
-        const maxEl = document.getElementById(gesture + 'Max');
-        const min = parseFloat(minEl && minEl.value);
-        const max = parseFloat(maxEl && maxEl.value);
-        return (Number.isFinite(min) && Number.isFinite(max) && max > min) ? { min, max } : null;
-    }
-
     // Reverse-lookup: which gesture currently holds this MIDI note?
     function gestureForNote(midi) {
         const ga = window.gestureActiveNotes;
@@ -2077,30 +2141,11 @@
         return Number.isFinite(n) ? Math.max(0, Math.min(127, n)) : null;
     }
 
-    // Core remap using live sensor proportion through calibration bounds
     function mapGestureNoteProportional(originalNote, gesture) {
-        const ranges = loadGestureRanges();
-        const range = ranges && ranges[gesture];
-        if (!range || range.fullRange) return isPlayableForInstrument(originalNote) ? originalNote : null;
-
-        const low  = Math.max(0, Math.min(127, Math.round(Number(range.lowMidi))));
-        const high = Math.max(0, Math.min(127, Math.round(Number(range.highMidi))));
-        if (!Number.isFinite(low) || !Number.isFinite(high) || low >= high) {
-            return isPlayableForInstrument(originalNote) ? originalNote : null;
-        }
-
-        const rawVal = window.currentGestureValues ? Number(window.currentGestureValues[gesture]) : NaN;
-        const cal = getCalBounds(gesture);
-        let proportion;
-        if (cal && Number.isFinite(rawVal)) {
-            proportion = Math.max(0, Math.min(1, (rawVal - cal.min) / (cal.max - cal.min)));
-        } else {
-            proportion = Math.max(0, Math.min(1, (originalNote - 36) / 60));
-        }
-
-        const targetMidi = Math.round(low + proportion * (high - low));
-        const clamped = Math.max(0, Math.min(127, targetMidi));
-        return isPlayableForInstrument(clamped) ? clamped : null;
+        if (!gesture) return originalNote;
+        const targetMidi = window.__MMF_COMPUTE_GESTURE_TARGET_MIDI(gesture, originalNote);
+        if (Number.isFinite(targetMidi)) return targetMidi;
+        return originalNote;
     }
 
     function updateNoteDisplay(gesture, midiNote) {
