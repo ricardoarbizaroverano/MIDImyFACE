@@ -21,3 +21,4 @@ MMF_SECRET_KEY
 
 # local-only notes
 .sandbox-notes.md
+relay/.env
