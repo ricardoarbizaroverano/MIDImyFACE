@@ -1664,7 +1664,7 @@
         guitar: { low: 57, high: 81 },
         strings: { low: 57, high: 81 },
         stringSpicatto: { low: 58, high: 82 },
-        musicBox: { low: 50, high: 67 },
+        musicBox: null,
         flauta: { low: 48, high: 72 },
         marimba: { low: 57, high: 81 },
         trumpet: { low: 56, high: 80 },
@@ -1777,51 +1777,6 @@
         }
         return allowedNotes;
     }
-    const pendingGestureQueues = window.__MMF_PENDING_GESTURES_BY_NOTE || (window.__MMF_PENDING_GESTURES_BY_NOTE = new Map());
-    const rememberPendingGestureForNote = window.__MMF_REMEMBER_PENDING_GESTURE_FOR_NOTE || (window.__MMF_REMEMBER_PENDING_GESTURE_FOR_NOTE = function (midi, gesture) {
-        const note = Math.round(Number(midi));
-        if (!Number.isFinite(note) || !gesture) return;
-        const queue = pendingGestureQueues.get(note) || [];
-        queue.push({ gesture: String(gesture), ts: Date.now() });
-        pendingGestureQueues.set(note, queue.slice(-8));
-    });
-    const peekPendingGestureForNote = window.__MMF_PEEK_PENDING_GESTURE_FOR_NOTE || (window.__MMF_PEEK_PENDING_GESTURE_FOR_NOTE = function (midi) {
-        const note = Math.round(Number(midi));
-        const queue = pendingGestureQueues.get(note);
-        if (!queue || !queue.length) return null;
-        const now = Date.now();
-        const recent = queue.filter((entry) => entry && (now - entry.ts) < 1000);
-        if (!recent.length) {
-            pendingGestureQueues.delete(note);
-            return null;
-        }
-        pendingGestureQueues.set(note, recent);
-        return recent[recent.length - 1].gesture || null;
-    });
-
-    function patchQuantizeToScaleTracking() {
-        const original = window.quantizeToScale;
-        if (typeof original !== 'function') return false;
-        if (original.__mmfGestureTracked) return true;
-
-        const wrapped = function (value, gesture, ...rest) {
-            const note = original.call(this, value, gesture, ...rest);
-            window.__MMF_REMEMBER_PENDING_GESTURE_FOR_NOTE(note, gesture);
-            return note;
-        };
-
-        wrapped.__mmfGestureTracked = true;
-        wrapped.__mmfOriginal = original;
-        window.quantizeToScale = wrapped;
-        return true;
-    }
-
-    if (!patchQuantizeToScaleTracking()) {
-        const quantizePatchTimer = setInterval(() => {
-            if (patchQuantizeToScaleTracking()) clearInterval(quantizePatchTimer);
-        }, 250);
-        setTimeout(() => clearInterval(quantizePatchTimer), 12000);
-    }
     const computeGestureTargetMidi = window.__MMF_COMPUTE_GESTURE_TARGET_MIDI || (window.__MMF_COMPUTE_GESTURE_TARGET_MIDI = function (gesture, fallbackMidi) {
         const rawValue = getRawValue(gesture);
         const cal = getCalBounds(gesture);
@@ -1851,7 +1806,7 @@
                 if (note === midi) return gesture;
             }
         }
-        return window.__MMF_PEEK_PENDING_GESTURE_FOR_NOTE(midi);
+        return null;
     }
     function remapMidi(incomingMidi, gesture) {
         if (!gesture) return isPlayableForInstrument(incomingMidi) ? incomingMidi : null;
@@ -2201,7 +2156,7 @@
                 if (n === midi) return g;
             }
         }
-        return window.__MMF_PEEK_PENDING_GESTURE_FOR_NOTE(midi);
+        return null;
     }
 
     function clampMidi(note) {
