@@ -5,6 +5,20 @@
     const RELAY_ORIGIN  = 'https://midimyface-relay.onrender.com';
     const BOOT_ENDPOINT = RELAY_ORIGIN + '/api/boot';
     const ENC_FILE      = '/calibration.enc';
+    const query = new URLSearchParams(window.location.search);
+    const requestedMode = (query.get('runtime') || (query.get('readable') === '1' ? 'readable' : '')).trim().toLowerCase();
+    const storedMode = (localStorage.getItem('mmf_runtime_mode') || '').trim().toLowerCase();
+    const publicHosts = new Set(['midimyface.com', 'www.midimyface.com']);
+    const currentHost = (window.location.hostname || '').trim().toLowerCase();
+    const defaultMode = publicHosts.has(currentHost) ? 'legacy' : 'readable';
+    const runtimeMode = requestedMode || storedMode || defaultMode;
+    const isPublicHost = publicHosts.has(currentHost);
+    const shouldSkipEncryptedLoader = runtimeMode === 'readable' || !isPublicHost;
+
+    if (shouldSkipEncryptedLoader) {
+        console.info('[MIDImyFACE] Skipping encrypted calibration loader for local/readable runtime.');
+        return;
+    }
 
     function b64ToBytes(b64) {
         const bin = atob(b64);
@@ -46,8 +60,14 @@
             fetch(ENC_FILE,      { credentials: 'omit' }),
         ]);
 
-        if (!bootRes.ok) throw new Error(`Boot key fetch failed: ${bootRes.status}`);
-        if (!encRes.ok)  throw new Error(`Enc blob fetch failed: ${encRes.status}`);
+        if (!bootRes.ok || !encRes.ok) {
+            if (shouldSkipEncryptedLoader) {
+                console.warn('[MIDImyFACE] Encrypted calibration assets unavailable; continuing with readable/local runtime.');
+                return;
+            }
+
+            throw new Error(`Calibration bootstrap failed: boot=${bootRes.status} enc=${encRes.status}`);
+        }
 
         const { key } = await bootRes.json();
         const blob    = await encRes.text();
@@ -59,6 +79,10 @@
 
     } catch (err) {
         console.error('[MIDImyFACE] Failed to load calibration module:', err);
+        if (shouldSkipEncryptedLoader) {
+            console.warn('[MIDImyFACE] Continuing without encrypted calibration module in local/readable runtime.');
+            return;
+        }
         const notice = document.createElement('div');
         notice.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c0392b;color:#fff;padding:12px;z-index:99999;font-family:sans-serif;text-align:center';
         notice.textContent = 'MIDImyFACE could not load. Please check your connection and reload.';
