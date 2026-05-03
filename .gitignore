@@ -1,4 +1,5 @@
 # relay server — Node.js artefacts (never commit these)
+node_modules/
 relay/node_modules/
 relay/package-lock.json
 relay/.env.local
@@ -15,6 +16,7 @@ MMF_SECRET_KEY
 # The public repo only ever receives the .enc encrypted output.
 # Do NOT add src/ here — it needs to be committed to the private repo.
 # The GitHub Action excludes it from the public deployment automatically.
+build/public-repo/
 
 # macOS
 .DS_Store

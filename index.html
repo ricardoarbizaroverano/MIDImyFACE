@@ -1897,7 +1897,35 @@
     }
 })();
     </script>
-     <script src="script.js"></script>
+     <script>
+(function () {
+    'use strict';
+
+    const query = new URLSearchParams(window.location.search);
+    const requestedMode = (query.get('runtime') || (query.get('readable') === '1' ? 'readable' : '')).trim().toLowerCase();
+    const storedMode = (localStorage.getItem('mmf_runtime_mode') || '').trim().toLowerCase();
+    const runtimeMode = requestedMode || storedMode || 'legacy';
+    const useReadableRuntime = runtimeMode === 'readable';
+
+    if (requestedMode === 'readable' || requestedMode === 'legacy') {
+        localStorage.setItem('mmf_runtime_mode', requestedMode);
+    }
+
+    window.__MMF_RUNTIME_MODE__ = useReadableRuntime ? 'readable' : 'legacy';
+    document.documentElement.setAttribute('data-mmf-runtime', window.__MMF_RUNTIME_MODE__);
+
+    const runtimeScript = document.createElement('script');
+    runtimeScript.src = useReadableRuntime ? 'src/script.js' : 'script.js';
+    if (useReadableRuntime) {
+        runtimeScript.type = 'module';
+        console.info('[MMF] Loading readable runtime from src/script.js');
+    } else {
+        console.info('[MMF] Loading legacy runtime from script.js');
+    }
+
+    document.currentScript.after(runtimeScript);
+})();
+    </script>
      <script>
 (function () {
     'use strict';
