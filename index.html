@@ -1904,26 +1904,43 @@
     const query = new URLSearchParams(window.location.search);
     const requestedMode = (query.get('runtime') || (query.get('readable') === '1' ? 'readable' : '')).trim().toLowerCase();
     const storedMode = (localStorage.getItem('mmf_runtime_mode') || '').trim().toLowerCase();
-    const runtimeMode = requestedMode || storedMode || 'legacy';
+    const publicHosts = new Set(['midimyface.com', 'www.midimyface.com']);
+    const currentHost = (window.location.hostname || '').trim().toLowerCase();
+    const defaultMode = publicHosts.has(currentHost) ? 'legacy' : 'readable';
+    const runtimeMode = requestedMode || storedMode || defaultMode;
     const useReadableRuntime = runtimeMode === 'readable';
 
     if (requestedMode === 'readable' || requestedMode === 'legacy') {
         localStorage.setItem('mmf_runtime_mode', requestedMode);
     }
 
-    window.__MMF_RUNTIME_MODE__ = useReadableRuntime ? 'readable' : 'legacy';
-    document.documentElement.setAttribute('data-mmf-runtime', window.__MMF_RUNTIME_MODE__);
-
-    const runtimeScript = document.createElement('script');
-    runtimeScript.src = useReadableRuntime ? 'src/script.js' : 'script.js';
-    if (useReadableRuntime) {
-        runtimeScript.type = 'module';
-        console.info('[MMF] Loading readable runtime from src/script.js');
-    } else {
-        console.info('[MMF] Loading legacy runtime from script.js');
+    function setRuntimeMode(mode) {
+        window.__MMF_RUNTIME_MODE__ = mode;
+        document.documentElement.setAttribute('data-mmf-runtime', mode);
     }
 
-    document.currentScript.after(runtimeScript);
+    function appendLegacyRuntime() {
+        setRuntimeMode('legacy');
+        const legacyScript = document.createElement('script');
+        legacyScript.src = 'script.js';
+        console.info('[MMF] Loading legacy runtime from script.js');
+        document.currentScript.after(legacyScript);
+    }
+
+    if (useReadableRuntime) {
+        setRuntimeMode('readable');
+        const runtimeScript = document.createElement('script');
+        runtimeScript.src = 'src/script.js';
+        runtimeScript.type = 'module';
+        runtimeScript.onerror = function () {
+            console.warn('[MMF] Readable runtime unavailable; falling back to legacy runtime.');
+            appendLegacyRuntime();
+        };
+        console.info('[MMF] Loading readable runtime from src/script.js');
+        document.currentScript.after(runtimeScript);
+    } else {
+        appendLegacyRuntime();
+    }
 })();
     </script>
      <script>
