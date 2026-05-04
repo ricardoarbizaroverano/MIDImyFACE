@@ -429,6 +429,22 @@
         color: lime;
     }
 
+    .sound-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    #soundControlsToggle {
+        margin-bottom: 10px;
+    }
+
+    #soundControlsPanel {
+        width: 100%;
+    }
+
     #instructionButton,
     #presentationModeButton {
         margin-top: 10px;
@@ -1019,58 +1035,63 @@
         </select>
     </div>
 
-    <!-- Envelope Controls -->
-    <div class="envelope-controls">
-        <h3 data-i18n="envelope">Envolvente</h3>
-        <!-- Attack -->
-        <div class="envelope-row">
-            <div class="gesture-name" data-i18n="attack">Attack</div>
-            <div class="envelope-value" id="attackValue">100 ms</div>
-            <input type="range" id="attackSlider" class="slider" min="0" max="2000" value="100" step="10">
-            <button class="toggle-button" id="attackMute" data-i18n="mute">Mute</button>
-            <button class="toggle-button" id="attackSolo" data-i18n="solo">Solo</button>
-            <button class="toggle-button" id="attackControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="attackCC"></div>
-        </div>
-        <!-- Decay -->
-        <div class="envelope-row">
-            <div class="gesture-name" data-i18n="decay">Decay</div>
-            <div class="envelope-value" id="decayValue">300 ms</div>
-            <input type="range" id="decaySlider" class="slider" min="0" max="2000" value="300" step="10">
-            <button class="toggle-button" id="decayMute" data-i18n="mute">Mute</button>
-            <button class="toggle-button" id="decaySolo" data-i18n="solo">Solo</button>
-            <button class="toggle-button" id="decayControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="decayCC"></div>
-        </div>
-        <!-- Sustain Level -->
-        <div class="envelope-row">
-            <div class="gesture-name" data-i18n="sustain">Sustain Level</div>
-            <div class="envelope-value" id="sustainValue">0.5</div>
-            <input type="range" id="sustainSlider" class="slider" min="0" max="1" value="0.5" step="0.01">
-            <button class="toggle-button" id="sustainMute" data-i18n="mute">Mute</button>
-            <button class="toggle-button" id="sustainSolo" data-i18n="solo">Solo</button>
-            <button class="toggle-button" id="sustainControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="sustainCC"></div>
-        </div>
-        <!-- Sustain Duration -->
-        <div class="envelope-row">
-            <div class="gesture-name" data-i18n="sustainDuration">Sustain Duration</div>
-            <div class="envelope-value" id="sustainDurationValue">2000 ms</div>
-            <input type="range" id="sustainDurationSlider" class="slider" min="0" max="10000" value="2000" step="100">
-            <button class="toggle-button" id="sustainDurationMute" data-i18n="mute">Mute</button>
-            <button class="toggle-button" id="sustainDurationSolo" data-i18n="solo">Solo</button>
-            <button class="toggle-button" id="sustainDurationControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="sustainDurationCC"></div>
-        </div>
-        <!-- Release -->
-        <div class="envelope-row">
-            <div class="gesture-name" data-i18n="release">Release</div>
-            <div class="envelope-value" id="releaseValue">500 ms</div>
-            <input type="range" id="releaseSlider" class="slider" min="0" max="5000" value="500" step="10">
-            <button class="toggle-button" id="releaseMute" data-i18n="mute">Mute</button>
-            <button class="toggle-button" id="releaseSolo" data-i18n="solo">Solo</button>
-            <button class="toggle-button" id="releaseControl" data-i18n="control">Control</button>
-            <div class="cc-display" id="releaseCC"></div>
+    <!-- Sound Controls -->
+    <div class="sound-controls">
+        <button id="soundControlsToggle" class="toggle-button" aria-expanded="false" aria-controls="soundControlsPanel" data-i18n="soundControls">Sound Controls</button>
+        <div id="soundControlsPanel" class="hidden" aria-hidden="true">
+            <div class="envelope-controls">
+                <h3 data-i18n="envelope">Envelope</h3>
+                <!-- Attack -->
+                <div class="envelope-row">
+                    <div class="gesture-name" data-i18n="attack">Attack</div>
+                    <div class="envelope-value" id="attackValue">100 ms</div>
+                    <input type="range" id="attackSlider" class="slider" min="0" max="2000" value="100" step="10">
+                    <button class="toggle-button" id="attackMute" data-i18n="mute">Mute</button>
+                    <button class="toggle-button" id="attackSolo" data-i18n="solo">Solo</button>
+                    <button class="toggle-button" id="attackControl" data-i18n="control">Control</button>
+                    <div class="cc-display" id="attackCC"></div>
+                </div>
+                <!-- Decay -->
+                <div class="envelope-row">
+                    <div class="gesture-name" data-i18n="decay">Decay</div>
+                    <div class="envelope-value" id="decayValue">300 ms</div>
+                    <input type="range" id="decaySlider" class="slider" min="0" max="2000" value="300" step="10">
+                    <button class="toggle-button" id="decayMute" data-i18n="mute">Mute</button>
+                    <button class="toggle-button" id="decaySolo" data-i18n="solo">Solo</button>
+                    <button class="toggle-button" id="decayControl" data-i18n="control">Control</button>
+                    <div class="cc-display" id="decayCC"></div>
+                </div>
+                <!-- Sustain Level -->
+                <div class="envelope-row">
+                    <div class="gesture-name" data-i18n="sustain">Sustain Level</div>
+                    <div class="envelope-value" id="sustainValue">0.5</div>
+                    <input type="range" id="sustainSlider" class="slider" min="0" max="1" value="0.5" step="0.01">
+                    <button class="toggle-button" id="sustainMute" data-i18n="mute">Mute</button>
+                    <button class="toggle-button" id="sustainSolo" data-i18n="solo">Solo</button>
+                    <button class="toggle-button" id="sustainControl" data-i18n="control">Control</button>
+                    <div class="cc-display" id="sustainCC"></div>
+                </div>
+                <!-- Sustain Duration -->
+                <div class="envelope-row">
+                    <div class="gesture-name" data-i18n="sustainDuration">Sustain Duration</div>
+                    <div class="envelope-value" id="sustainDurationValue">2000 ms</div>
+                    <input type="range" id="sustainDurationSlider" class="slider" min="0" max="10000" value="2000" step="100">
+                    <button class="toggle-button" id="sustainDurationMute" data-i18n="mute">Mute</button>
+                    <button class="toggle-button" id="sustainDurationSolo" data-i18n="solo">Solo</button>
+                    <button class="toggle-button" id="sustainDurationControl" data-i18n="control">Control</button>
+                    <div class="cc-display" id="sustainDurationCC"></div>
+                </div>
+                <!-- Release -->
+                <div class="envelope-row">
+                    <div class="gesture-name" data-i18n="release">Release</div>
+                    <div class="envelope-value" id="releaseValue">500 ms</div>
+                    <input type="range" id="releaseSlider" class="slider" min="0" max="5000" value="500" step="10">
+                    <button class="toggle-button" id="releaseMute" data-i18n="mute">Mute</button>
+                    <button class="toggle-button" id="releaseSolo" data-i18n="solo">Solo</button>
+                    <button class="toggle-button" id="releaseControl" data-i18n="control">Control</button>
+                    <div class="cc-display" id="releaseCC"></div>
+                </div>
+            </div>
         </div>
     </div>
 
