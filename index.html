@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1024, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title data-i18n="title">MIDImyFACE - Interfaz gestural web</title>
 <style>
     body {
@@ -1447,6 +1447,111 @@
     }
 
     @media (max-width: 900px) {
+        body {
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        #title {
+            font-size: clamp(24px, 7vw, 38px);
+            letter-spacing: 0.05em;
+        }
+
+        #videoContainer {
+            width: min(96vw, 860px);
+        }
+
+        .mode-controls,
+        .percussion-options,
+        .theremin-mode,
+        .scale-controls,
+        .gesture-summary,
+        .sound-controls,
+        .midi-status,
+        .session-panel,
+        .calibration-actions {
+            width: min(96vw, 860px);
+        }
+
+        .mode-controls,
+        .midi-status,
+        .scale-controls,
+        .theremin-mode,
+        .percussion-options.active {
+            gap: 10px;
+        }
+
+        .gesture-summary-header {
+            display: none;
+        }
+
+        .gesture-summary-row {
+            display: grid;
+            grid-template-columns: minmax(96px, 1.2fr) 64px 64px 56px;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .gesture-summary-name {
+            width: auto;
+            text-align: left;
+        }
+
+        .gesture-summary-value,
+        .gesture-midi-val,
+        .gesture-note-name {
+            width: auto;
+            min-width: 0;
+        }
+
+        .gesture-summary-row .gesture-calibrate-btn,
+        .gesture-summary-row .toggle-button {
+            min-width: 0;
+            width: 100%;
+        }
+
+        .gesture-summary-row .gesture-calibrate-btn {
+            grid-column: 1 / 2;
+        }
+
+        .gesture-summary-row .toggle-button {
+            font-size: 11px;
+            padding-left: 6px;
+            padding-right: 6px;
+        }
+
+        .cal-modal-box {
+            margin: 16px auto;
+            width: min(96vw, 860px);
+            max-width: none;
+            padding: 14px 10px;
+        }
+
+        .gesture-row {
+            display: grid;
+            grid-template-columns: minmax(92px, 1fr) 64px minmax(76px, 1fr) minmax(76px, 1fr);
+            gap: 8px;
+            align-items: center;
+        }
+
+        .gesture-row .toggle-button {
+            grid-column: 1 / -1;
+            justify-self: center;
+            width: min(180px, 100%);
+        }
+
+        .mcal-noterange-row {
+            grid-template-columns: 1fr;
+        }
+
+        .mcal-customrange {
+            justify-content: center;
+        }
+
+        #percussionSensitivitySlider {
+            width: min(68vw, 360px);
+        }
+
         .envelope-row {
             grid-template-columns: 1fr 92px;
         }
@@ -1454,6 +1559,237 @@
         .envelope-row .slider {
             grid-column: 1 / -1;
             min-width: 240px;
+        }
+
+        .envelope-row .toggle-button,
+        .envelope-row .cc-display {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 640px) {
+        body {
+            padding-left: 6px;
+            padding-right: 6px;
+        }
+
+        #header {
+            margin-top: 6px;
+            padding-left: 4px;
+            padding-right: 4px;
+        }
+
+        #title {
+            font-size: clamp(22px, 9vw, 32px);
+            text-shadow: 3px 3px 0 #112211, 0 0 14px rgba(185, 255, 106, 0.22);
+        }
+
+        .language-switcher-snes {
+            margin-bottom: 12px;
+        }
+
+        .language-radio span {
+            min-width: 48px;
+            padding: 7px 8px;
+        }
+
+        #videoContainer {
+            width: calc(100vw - 18px);
+            margin-top: 8px;
+            margin-bottom: 12px;
+        }
+
+        .mode-controls,
+        .percussion-options,
+        .theremin-mode,
+        .scale-controls,
+        .gesture-summary,
+        .sound-controls,
+        .midi-status,
+        .session-panel,
+        .calibration-actions {
+            width: calc(100vw - 18px);
+            padding: 10px;
+        }
+
+        .face-loading-card {
+            width: 88%;
+            padding: 14px 10px;
+        }
+
+        .face-loading-title {
+            font-size: 16px;
+        }
+
+        .face-loading-subtitle {
+            font-size: 11px;
+            min-height: auto;
+        }
+
+        .face-loading-spinner {
+            width: 40px;
+            height: 40px;
+        }
+
+        .toggle-button,
+        .mode-button,
+        .cal-action-btn,
+        .wizard-btn,
+        .gesture-calibrate-btn,
+        #instructionButton,
+        #presentationModeButton,
+        #connectSessionButton,
+        #disconnectSessionButton,
+        #inviteJoinButton,
+        #inviteOpenPromptButton,
+        #inviteDisconnectButton,
+        #invitePromptCancel,
+        #invitePromptConnect {
+            min-height: 34px;
+            white-space: normal;
+        }
+
+        .mode-controls,
+        .calibration-actions,
+        .midi-status {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+        }
+
+        .midi-status label,
+        .midi-status select,
+        .midi-status #networkConsoleBtn {
+            grid-column: 1 / -1;
+            width: 100%;
+        }
+
+        .midi-status .status-indicator {
+            justify-self: center;
+            grid-column: 1 / -1;
+        }
+
+        .theremin-option {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .theremin-option > input[type="radio"] + label {
+            width: min(170px, 100%);
+            justify-self: center;
+        }
+
+        .theremin-suboptions select,
+        .scale-controls select,
+        .midi-status select {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .gesture-summary {
+            gap: 10px;
+        }
+
+        .gesture-summary-row {
+            grid-template-columns: 1fr 56px 56px 48px;
+            gap: 6px;
+            padding: 7px;
+        }
+
+        .gesture-summary-name {
+            font-size: 13px;
+        }
+
+        .gesture-summary-value,
+        .gesture-midi-val,
+        .gesture-note-name {
+            min-height: 25px;
+            padding: 3px;
+            font-size: 11px;
+        }
+
+        .gesture-summary-row .gesture-calibrate-btn {
+            grid-column: 1 / -1;
+        }
+
+        .gesture-summary-row .toggle-button {
+            font-size: 10px;
+            min-height: 32px;
+        }
+
+        .gesture-summary-row [id$="Disparador"] {
+            min-width: 0;
+        }
+
+        .scale-controls {
+            gap: 8px;
+        }
+
+        #soundControlsPanel {
+            overflow-x: hidden;
+        }
+
+        .envelope-row {
+            grid-template-columns: 1fr 80px;
+            gap: 7px;
+        }
+
+        .envelope-row .slider {
+            min-width: 0;
+        }
+
+        .envelope-row .toggle-button {
+            font-size: 10px;
+            min-width: 0;
+        }
+
+        .cal-modal-box {
+            margin: 8px auto;
+            width: calc(100vw - 14px);
+            padding: 12px 8px;
+        }
+
+        .gesture-row {
+            grid-template-columns: 1fr 58px;
+            gap: 7px;
+        }
+
+        .gesture-row .gesture-name {
+            text-align: left;
+        }
+
+        .gesture-row input[id$="Min"],
+        .gesture-row input[id$="Max"] {
+            grid-column: span 1;
+            width: 100%;
+        }
+
+        .mcal-customrange select {
+            width: 52px;
+        }
+
+        .mcal-customrange input[type="number"] {
+            width: 42px;
+        }
+
+        .wizard-instruction {
+            font-size: 15px;
+            line-height: 1.45;
+        }
+
+        .wizard-buttons,
+        .wizard-range-row {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .review-table {
+            font-size: 11px;
+        }
+
+        #instructionButton,
+        #presentationModeButton {
+            width: calc(100vw - 18px);
         }
     }
 </style>
