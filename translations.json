@@ -2,6 +2,7 @@
   "en": {
     "title": "MIDImyFACE",
     "subtitle": "by Ricardo Arbiza | ricardoarbiza.com",
+    "connectToSession": "Connect to session",
     "percussionToggle": "Percussion",
     "thereminToggle": "Theremin",
     "percussionModeSelect": {
@@ -188,6 +189,7 @@
   "es": {
     "title": "MIDImyFACE",
     "subtitle": "por Ricardo Arbiza | ricardoarbiza.com",
+    "connectToSession": "Conectar a sesión",
     "percussionToggle": "Percusión",
     "thereminToggle": "Theremin",
     "percussionModeSelect": {

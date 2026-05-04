@@ -841,6 +841,7 @@
             linear-gradient(180deg, #07070c 0%, var(--mmf-black) 42%, #020302 100%);
         color: var(--mmf-lime);
         font-family: var(--mmf-font);
+        padding-bottom: 56px;
         text-shadow: 0 0 7px rgba(124, 255, 79, 0.10);
     }
 
@@ -919,8 +920,66 @@
         margin-top: 8px;
     }
 
+    .language-switcher-snes {
+        align-items: center;
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin: 8px auto 18px;
+        text-transform: uppercase;
+    }
+
+    .language-switcher-source {
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+        position: absolute;
+        width: 1px;
+    }
+
+    .language-radio {
+        align-items: center;
+        cursor: pointer;
+        display: inline-flex;
+        gap: 6px;
+    }
+
+    .language-radio input {
+        opacity: 0;
+        position: absolute;
+    }
+
+    .language-radio span {
+        border: 3px solid #ffffff;
+        border-bottom-color: #555566;
+        border-right-color: #555566;
+        background: #d8d8d8;
+        box-shadow: 3px 3px 0 #000;
+        color: #111116;
+        display: inline-block;
+        font-size: 13px;
+        line-height: 1;
+        min-width: 52px;
+        padding: 7px 10px;
+        text-align: center;
+    }
+
+    .language-radio input:checked + span {
+        background: #5548c8;
+        border-color: #c8c3ff #27205f #27205f #c8c3ff;
+        box-shadow: 0 0 0 2px #000, 0 0 16px rgba(85, 72, 200, 0.34);
+        color: #ffffff;
+    }
+
+    .language-separator {
+        color: var(--mmf-cyan);
+        font-weight: bold;
+    }
+
     #videoContainer,
     .mode-controls,
+    .percussion-options,
+    .theremin-mode,
     .scale-controls,
     .gesture-summary,
     .sound-controls,
@@ -937,6 +996,21 @@
             0 10px 0 rgba(0, 0, 0, 0.48),
             0 0 24px rgba(124, 255, 79, 0.10);
         padding: 14px;
+    }
+
+    #videoContainer,
+    .mode-controls,
+    .percussion-options,
+    .theremin-mode,
+    .scale-controls,
+    .gesture-summary,
+    .sound-controls,
+    .midi-status,
+    .session-panel {
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 980px;
+        width: min(90vw, 980px);
     }
 
     #videoContainer {
@@ -1092,6 +1166,57 @@
         box-shadow: 0 0 12px rgba(255, 90, 90, 0.45);
     }
 
+    .theremin-mode.active,
+    .percussion-options.active {
+        display: block;
+    }
+
+    .theremin-option {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 10px;
+    }
+
+    .theremin-option > input[type="radio"] {
+        opacity: 0;
+        position: absolute;
+    }
+
+    .theremin-option > input[type="radio"] + label {
+        border: 3px solid #ffffff;
+        border-bottom-color: #555566;
+        border-right-color: #555566;
+        background: #d8d8d8;
+        box-shadow: 3px 3px 0 #000;
+        color: #111116;
+        cursor: pointer;
+        display: inline-block;
+        font-family: var(--mmf-font);
+        font-size: 13px;
+        line-height: 1.05;
+        min-height: 31px;
+        min-width: 86px;
+        padding: 7px 11px;
+        text-align: center;
+        text-transform: uppercase;
+    }
+
+    .theremin-option > input[type="radio"]:checked + label {
+        background: #5548c8;
+        border-color: #c8c3ff #27205f #27205f #c8c3ff;
+        box-shadow: 0 0 0 2px #000, 0 0 16px rgba(85, 72, 200, 0.34);
+        color: #ffffff;
+    }
+
+    .theremin-suboptions {
+        flex-basis: 100%;
+        margin-left: 0;
+        text-align: center;
+    }
+
     .gesture-summary {
         max-width: 980px;
         gap: 8px;
@@ -1192,6 +1317,20 @@
 
     .sound-controls {
         max-width: 980px;
+    }
+
+    #instructionButton,
+    #presentationModeButton {
+        margin-top: 18px;
+    }
+
+    .footer-credit#subtitle {
+        color: rgba(135, 169, 135, 0.62);
+        font-size: 11px;
+        letter-spacing: 0.02em;
+        margin: 24px auto 18px;
+        text-align: center;
+        text-shadow: none;
     }
 
     #soundControlsToggle {
@@ -1311,14 +1450,52 @@
 
     <div id="header">
         <h1 id="title" data-i18n="title">MIDImyFACE</h1>
-        <p id="subtitle" data-i18n="subtitle">A web music interface for gesture control</p>
     </div>
-    <br>
-    <select id="languageSwitcher" class="dropdown">
+    <div class="language-switcher-snes" role="radiogroup" aria-label="Language">
+        <label class="language-radio">
+            <input type="radio" name="languageChoice" value="es" checked>
+            <span>ES</span>
+        </label>
+        <span class="language-separator">-</span>
+        <label class="language-radio">
+            <input type="radio" name="languageChoice" value="en">
+            <span>ENG</span>
+        </label>
+    </div>
+    <select id="languageSwitcher" class="dropdown language-switcher-source" aria-hidden="true" tabindex="-1">
         <option value="es" selected data-i18n="languageSwitcher.es">Español</option>
         <option value="en" data-i18n="languageSwitcher.en">English</option>
     </select>
-    <br><br>
+    <script>
+        (function () {
+            const source = document.getElementById('languageSwitcher');
+            const choices = Array.from(document.querySelectorAll('input[name="languageChoice"]'));
+            if (!source || !choices.length) return;
+            function syncChoices() {
+                choices.forEach((choice) => {
+                    choice.checked = choice.value === source.value;
+                });
+            }
+            function syncSessionLabel() {
+                const sessionLink = document.getElementById('networkConsoleBtn');
+                if (!sessionLink) return;
+                sessionLink.textContent = source.value === 'en' ? 'Connect to session' : 'Conectar a sesión';
+            }
+            choices.forEach((choice) => {
+                choice.addEventListener('change', () => {
+                    if (!choice.checked) return;
+                    source.value = choice.value;
+                    source.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+            });
+            source.addEventListener('change', () => {
+                syncChoices();
+                syncSessionLabel();
+            });
+            document.addEventListener('DOMContentLoaded', syncSessionLabel);
+            syncChoices();
+        })();
+    </script>
 
     <!-- Video Container -->
     <div id="videoContainer">
@@ -1594,7 +1771,7 @@
         </select>
         <div class="status-indicator" id="midiStatusIndicator" title="MIDI"></div>
 
-        <a id="networkConsoleBtn" class="toggle-button" href="https://midimyface.com/console/" target="_blank" rel="noopener noreferrer">Connect</a>
+        <a id="networkConsoleBtn" class="toggle-button" href="https://midimyface.com/console/" target="_blank" rel="noopener noreferrer" data-i18n="connectToSession">Connect to session</a>
     </div>
 
     <!-- Session Panel (hidden by default) -->
@@ -1642,6 +1819,7 @@
     <!-- Botones de Instrucciones y Modo Presentación -->
     <button id="instructionButton" data-i18n="instructionButton">Instrucciones de Uso</button>
     <button id="presentationModeButton" data-i18n="presentationModeButton">Modo Presentación</button>
+    <p id="subtitle" class="footer-credit" data-i18n="subtitle">por Ricardo Arbiza | ricardoarbiza.com</p>
 
     <!-- ===== MANUAL CALIBRATION MODAL ===== -->
     <div id="manualCalModal" class="cal-overlay">
@@ -2020,6 +2198,7 @@
         // Fallback translations in case fetch fails (minimal set)
         const fallbackTranslations = {
             "es": {
+                "connectToSession": "Conectar a sesión",
                 "dynamicsWithWink": "Dinámica con Guiño",
                 "dynamicsWithMouth": "Dinámica con Boca",
                 "automaticCalibrationBtn": "Auto Calibración",
@@ -2038,6 +2217,7 @@
                 }
             },
             "en": {
+                "connectToSession": "Connect to session",
                 "dynamicsWithWink": "Dynamics with Wink",
                 "dynamicsWithMouth": "Dynamics with Mouth",
                 "automaticCalibrationBtn": "Auto Calibration",
