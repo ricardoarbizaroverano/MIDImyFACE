@@ -5,10 +5,7 @@
     "connectToSession": "Connect to session",
     "percussionToggle": "Percussion",
     "thereminToggle": "Theremin",
-    "percussionModeSelect": {
-      "threshold": "Threshold",
-      "automatic": "Automatic"
-    },
+    "percussionSensitivity": "Sensitivity",
     "thereminSynthOption": "Synth",
     "thereminNotesOption": "Notes",
     "waveformSelect": {
@@ -40,7 +37,6 @@
     "rightWink": "Right Wink",
     "noseX": "Nose X",
     "noseY": "Nose Y",
-    "minChangePlaceholder": "Min Change",
     "minPlaceholder": "Min",
     "maxPlaceholder": "Max",
     "scaling": "Scale",
@@ -49,7 +45,6 @@
     "control": "Control",
     "notes": "Notes",
     "trigger": "Trigger",
-    "thresholdPlaceholder": "Threshold",
     "calibrate": "Calibrate",
     "manualCalibrationBtn": "Manual Calibration",
     "automaticCalibrationBtn": "Auto Calibration",
@@ -124,9 +119,7 @@
           },
           "percussion": {
             "title": "Percussion:",
-            "description": "When activating the Percussion mode, all Trigger buttons are automatically activated. You can choose between two modes:",
-            "threshold": "<strong>Threshold:</strong> Uses the configured threshold value to activate the trigger of each gesture.",
-            "automatic": "<strong>Automatic:</strong> Detects sudden changes in values to activate percussion sounds."
+            "description": "When activating Percussion mode, all Trigger buttons are automatically activated. Fast gesture movement triggers percussion sounds. Use Sensitivity to decide how much movement is needed."
           }
         },
         "midiOutput": {
@@ -134,23 +127,23 @@
           "description": "If Theremin or Percussion modes are not activated, the system functions as a MIDI controller. You can use gestures to send MIDI Control, Notes, or Trigger signals based on the established configurations."
         }
       },
-      "midiCustomization": "Adjust the parameters of <em>Min Change</em>, <em>Scale</em>, and <em>Root</em> to customize the system's response.",
+      "midiCustomization": "Adjust <em>Scale</em>, <em>Root</em>, and each gesture's calibrated Min/Max range to customize the system's response.",
       "gestureFunctions": {
         "title": "Gesture Functions:",
-        "notes": "<strong>Notes:</strong> Plays discrete notes based on the gesture and selected scale. Notes activate when crossing upward thresholds and deactivate when descending.",
+        "notes": "<strong>Notes:</strong> Plays discrete notes by mapping calibrated gesture movement into the selected note range, root, and scale.",
         "control": "<strong>Control:</strong> Sends continuous MIDI CC values based on the gesture.",
-        "trigger": "<strong>Trigger:</strong> Activates events when the gesture crosses a specific threshold."
+        "trigger": "<strong>Trigger:</strong> Activates events when rapid gesture movement is detected."
       },
       "valueAdjustment": {
         "title": "Value Adjustment and Sensitivity:",
-        "description": "You can adjust the <em>Min Change</em> to control gesture sensitivity. Modify the <em>Min</em> and <em>Max</em> values to calibrate the detection range according to your facial characteristics."
+        "description": "Modify the <em>Min</em> and <em>Max</em> values to calibrate each gesture range according to your facial characteristics."
       },
       "noteActivationLogic": {
         "title": "Note Activation Logic:",
-        "description": "In Notes mode, notes activate when the gesture value crosses an upward threshold and deactivate when descending. For example, if the Min Change is 10:",
-        "example1": "Value rises from 0 to 11: the first note activates.",
-        "example2": "Value rises from 11 to 23: the next note in the scale activates.",
-        "example3": "Value descends below the threshold: the note deactivates."
+        "description": "In Notes mode, the current raw gesture value is interpreted through calibration and mapped to the selected musical range.",
+        "example1": "Raw value near calibrated Min maps to the first allowed note.",
+        "example2": "Raw value near calibrated Max maps to the last allowed note.",
+        "example3": "Changing root or scale changes the allowed notes without changing calibration."
       },
       "credits": "<em>Idea, design, and programming: Ricardo Arbiza, 2024.</em>",
       "contact": "Contact: ricardoarbizaroverano@gmail.com"
@@ -192,10 +185,7 @@
     "connectToSession": "Conectar a sesión",
     "percussionToggle": "Percusión",
     "thereminToggle": "Theremin",
-    "percussionModeSelect": {
-      "threshold": "Umbral",
-      "automatic": "Automático"
-    },
+    "percussionSensitivity": "Sensibilidad",
     "thereminSynthOption": "Synth",
     "thereminNotesOption": "Notas",
     "waveformSelect": {
@@ -227,7 +217,6 @@
     "rightWink": "Guiño Der.",
     "noseX": "Nariz X",
     "noseY": "Nariz Y",
-    "minChangePlaceholder": "Min Cambio",
     "minPlaceholder": "Min",
     "maxPlaceholder": "Max",
     "scaling": "Escalar",
@@ -236,7 +225,6 @@
     "control": "Control",
     "notes": "Notas",
     "trigger": "Disparador",
-    "thresholdPlaceholder": "Umbral",
     "calibrate": "Calibrar",
     "manualCalibrationBtn": "Calibración Manual",
     "automaticCalibrationBtn": "Auto Calibración",
@@ -311,9 +299,7 @@
           },
           "percussion": {
             "title": "Percusión:",
-            "description": "Al activar el modo Percusión, todos los botones de Disparador se activan automáticamente. Puedes elegir entre dos modos:",
-            "threshold": "<strong>Umbral:</strong> Utiliza el valor configurado en el umbral para activar el disparador de cada gesto.",
-            "automatic": "<strong>Automático:</strong> Detecta cambios repentinos en los valores para activar los sonidos de percusión."
+            "description": "Al activar Percusión, todos los botones de Disparador se activan automáticamente. Los movimientos rápidos de los gestos disparan la percusión. Usa Sensibilidad para decidir cuánto movimiento hace falta."
           }
         },
         "midiOutput": {
@@ -321,23 +307,23 @@
           "description": "Si no están activados los modos Theremin o Percusión, el sistema funciona como un controlador MIDI. Puedes utilizar los gestos para enviar señales MIDI de Control, Notas o Disparadores según las configuraciones establecidas."
         }
       },
-      "midiCustomization": "Ajusta los parámetros de <em>Cambio Mínimo</em>, <em>Escala</em> y <em>Fundamental</em> para personalizar la respuesta del sistema.",
+      "midiCustomization": "Ajusta <em>Escala</em>, <em>Fundamental</em> y el rango Min/Max calibrado de cada gesto para personalizar la respuesta del sistema.",
       "gestureFunctions": {
         "title": "Funciones de los Gestos:",
-        "notes": "<strong>Notas:</strong> Toca notas discretas basadas en el gesto y la escala seleccionada. Las notas se activan al cruzar umbrales ascendentes y se desactivan al descender.",
+        "notes": "<strong>Notas:</strong> Toca notas discretas mapeando el movimiento calibrado del gesto al rango de notas, fundamental y escala seleccionados.",
         "control": "<strong>Control:</strong> Envía valores continuos MIDI CC basados en el gesto.",
-        "trigger": "<strong>Disparador:</strong> Activa eventos cuando el gesto cruza un umbral específico."
+        "trigger": "<strong>Disparador:</strong> Activa eventos cuando se detecta un movimiento rápido del gesto."
       },
       "valueAdjustment": {
         "title": "Ajuste de Valores y Sensibilidad:",
-        "description": "Puedes ajustar el <em>Cambio Mínimo</em> para controlar la sensibilidad de los gestos. Modifica los valores <em>Min</em> y <em>Max</em> para calibrar el rango de detección según tus características faciales."
+        "description": "Modifica los valores <em>Min</em> y <em>Max</em> para calibrar el rango de detección de cada gesto según tus características faciales."
       },
       "noteActivationLogic": {
         "title": "Lógica de Activación de Notas:",
-        "description": "En modo Notas, las notas se activan cuando el valor del gesto cruza un umbral en sentido ascendente y se desactivan al descender. Por ejemplo, si el Cambio Mínimo es 10:",
-        "example1": "Valor sube de 0 a 11: se activa la primera nota.",
-        "example2": "Valor sube de 11 a 23: se activa la siguiente nota en la escala.",
-        "example3": "Valor desciende por debajo del umbral: la nota se desactiva."
+        "description": "En modo Notas, el valor crudo actual del gesto se interpreta mediante calibración y se mapea al rango musical seleccionado.",
+        "example1": "Un valor crudo cerca del Min calibrado mapea a la primera nota permitida.",
+        "example2": "Un valor crudo cerca del Max calibrado mapea a la última nota permitida.",
+        "example3": "Cambiar fundamental o escala cambia las notas permitidas sin cambiar la calibración."
       },
       "credits": "<em>Idea, diseño y programación: Ricardo Arbiza, 2024.</em>",
       "contact": "Contacto:"

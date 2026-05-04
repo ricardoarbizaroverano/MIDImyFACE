@@ -615,14 +615,6 @@
     .gesture-summary-header .h-raw  { width: 55px;  text-align: left; }
     .gesture-summary-header .h-midi { width: 46px;  text-align: center; }
     .gesture-summary-header .h-note { min-width: 32px; margin-left: 3px; }
-    .gesture-summary-row .input-range.umbral-inline {
-        width: 42px;
-        font-size: 12px;
-        background: black;
-        color: lime;
-        border: 1px solid lime;
-        text-align: center;
-    }
     .gesture-summary-row .toggle-button {
         padding: 3px 7px;
         font-size: 12px;
@@ -1173,6 +1165,26 @@
         display: block;
     }
 
+    .percussion-options.active {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .percussion-options label {
+        color: var(--mmf-cyan);
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    #percussionSensitivitySlider {
+        max-width: 360px;
+        min-width: 220px;
+        width: min(48vw, 360px);
+    }
+
     .theremin-option {
         align-items: center;
         display: flex;
@@ -1519,10 +1531,9 @@
 
     <!-- Opciones de Percusión -->
     <div id="percussionOptions" class="percussion-options">
-        <select id="percussionModeSelect" class="dropdown">
-            <option value="umbral" data-i18n="percussionModeSelect.threshold">Umbral</option>
-            <option value="automatico" data-i18n="percussionModeSelect.automatic">Automático</option>
-        </select>
+        <label for="percussionSensitivitySlider" data-i18n="percussionSensitivity">Sensibilidad</label>
+        <input type="range" id="percussionSensitivitySlider" class="slider" min="0" max="10" value="5" step="1">
+        <span id="percussionSensitivityValue" class="duration-display">5</span>
     </div>
 
     <!-- Opciones de Theremin -->
@@ -1593,7 +1604,6 @@
             <button class="toggle-button" id="mouthOpenControl" data-i18n="control">Control</button>
             <button class="toggle-button active" id="mouthOpenNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="mouthOpenDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="mouthOpenUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
         <!-- Sonrisa / Smile -->
@@ -1607,7 +1617,6 @@
             <button class="toggle-button" id="smileControl" data-i18n="control">Control</button>
             <button class="toggle-button active" id="smileNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="smileDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="smileUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
         <!-- Guiño Izq. / Left Wink -->
@@ -1621,7 +1630,6 @@
             <button class="toggle-button" id="leftWinkControl" data-i18n="control">Control</button>
             <button class="toggle-button active" id="leftWinkNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="leftWinkDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="leftWinkUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
         <!-- Guiño Der. / Right Wink -->
@@ -1635,7 +1643,6 @@
             <button class="toggle-button" id="rightWinkControl" data-i18n="control">Control</button>
             <button class="toggle-button active" id="rightWinkNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="rightWinkDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="rightWinkUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
         <!-- Nariz X / Nose X -->
@@ -1649,7 +1656,6 @@
             <button class="toggle-button" id="noseXControl" data-i18n="control">Control</button>
             <button class="toggle-button active" id="noseXNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="noseXDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="noseXUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
         <!-- Nariz Y / Nose Y -->
@@ -1663,7 +1669,6 @@
             <button class="toggle-button" id="noseYControl" data-i18n="control">Control</button>
             <button class="toggle-button active" id="noseYNotas" data-i18n="notes">Notas</button>
             <button class="toggle-button" id="noseYDisparador" data-i18n="trigger">Disparador</button>
-            <input type="number" id="noseYUmbral" class="input-range umbral-inline" placeholder="Umbral" data-i18n-placeholder="thresholdPlaceholder">
         </div>
 
     </div>
@@ -1831,14 +1836,12 @@
             <p style="font-size:12px;color:gray;margin:0 0 12px 0;">
                 Edit values directly. Changes take effect immediately. These are the active calibration values at runtime.
             </p>
-            <!-- Gesture rows: only calibration params (Min Change, Min, Max, Scaling) -->
-            <!-- Mute/Solo/Control/Notes/Disparador/Umbral live on main page rows -->
+            <!-- Gesture rows: calibration Min/Max, Scaling, and note range controls -->
             <div class="gesture-controls">
                 <!-- Boca -->
                 <div class="gesture-row">
                     <div class="gesture-name" data-i18n="mouthOpen">Boca</div>
                     <div class="gesture-value" id="mouthOpenValue">0</div>
-                    <input type="number" id="mouthOpenMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
                     <input type="number" id="mouthOpenMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
                     <input type="number" id="mouthOpenMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="mouthOpenScaling" data-i18n="scaling">Escalar</button>
@@ -1858,7 +1861,6 @@
                 <div class="gesture-row">
                     <div class="gesture-name" data-i18n="smile">Sonrisa</div>
                     <div class="gesture-value" id="smileValue">0</div>
-                    <input type="number" id="smileMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
                     <input type="number" id="smileMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
                     <input type="number" id="smileMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="smileScaling" data-i18n="scaling">Escalar</button>
@@ -1878,7 +1880,6 @@
                 <div class="gesture-row">
                     <div class="gesture-name" data-i18n="leftWink">Guiño Izq.</div>
                     <div class="gesture-value" id="leftWinkValue">0</div>
-                    <input type="number" id="leftWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
                     <input type="number" id="leftWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
                     <input type="number" id="leftWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="leftWinkScaling" data-i18n="scaling">Escalar</button>
@@ -1898,7 +1899,6 @@
                 <div class="gesture-row">
                     <div class="gesture-name" data-i18n="rightWink">Guiño Der.</div>
                     <div class="gesture-value" id="rightWinkValue">0</div>
-                    <input type="number" id="rightWinkMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
                     <input type="number" id="rightWinkMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
                     <input type="number" id="rightWinkMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="rightWinkScaling" data-i18n="scaling">Escalar</button>
@@ -1918,7 +1918,6 @@
                 <div class="gesture-row">
                     <div class="gesture-name" data-i18n="noseX">Nariz X</div>
                     <div class="gesture-value" id="noseXValue">0</div>
-                    <input type="number" id="noseXMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
                     <input type="number" id="noseXMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
                     <input type="number" id="noseXMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="noseXScaling" data-i18n="scaling">Escalar</button>
@@ -1938,7 +1937,6 @@
                 <div class="gesture-row">
                     <div class="gesture-name" data-i18n="noseY">Nariz Y</div>
                     <div class="gesture-value" id="noseYValue">0</div>
-                    <input type="number" id="noseYMinChange" class="input-range" placeholder="Min Camb" data-i18n-placeholder="minChangePlaceholder">
                     <input type="number" id="noseYMin" class="input-range" placeholder="Min" data-i18n-placeholder="minPlaceholder">
                     <input type="number" id="noseYMax" class="input-range" placeholder="Max" data-i18n-placeholder="maxPlaceholder">
                     <button class="toggle-button" id="noseYScaling" data-i18n="scaling">Escalar</button>
@@ -2139,37 +2137,33 @@
             </ul>
             <h5 data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.title">Percusión:</h5>
             <p data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.description">
-                Al activar el modo Percusión, todos los botones de Disparador se activan automáticamente. Puedes elegir entre dos modos:
+                Al activar Percusión, todos los botones de Disparador se activan automáticamente. Los movimientos rápidos de los gestos disparan la percusión. Usa Sensibilidad para decidir cuánto movimiento hace falta.
             </p>
-            <ul>
-                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.threshold"><strong>Umbral:</strong> Utiliza el valor configurado en el umbral para activar el disparador de cada gesto.</li>
-                <li data-i18n="instructionsModal.usageModes.thereminAndPercussion.percussion.automatic"><strong>Automático:</strong> Detecta cambios repentinos en los valores para activar los sonidos de percusión.</li>
-            </ul>
             <h4 data-i18n="instructionsModal.usageModes.midiOutput.title">Salida MIDI</h4>
             <p data-i18n="instructionsModal.usageModes.midiOutput.description">
                 Si no están activados los modos Theremin o Percusión, el sistema funciona como un controlador MIDI. Puedes utilizar los gestos para enviar señales MIDI de Control, Notas o Disparadores según las configuraciones establecidas.
             </p>
             <p data-i18n="instructionsModal.midiCustomization">
-                Ajusta los parámetros de <em data-i18n="minChangePlaceholder">Cambio Mínimo</em>, <em data-i18n="scale">Escala</em> y <em data-i18n="fundamental">Fundamental</em> para personalizar la respuesta del sistema.
+                Ajusta Escala, Fundamental y el rango Min/Max calibrado de cada gesto para personalizar la respuesta del sistema.
             </p>
             <h3 data-i18n="instructionsModal.gestureFunctions.title">Funciones de los Gestos:</h3>
             <ul>
-                <li data-i18n="instructionsModal.gestureFunctions.notes"><strong>Notas:</strong> Toca notas discretas basadas en el gesto y la escala seleccionada. Las notas se activan al cruzar umbrales ascendentes y se desactivan al descender.</li>
+                <li data-i18n="instructionsModal.gestureFunctions.notes"><strong>Notas:</strong> Toca notas discretas mapeando el movimiento calibrado del gesto al rango de notas, fundamental y escala seleccionados.</li>
                 <li data-i18n="instructionsModal.gestureFunctions.control"><strong>Control:</strong> Envía valores continuos MIDI CC basados en el gesto.</li>
-                <li data-i18n="instructionsModal.gestureFunctions.trigger"><strong>Disparador:</strong> Activa eventos cuando el gesto cruza un umbral específico.</li>
+                <li data-i18n="instructionsModal.gestureFunctions.trigger"><strong>Disparador:</strong> Activa eventos cuando se detecta un movimiento rápido del gesto.</li>
             </ul>
             <h3 data-i18n="instructionsModal.valueAdjustment.title">Ajuste de Valores y Sensibilidad:</h3>
             <p data-i18n="instructionsModal.valueAdjustment.description">
-                Puedes ajustar el <em data-i18n="minChangePlaceholder">Cambio Mínimo</em> para controlar la sensibilidad de los gestos. Modifica los valores <em data-i18n-placeholder="minPlaceholder">Min</em> y <em data-i18n-placeholder="maxPlaceholder">Max</em> para calibrar el rango de detección según tus características faciales.
+                Modifica los valores Min y Max para calibrar el rango de detección de cada gesto según tus características faciales.
             </p>
             <h3 data-i18n="instructionsModal.noteActivationLogic.title">Lógica de Activación de Notas:</h3>
             <p data-i18n="instructionsModal.noteActivationLogic.description">
-                En modo Notas, las notas se activan cuando el valor del gesto cruza un umbral en sentido ascendente y se desactivan al descender. Por ejemplo, si el Cambio Mínimo es 10:
+                En modo Notas, el valor crudo actual del gesto se interpreta mediante calibración y se mapea al rango musical seleccionado.
             </p>
             <ul>
-                <li data-i18n="instructionsModal.noteActivationLogic.example1">Valor sube de 0 a 11: se activa la primera nota.</li>
-                <li data-i18n="instructionsModal.noteActivationLogic.example2">Valor sube de 11 a 23: se activa la siguiente nota en la escala.</li>
-                <li data-i18n="instructionsModal.noteActivationLogic.example3">Valor desciende por debajo del umbral: la nota se desactiva.</li>
+                <li data-i18n="instructionsModal.noteActivationLogic.example1">Un valor crudo cerca del Min calibrado mapea a la primera nota permitida.</li>
+                <li data-i18n="instructionsModal.noteActivationLogic.example2">Un valor crudo cerca del Max calibrado mapea a la última nota permitida.</li>
+                <li data-i18n="instructionsModal.noteActivationLogic.example3">Cambiar fundamental o escala cambia las notas permitidas sin cambiar la calibración.</li>
             </ul>
             <p>
                 <em data-i18n="instructionsModal.credits">Idea, diseño y programación: Ricardo Arbiza, 2024</em><br>
@@ -2203,6 +2197,7 @@
                 "connectToSession": "Conectar a sesión",
                 "dynamicsWithWink": "Dinámica con Guiño",
                 "dynamicsWithMouth": "Dinámica con Boca",
+                "percussionSensitivity": "Sensibilidad",
                 "automaticCalibrationBtn": "Auto Calibración",
                 "manualCalibrationBtn": "Calibración Manual",
                 "wizard": {
@@ -2222,6 +2217,7 @@
                 "connectToSession": "Connect to session",
                 "dynamicsWithWink": "Dynamics with Wink",
                 "dynamicsWithMouth": "Dynamics with Mouth",
+                "percussionSensitivity": "Sensitivity",
                 "automaticCalibrationBtn": "Auto Calibration",
                 "manualCalibrationBtn": "Manual Calibration",
                 "wizard": {
