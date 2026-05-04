@@ -736,6 +736,7 @@ function makePerformer(id, name){
     route:true,
     mute:false,
     solo:false,
+    meterMax: g === "noseX" || g === "noseY" ? 640 : 200,
     signalMode:"—",
     lastNoteName:"—"
   });
@@ -1023,9 +1024,16 @@ function updateGestureUI(id,g,value){
   const card=document.querySelector(`[data-id="${id}"]`); if(!card) return;
   const p = participants.get(id); if(!p) return;
   if(!shouldDisplayGesture(p,g)) return;
+  const numericValue = Number(value);
+  const rawValue = Number.isFinite(numericValue) ? numericValue : 0;
+  const isCcValue = p.gestures[g]?.signalMode === 'CC';
+  if(!isCcValue){
+    p.gestures[g].meterMax = Math.max(Number(p.gestures[g].meterMax) || 200, rawValue, 1);
+  }
+  const meterMax = isCcValue ? 127 : Math.max(Number(p.gestures[g].meterMax) || 200, 1);
   const bar=card.querySelector(`[data-bar="${g}"]`);
-  if(bar) bar.style.width = (clamp(value,0,127)/127*100)+'%';
-  const vEl=card.querySelector(`[data-v="${g}"]`); if(vEl) vEl.textContent=clamp(value,0,127);
+  if(bar) bar.style.width = (clamp(rawValue,0,meterMax)/meterMax*100)+'%';
+  const vEl=card.querySelector(`[data-v="${g}"]`); if(vEl) vEl.textContent=String(Math.round(rawValue));
   const ledg=card.querySelector(`[data-ledg="${g}"]`); if(ledg){ ledg.className='led ok'; setTimeout(()=>ledg.className='led',80); }
 
   // highlight routable gestures for this performer
@@ -1096,7 +1104,7 @@ function handleRelayMessage(m){
     case "gesture/update": {
       const d=m.data||{}; const p=ensurePerf(d.from,d.performer_name||d.name);
       const gkey=canonicalGestureName(d.name||d.gesture); if(ALL_GESTURES.includes(gkey)){
-        const val=Number(d.value)|0; p.gestures[gkey].value=val; p.lastGesture=gkey; renderCard(p); updateGestureUI(p.id,gkey,val);
+        const val=Number(d.value)||0; p.gestures[gkey].value=val; p.gestures[gkey].signalMode='GEST'; p.lastGesture=gkey; renderCard(p); updateGestureMetaUI(p.id,gkey); updateGestureUI(p.id,gkey,val);
       }
       return;
     }

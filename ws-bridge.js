@@ -363,6 +363,8 @@
       safeSend({ type: 'midi/note_on', data: {
         kind: 'noteon',
         channel: d.channel,
+        name: d.name || d.gesture || null,
+        gesture: d.gesture || d.name || null,
         note: d.note,
         vel: d.vel ?? d.velocity,
       }});
@@ -374,6 +376,8 @@
       safeSend({ type: 'midi/note_off', data: {
         kind: 'noteoff',
         channel: d.channel,
+        name: d.name || d.gesture || null,
+        gesture: d.gesture || d.name || null,
         note: d.note,
         vel: d.vel ?? d.velocity ?? 0,
       }});
