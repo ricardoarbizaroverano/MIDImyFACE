@@ -1392,6 +1392,46 @@
         width: 54px;
     }
 
+    .effects-controls {
+        max-width: 100%;
+        margin-top: 18px;
+        padding-top: 12px;
+        border-top: 2px solid rgba(54, 246, 178, 0.36);
+    }
+
+    .effects-controls h3 {
+        color: var(--mmf-amber);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin: 0 0 8px;
+    }
+
+    .effect-row {
+        display: grid;
+        grid-template-columns: 120px 92px minmax(240px, 1fr) 70px;
+        gap: 9px;
+        align-items: center;
+        width: 100%;
+        margin-top: 8px;
+        padding: 8px;
+        border: 2px solid rgba(124, 255, 79, 0.45);
+        background: rgba(0, 0, 0, 0.45);
+    }
+
+    .effect-row .slider {
+        width: 100%;
+        max-width: none;
+    }
+
+    .effect-value {
+        min-height: 27px;
+        border: 2px solid #1d411d;
+        background: #020302;
+        color: var(--mmf-lime-bright);
+        padding: 4px;
+        text-align: center;
+    }
+
     .invite-banner,
     .wizard-instruction,
     .wizard-range {
@@ -1562,8 +1602,18 @@
         }
 
         .envelope-row .toggle-button,
-        .envelope-row .cc-display {
+        .envelope-row .cc-display,
+        .effect-row .toggle-button,
+        .effect-row .effect-value {
             width: 100%;
+        }
+
+        .effect-row {
+            grid-template-columns: 1fr 92px;
+        }
+
+        .effect-row .slider {
+            grid-column: 1 / -1;
         }
     }
 
@@ -1734,11 +1784,21 @@
             gap: 7px;
         }
 
+        .effect-row {
+            grid-template-columns: 1fr 80px;
+            gap: 7px;
+        }
+
         .envelope-row .slider {
             min-width: 0;
         }
 
-        .envelope-row .toggle-button {
+        .effect-row .slider {
+            min-width: 0;
+        }
+
+        .envelope-row .toggle-button,
+        .effect-row .toggle-button {
             font-size: 10px;
             min-width: 0;
         }
@@ -2100,6 +2160,27 @@
                     <button class="toggle-button" id="releaseSolo" data-i18n="solo">Solo</button>
                     <button class="toggle-button" id="releaseControl" data-i18n="control">Control</button>
                     <div class="cc-display" id="releaseCC"></div>
+                </div>
+            </div>
+            <div class="effects-controls">
+                <h3 data-i18n="effects">Effects</h3>
+                <div class="effect-row">
+                    <div class="gesture-name" data-i18n="reverb">Reverb</div>
+                    <button class="toggle-button" id="reverbToggle">Off</button>
+                    <input type="range" id="reverbWetSlider" class="slider" min="0" max="1" value="0.65" step="0.01">
+                    <div class="effect-value" id="reverbWetValue">65%</div>
+                </div>
+                <div class="effect-row">
+                    <div class="gesture-name" data-i18n="delay">Delay</div>
+                    <button class="toggle-button" id="delayToggle">Off</button>
+                    <input type="range" id="delayFeedbackSlider" class="slider" min="0" max="0.95" value="0.45" step="0.01">
+                    <div class="effect-value" id="delayFeedbackValue">45%</div>
+                </div>
+                <div class="effect-row">
+                    <div class="gesture-name" data-i18n="delayTime">Delay Time</div>
+                    <div class="effect-value" id="delayTimeLabel" data-i18n="time">Time</div>
+                    <input type="range" id="delayTimeSlider" class="slider" min="0.03" max="1.5" value="0.35" step="0.01">
+                    <div class="effect-value" id="delayTimeValue">0.35 s</div>
                 </div>
             </div>
         </div>
@@ -2534,6 +2615,13 @@
                 "dynamicsWithWink": "Dinámica con Guiño",
                 "dynamicsWithMouth": "Dinámica con Boca",
                 "percussionSensitivity": "Sensibilidad",
+                "effects": "Efectos",
+                "reverb": "Reverb",
+                "delay": "Delay",
+                "delayTime": "Tiempo Delay",
+                "time": "Tiempo",
+                "on": "On",
+                "off": "Off",
                 "automaticCalibrationBtn": "Auto Calibración",
                 "manualCalibrationBtn": "Calibración Manual",
                 "wizard": {
@@ -2554,6 +2642,13 @@
                 "dynamicsWithWink": "Dynamics with Wink",
                 "dynamicsWithMouth": "Dynamics with Mouth",
                 "percussionSensitivity": "Sensitivity",
+                "effects": "Effects",
+                "reverb": "Reverb",
+                "delay": "Delay",
+                "delayTime": "Delay Time",
+                "time": "Time",
+                "on": "On",
+                "off": "Off",
                 "automaticCalibrationBtn": "Auto Calibration",
                 "manualCalibrationBtn": "Manual Calibration",
                 "wizard": {
