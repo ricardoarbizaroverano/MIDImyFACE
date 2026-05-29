@@ -6,6 +6,10 @@
     "percussionToggle": "Percussion",
     "thereminToggle": "Theremin",
     "percussionSensitivity": "Sensitivity",
+    "percussionSample": "Sample",
+    "percussionPreview": "Preview",
+    "percussionSampleOutland": "Outland Samples",
+    "percussionSampleYamaha": "Yamaha PSR-36",
     "thereminSynthOption": "Synth",
     "thereminNotesOption": "Notes",
     "waveformSelect": {
@@ -193,6 +197,10 @@
     "percussionToggle": "Percusión",
     "thereminToggle": "Theremin",
     "percussionSensitivity": "Sensibilidad",
+    "percussionSample": "Sample",
+    "percussionPreview": "Preescuchar",
+    "percussionSampleOutland": "Muestras Outland",
+    "percussionSampleYamaha": "Yamaha PSR-36",
     "thereminSynthOption": "Synth",
     "thereminNotesOption": "Notas",
     "waveformSelect": {
