@@ -438,7 +438,7 @@
     }
 
     #soundControlsToggle {
-        margin-bottom: 10px;
+        margin-bottom: 0;
     }
 
     #soundControlsPanel {
@@ -447,7 +447,7 @@
 
     #instructionButton,
     #presentationModeButton {
-        margin-top: 10px;
+        margin-top: 0;
         padding: 5px 10px;
         border: 1px solid lime;
         background-color: black;
@@ -455,6 +455,41 @@
         cursor: pointer;
         transition: all 0.3s;
         font-size: 14px;
+    }
+
+    /* Custom tooltip for icon-only action buttons */
+    .calibration-actions .cal-action-btn,
+    .calibration-actions #soundControlsToggle,
+    #instructionButton,
+    #presentationModeButton {
+        position: relative;
+    }
+    .calibration-actions .cal-action-btn[title]::after,
+    .calibration-actions #soundControlsToggle[title]::after,
+    #instructionButton[title]::after,
+    #presentationModeButton[title]::after {
+        content: attr(title);
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        background: #111;
+        color: lime;
+        border: 1px solid lime;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-family: 'Courier New', Courier, monospace;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s;
+        z-index: 9999;
+    }
+    .calibration-actions .cal-action-btn[title]:hover::after,
+    .calibration-actions #soundControlsToggle[title]:hover::after,
+    #instructionButton[title]:hover::after,
+    #presentationModeButton[title]:hover::after {
+        opacity: 1;
     }
 
     #instructionModal {
@@ -592,7 +627,7 @@
         font-family: 'Courier New', Courier, monospace;
         transition: background 0.15s;
     }
-    .gesture-calibrate-btn:hover { background: #002200; }
+    .gesture-calibrate-btn:hover { background: lime; color: black; }
     .gesture-midi-val {
         font-size: 13px;
         color: gray;
@@ -1200,8 +1235,8 @@
     #inviteDisconnectButton,
     #invitePromptCancel,
     #invitePromptConnect {
-        min-height: calc(31px + var(--mmf-ui-button-bump));
-        padding: calc(7px + (var(--mmf-ui-button-bump) * 0.35)) calc(11px + (var(--mmf-ui-button-bump) * 0.7));
+        min-height: calc(35px + var(--mmf-ui-button-bump));
+        padding: calc(9px + (var(--mmf-ui-button-bump) * 0.35)) calc(13px + (var(--mmf-ui-button-bump) * 0.7));
         border: 3px solid #ffffff;
         border-right-color: #555566;
         border-bottom-color: #555566;
@@ -2645,8 +2680,10 @@
 
 
     <!-- Botones de Instrucciones y Modo Presentación -->
+    <div style="display:flex;flex-direction:row;gap:10px;justify-content:center;margin:8px 0;">
     <button id="instructionButton" data-i18n="instructionButton">Instrucciones de Uso</button>
     <button id="presentationModeButton" data-i18n="presentationModeButton">Modo Presentación</button>
+    </div>
     <p id="subtitle" class="footer-credit" data-i18n="subtitle">por Ricardo Arbiza | ricardoarbiza.com</p>
 
     <!-- ===== MANUAL CALIBRATION MODAL ===== -->
