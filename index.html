@@ -623,16 +623,21 @@
     .percussion-sample-control {
         display: none;
         align-items: center;
+        justify-content: flex-start;
+        flex: 0 0 92px;
+        width: 92px;
     }
     .percussion-sample-control.visible {
         display: inline-flex;
     }
     .percussion-sample-trigger {
-        min-width: 170px;
-        max-width: 240px;
+        width: 92px;
+        min-width: 92px;
+        max-width: 92px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        text-align: center;
     }
     .percussion-sample-menu {
         display: none;
