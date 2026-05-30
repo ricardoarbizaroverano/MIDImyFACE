@@ -1,0 +1,444 @@
+{
+  "generatedAt": "2026-05-30T04:49:03.290Z",
+  "groups": [
+    {
+      "id": "outland",
+      "folder": "outland_sample",
+      "label": "Outland",
+      "samples": [
+        {
+          "fileName": "bass_sfx_piou_1.wav",
+          "label": "bass_sfx_piou_1",
+          "path": "assets/outland_sample/bass_sfx_piou_1.wav"
+        },
+        {
+          "fileName": "bass_sfx_piou_2.wav",
+          "label": "bass_sfx_piou_2",
+          "path": "assets/outland_sample/bass_sfx_piou_2.wav"
+        },
+        {
+          "fileName": "cymbal_sfx_1.wav",
+          "label": "cymbal_sfx_1",
+          "path": "assets/outland_sample/cymbal_sfx_1.wav"
+        },
+        {
+          "fileName": "cymbal_sfx_2.wav",
+          "label": "cymbal_sfx_2",
+          "path": "assets/outland_sample/cymbal_sfx_2.wav"
+        },
+        {
+          "fileName": "cymbal_sfx_3.wav",
+          "label": "cymbal_sfx_3",
+          "path": "assets/outland_sample/cymbal_sfx_3.wav"
+        },
+        {
+          "fileName": "cymbal_sfx_4.wav",
+          "label": "cymbal_sfx_4",
+          "path": "assets/outland_sample/cymbal_sfx_4.wav"
+        },
+        {
+          "fileName": "cymbal_sfx_5.wav",
+          "label": "cymbal_sfx_5",
+          "path": "assets/outland_sample/cymbal_sfx_5.wav"
+        },
+        {
+          "fileName": "cymbal_sound_fx_reverse_1.wav",
+          "label": "cymbal_sound_fx_reverse_1",
+          "path": "assets/outland_sample/cymbal_sound_fx_reverse_1.wav"
+        },
+        {
+          "fileName": "dolphin_sfx_1.wav",
+          "label": "dolphin_sfx_1",
+          "path": "assets/outland_sample/dolphin_sfx_1.wav"
+        },
+        {
+          "fileName": "dolphin_sfx_2.wav",
+          "label": "dolphin_sfx_2",
+          "path": "assets/outland_sample/dolphin_sfx_2.wav"
+        },
+        {
+          "fileName": "dolphin_sfx_3.wav",
+          "label": "dolphin_sfx_3",
+          "path": "assets/outland_sample/dolphin_sfx_3.wav"
+        },
+        {
+          "fileName": "dolphin_sfx_4.wav",
+          "label": "dolphin_sfx_4",
+          "path": "assets/outland_sample/dolphin_sfx_4.wav"
+        },
+        {
+          "fileName": "dolphin_sfx_5.wav",
+          "label": "dolphin_sfx_5",
+          "path": "assets/outland_sample/dolphin_sfx_5.wav"
+        },
+        {
+          "fileName": "drone_1.wav",
+          "label": "drone_1",
+          "path": "assets/outland_sample/drone_1.wav"
+        },
+        {
+          "fileName": "drone_2.wav",
+          "label": "drone_2",
+          "path": "assets/outland_sample/drone_2.wav"
+        },
+        {
+          "fileName": "drums_kit_bip_1.wav",
+          "label": "drums_kit_bip_1",
+          "path": "assets/outland_sample/drums_kit_bip_1.wav"
+        },
+        {
+          "fileName": "drums_kit_bip_2.wav",
+          "label": "drums_kit_bip_2",
+          "path": "assets/outland_sample/drums_kit_bip_2.wav"
+        },
+        {
+          "fileName": "drums_kit_bip_3.wav",
+          "label": "drums_kit_bip_3",
+          "path": "assets/outland_sample/drums_kit_bip_3.wav"
+        },
+        {
+          "fileName": "drums_kit_bip_4.wav",
+          "label": "drums_kit_bip_4",
+          "path": "assets/outland_sample/drums_kit_bip_4.wav"
+        },
+        {
+          "fileName": "drums_kit_bip_reverse_1.wav",
+          "label": "drums_kit_bip_reverse_1",
+          "path": "assets/outland_sample/drums_kit_bip_reverse_1.wav"
+        },
+        {
+          "fileName": "drums_kit_clap_1.wav",
+          "label": "drums_kit_clap_1",
+          "path": "assets/outland_sample/drums_kit_clap_1.wav"
+        },
+        {
+          "fileName": "drums_kit_clave_1.wav",
+          "label": "drums_kit_clave_1",
+          "path": "assets/outland_sample/drums_kit_clave_1.wav"
+        },
+        {
+          "fileName": "drums_kit_clave_2.wav",
+          "label": "drums_kit_clave_2",
+          "path": "assets/outland_sample/drums_kit_clave_2.wav"
+        },
+        {
+          "fileName": "drums_kit_click_1.wav",
+          "label": "drums_kit_click_1",
+          "path": "assets/outland_sample/drums_kit_click_1.wav"
+        },
+        {
+          "fileName": "drums_kit_gong_1.wav",
+          "label": "drums_kit_gong_1",
+          "path": "assets/outland_sample/drums_kit_gong_1.wav"
+        },
+        {
+          "fileName": "drums_kit_gong_2.wav",
+          "label": "drums_kit_gong_2",
+          "path": "assets/outland_sample/drums_kit_gong_2.wav"
+        },
+        {
+          "fileName": "drums_kit_gong_reverb_1.wav",
+          "label": "drums_kit_gong_reverb_1",
+          "path": "assets/outland_sample/drums_kit_gong_reverb_1.wav"
+        },
+        {
+          "fileName": "drums_kit_highmetal_1.wav",
+          "label": "drums_kit_highmetal_1",
+          "path": "assets/outland_sample/drums_kit_highmetal_1.wav"
+        },
+        {
+          "fileName": "drums_kit_highmetal_2.wav",
+          "label": "drums_kit_highmetal_2",
+          "path": "assets/outland_sample/drums_kit_highmetal_2.wav"
+        },
+        {
+          "fileName": "drums_kit_hihat_1.wav",
+          "label": "drums_kit_hihat_1",
+          "path": "assets/outland_sample/drums_kit_hihat_1.wav"
+        },
+        {
+          "fileName": "drums_kit_hihat_2.wav",
+          "label": "drums_kit_hihat_2",
+          "path": "assets/outland_sample/drums_kit_hihat_2.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_1.wav",
+          "label": "drums_kit_kick_1",
+          "path": "assets/outland_sample/drums_kit_kick_1.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_2.wav",
+          "label": "drums_kit_kick_2",
+          "path": "assets/outland_sample/drums_kit_kick_2.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_3.wav",
+          "label": "drums_kit_kick_3",
+          "path": "assets/outland_sample/drums_kit_kick_3.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_4.wav",
+          "label": "drums_kit_kick_4",
+          "path": "assets/outland_sample/drums_kit_kick_4.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_5.wav",
+          "label": "drums_kit_kick_5",
+          "path": "assets/outland_sample/drums_kit_kick_5.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_6.wav",
+          "label": "drums_kit_kick_6",
+          "path": "assets/outland_sample/drums_kit_kick_6.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_drive_1.wav",
+          "label": "drums_kit_kick_drive_1",
+          "path": "assets/outland_sample/drums_kit_kick_drive_1.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_drive_2.wav",
+          "label": "drums_kit_kick_drive_2",
+          "path": "assets/outland_sample/drums_kit_kick_drive_2.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_drive_sfx_1.wav",
+          "label": "drums_kit_kick_drive_sfx_1",
+          "path": "assets/outland_sample/drums_kit_kick_drive_sfx_1.wav"
+        },
+        {
+          "fileName": "drums_kit_kick_drive_sfx_2.wav",
+          "label": "drums_kit_kick_drive_sfx_2",
+          "path": "assets/outland_sample/drums_kit_kick_drive_sfx_2.wav"
+        },
+        {
+          "fileName": "drums_kit_noise_1.wav",
+          "label": "drums_kit_noise_1",
+          "path": "assets/outland_sample/drums_kit_noise_1.wav"
+        },
+        {
+          "fileName": "drums_kit_snare_1.wav",
+          "label": "drums_kit_snare_1",
+          "path": "assets/outland_sample/drums_kit_snare_1.wav"
+        },
+        {
+          "fileName": "drums_kit_snare_2.wav",
+          "label": "drums_kit_snare_2",
+          "path": "assets/outland_sample/drums_kit_snare_2.wav"
+        },
+        {
+          "fileName": "drums_kit_snare_3.wav",
+          "label": "drums_kit_snare_3",
+          "path": "assets/outland_sample/drums_kit_snare_3.wav"
+        },
+        {
+          "fileName": "drums_kit_snare_4.wav",
+          "label": "drums_kit_snare_4",
+          "path": "assets/outland_sample/drums_kit_snare_4.wav"
+        },
+        {
+          "fileName": "drums_kit_snare_5.wav",
+          "label": "drums_kit_snare_5",
+          "path": "assets/outland_sample/drums_kit_snare_5.wav"
+        },
+        {
+          "fileName": "drums_kit_snare_6.wav",
+          "label": "drums_kit_snare_6",
+          "path": "assets/outland_sample/drums_kit_snare_6.wav"
+        },
+        {
+          "fileName": "drums_kit_snare_reverb_1.wav",
+          "label": "drums_kit_snare_reverb_1",
+          "path": "assets/outland_sample/drums_kit_snare_reverb_1.wav"
+        },
+        {
+          "fileName": "drums_kit_snare_stretch_1.wav",
+          "label": "drums_kit_snare_stretch_1",
+          "path": "assets/outland_sample/drums_kit_snare_stretch_1.wav"
+        },
+        {
+          "fileName": "flute_sfx_1.wav",
+          "label": "flute_sfx_1",
+          "path": "assets/outland_sample/flute_sfx_1.wav"
+        },
+        {
+          "fileName": "glitch_sfx_1.wav",
+          "label": "glitch_sfx_1",
+          "path": "assets/outland_sample/glitch_sfx_1.wav"
+        },
+        {
+          "fileName": "glitch_sfx_2.wav",
+          "label": "glitch_sfx_2",
+          "path": "assets/outland_sample/glitch_sfx_2.wav"
+        },
+        {
+          "fileName": "glitch_sfx_3.wav",
+          "label": "glitch_sfx_3",
+          "path": "assets/outland_sample/glitch_sfx_3.wav"
+        },
+        {
+          "fileName": "glitch_sfx_4.wav",
+          "label": "glitch_sfx_4",
+          "path": "assets/outland_sample/glitch_sfx_4.wav"
+        },
+        {
+          "fileName": "glitch_sfx_5.wav",
+          "label": "glitch_sfx_5",
+          "path": "assets/outland_sample/glitch_sfx_5.wav"
+        },
+        {
+          "fileName": "glitch_sfx_6.wav",
+          "label": "glitch_sfx_6",
+          "path": "assets/outland_sample/glitch_sfx_6.wav"
+        },
+        {
+          "fileName": "glitch_sfx_7.wav",
+          "label": "glitch_sfx_7",
+          "path": "assets/outland_sample/glitch_sfx_7.wav"
+        },
+        {
+          "fileName": "glitch_sfx_8.wav",
+          "label": "glitch_sfx_8",
+          "path": "assets/outland_sample/glitch_sfx_8.wav"
+        },
+        {
+          "fileName": "glitch_sfx_9.wav",
+          "label": "glitch_sfx_9",
+          "path": "assets/outland_sample/glitch_sfx_9.wav"
+        }
+      ]
+    },
+    {
+      "id": "yamaha-psr-36",
+      "folder": "yamaha_psr_36_sample",
+      "label": "Yamaha Psr 36",
+      "samples": [
+        {
+          "fileName": "agogo-high.wav",
+          "label": "agogo-high",
+          "path": "assets/yamaha_psr_36_sample/agogo-high.wav"
+        },
+        {
+          "fileName": "agogo-low.wav",
+          "label": "agogo-low",
+          "path": "assets/yamaha_psr_36_sample/agogo-low.wav"
+        },
+        {
+          "fileName": "bongo-high.wav",
+          "label": "bongo-high",
+          "path": "assets/yamaha_psr_36_sample/bongo-high.wav"
+        },
+        {
+          "fileName": "bongo-low.wav",
+          "label": "bongo-low",
+          "path": "assets/yamaha_psr_36_sample/bongo-low.wav"
+        },
+        {
+          "fileName": "clap.wav",
+          "label": "clap",
+          "path": "assets/yamaha_psr_36_sample/clap.wav"
+        },
+        {
+          "fileName": "claves.wav",
+          "label": "claves",
+          "path": "assets/yamaha_psr_36_sample/claves.wav"
+        },
+        {
+          "fileName": "closed-hi-hat.wav",
+          "label": "closed-hi-hat",
+          "path": "assets/yamaha_psr_36_sample/closed-hi-hat.wav"
+        },
+        {
+          "fileName": "conga-high.wav",
+          "label": "conga-high",
+          "path": "assets/yamaha_psr_36_sample/conga-high.wav"
+        },
+        {
+          "fileName": "conga-low.wav",
+          "label": "conga-low",
+          "path": "assets/yamaha_psr_36_sample/conga-low.wav"
+        },
+        {
+          "fileName": "cowbell.wav",
+          "label": "cowbell",
+          "path": "assets/yamaha_psr_36_sample/cowbell.wav"
+        },
+        {
+          "fileName": "kick.wav",
+          "label": "kick",
+          "path": "assets/yamaha_psr_36_sample/kick.wav"
+        },
+        {
+          "fileName": "open-hi-hat.wav",
+          "label": "open-hi-hat",
+          "path": "assets/yamaha_psr_36_sample/open-hi-hat.wav"
+        },
+        {
+          "fileName": "percussion-a.wav",
+          "label": "percussion-a",
+          "path": "assets/yamaha_psr_36_sample/percussion-a.wav"
+        },
+        {
+          "fileName": "percussion-b.wav",
+          "label": "percussion-b",
+          "path": "assets/yamaha_psr_36_sample/percussion-b.wav"
+        },
+        {
+          "fileName": "ride.wav",
+          "label": "ride",
+          "path": "assets/yamaha_psr_36_sample/ride.wav"
+        },
+        {
+          "fileName": "rim-snare.wav",
+          "label": "rim-snare",
+          "path": "assets/yamaha_psr_36_sample/rim-snare.wav"
+        },
+        {
+          "fileName": "snare-a.wav",
+          "label": "snare-a",
+          "path": "assets/yamaha_psr_36_sample/snare-a.wav"
+        },
+        {
+          "fileName": "snare-b.wav",
+          "label": "snare-b",
+          "path": "assets/yamaha_psr_36_sample/snare-b.wav"
+        },
+        {
+          "fileName": "synth-tom-high.wav",
+          "label": "synth-tom-high",
+          "path": "assets/yamaha_psr_36_sample/synth-tom-high.wav"
+        },
+        {
+          "fileName": "synth-tom-low.wav",
+          "label": "synth-tom-low",
+          "path": "assets/yamaha_psr_36_sample/synth-tom-low.wav"
+        },
+        {
+          "fileName": "tom-high.wav",
+          "label": "tom-high",
+          "path": "assets/yamaha_psr_36_sample/tom-high.wav"
+        },
+        {
+          "fileName": "tom-low.wav",
+          "label": "tom-low",
+          "path": "assets/yamaha_psr_36_sample/tom-low.wav"
+        },
+        {
+          "fileName": "tom-mid.wav",
+          "label": "tom-mid",
+          "path": "assets/yamaha_psr_36_sample/tom-mid.wav"
+        },
+        {
+          "fileName": "triangle-mute.wav",
+          "label": "triangle-mute",
+          "path": "assets/yamaha_psr_36_sample/triangle-mute.wav"
+        },
+        {
+          "fileName": "triangle-open.wav",
+          "label": "triangle-open",
+          "path": "assets/yamaha_psr_36_sample/triangle-open.wav"
+        }
+      ]
+    }
+  ]
+}
