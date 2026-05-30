@@ -1204,6 +1204,20 @@
         transition: transform 80ms linear, filter 120ms ease;
     }
 
+    .calibration-actions .cal-action-btn,
+    .calibration-actions #soundControlsToggle {
+        min-width: 74px;
+        width: 74px;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .calibration-actions .cal-action-btn svg,
+    .calibration-actions #soundControlsToggle svg {
+        width: 1.15em;
+        height: 1.15em;
+    }
+
     .toggle-button,
     .mode-button,
     .cal-action-btn,
@@ -2103,6 +2117,40 @@
                     button.setAttribute('aria-label', label);
                     button.setAttribute('title', label);
                 });
+
+                document.querySelectorAll('.gesture-calibrate-btn').forEach((button) => {
+                    button.innerHTML = MMF_ICON_BUTTONS.openManualCalBtn.svg;
+                    button.setAttribute('aria-label', 'Calibrar');
+                    button.setAttribute('title', 'Calibrar');
+                });
+
+                document.querySelectorAll('.toggle-button[id$="Mute"]').forEach((button) => {
+                    button.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+                            <path d="M0 0h256v256H0z" fill="none" />
+                            <path fill="currentColor" fill-rule="evenodd" d="M208.552 206.834h-25v-92.492l-43.987 87.835q-1.622 3.357-4.532 5.09t-6.25 1.733q-3.245 0-6.06-1.733t-4.436-5.09l-44.179-87.835v92.492H49.3V63.548q0-4.874 2.528-8.665t6.632-5.09a11.7 11.7 0 0 1 4.007-.379a12 12 0 0 1 3.865.975q1.86.812 3.387 2.274t2.576 3.52l56.488 111.445L185.27 56.183q2.195-4.116 6.06-5.848t8.062-.542q4.008 1.3 6.584 5.09q2.577 3.792 2.576 8.665z" />
+                        </svg>
+                    `;
+                    button.setAttribute('aria-label', 'Mute');
+                    button.setAttribute('title', 'Mute');
+                });
+
+                document.querySelectorAll('.toggle-button[id$="Solo"]').forEach((button) => {
+                    button.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+                            <path d="M0 0h256v256H0z" fill="none" />
+                            <path fill="currentColor" fill-rule="evenodd" d="M208.714 161.607q0 8.647-2.19 15.555q-2.19 6.906-5.784 12.185c-3.594 5.279-5.203 6.513-8.423 8.984q-4.828 3.705-9.995 6.065q-5.166 2.358-10.5 3.481Q166.487 209 161.771 209H49.129v-29.2H161.77q8.423 0 13.083-4.94q4.66-4.942 4.66-13.253q0-4.043-1.235-7.412q-1.234-3.369-3.537-5.84t-5.616-3.818t-7.355-1.348H94.612q-7.075 0-15.273-2.526q-8.199-2.528-15.217-8.142q-7.02-5.616-11.68-14.712t-4.66-22.237t4.66-22.18t11.68-14.712q7.018-5.67 15.217-8.198q8.198-2.527 15.273-2.527h99.39v29.2h-99.39q-8.31 0-12.97 5.053q-4.662 5.055-4.662 13.364q0 8.424 4.661 13.308q4.66 4.886 12.971 4.886h67.383q4.717.112 9.995 1.291q5.28 1.18 10.5 3.65q5.223 2.47 9.94 6.233t8.366 9.04q3.651 5.279 5.784 12.13q2.134 6.85 2.134 15.497" />
+                        </svg>
+                    `;
+                    button.setAttribute('aria-label', 'Solo');
+                    button.setAttribute('title', 'Solo');
+                });
+
+                document.querySelectorAll('.toggle-button[id$="Control"], .toggle-button[id$="Notas"], .toggle-button[id$="Disparador"]').forEach((button) => {
+                    const label = button.id.endsWith('Control') ? 'Control' : button.id.endsWith('Notas') ? 'Notas' : 'Disparador';
+                    button.setAttribute('aria-label', label);
+                    button.setAttribute('title', label);
+                });
             }
 
             function relocateSoundControlsToggle() {
@@ -2336,10 +2384,23 @@
         </select>
     </div>
 
+    <!-- MIDI Output Selector -->
+    <div class="midi-status">
+        <label for="midiOutputSelect" data-i18n="midi_output">Salida MIDI:</label>
+        <select id="midiOutputSelect" class="dropdown" aria-label="Selecciona la salida MIDI">
+            <option value="" data-i18n="midi_select_placeholder">Selecciona la salida MIDI...</option>
+        </select>
+        <div class="status-indicator" id="midiStatusIndicator" title="MIDI"></div>
+
+        <a id="networkConsoleBtn" class="toggle-button" href="https://midimyface.com/console/" target="_blank" rel="noopener noreferrer" data-i18n="connectToSession">Connect to session</a>
+    </div>
+
     <!-- Sound Controls -->
-    <div class="sound-controls">
-        <button id="soundControlsToggle" class="toggle-button" aria-expanded="false" aria-controls="soundControlsPanel" data-i18n="soundControls">Sound Controls</button>
-        <div id="soundControlsPanel" class="hidden" aria-hidden="true">
+    <div class="calibration-actions">
+        <button id="soundControlsToggle" class="cal-action-btn" aria-expanded="false" aria-controls="soundControlsPanel" data-i18n="soundControls">Sound Controls</button>
+    </div>
+    <div id="soundControlsPanel" class="hidden" aria-hidden="true">
+        <div class="sound-controls">
             <div class="envelope-controls">
                 <h3 data-i18n="envelope">Envelope</h3>
                 <!-- Attack -->
@@ -2415,18 +2476,6 @@
                 </div>
             </div>
         </div>
-    </div>
-
-
-    <!-- MIDI Output Selector -->
-    <div class="midi-status">
-        <label for="midiOutputSelect" data-i18n="midi_output">Salida MIDI:</label>
-        <select id="midiOutputSelect" class="dropdown" aria-label="Selecciona la salida MIDI">
-            <option value="" data-i18n="midi_select_placeholder">Selecciona la salida MIDI...</option>
-        </select>
-        <div class="status-indicator" id="midiStatusIndicator" title="MIDI"></div>
-
-        <a id="networkConsoleBtn" class="toggle-button" href="https://midimyface.com/console/" target="_blank" rel="noopener noreferrer" data-i18n="connectToSession">Connect to session</a>
     </div>
 
     <!-- Session Panel (hidden by default) -->
