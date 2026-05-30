@@ -944,6 +944,8 @@
         --mmf-ui-font-bump: clamp(2px, 0.28vw + 0.6px, 4px);
         --mmf-ui-compact-font-bump: clamp(1px, 0.18vw + 0.3px, 3px);
         --mmf-ui-button-bump: clamp(1px, 0.20vw + 0.35px, 3px);
+        --mmf-ui-icon-size: 1.28em;
+        --mmf-ui-action-icon-size: 1.42em;
         image-rendering: pixelated;
     }
 
@@ -1219,8 +1221,8 @@
 
     .calibration-actions .cal-action-btn svg,
     .calibration-actions #soundControlsToggle svg {
-        width: 1.15em;
-        height: 1.15em;
+        width: var(--mmf-ui-action-icon-size);
+        height: var(--mmf-ui-action-icon-size);
     }
 
     .toggle-button,
@@ -1248,8 +1250,8 @@
     #soundControlsToggle svg {
         display: block;
         flex: 0 0 auto;
-        width: 1em;
-        height: 1em;
+        width: var(--mmf-ui-icon-size);
+        height: var(--mmf-ui-icon-size);
     }
 
     .toggle-button:hover,
@@ -1666,6 +1668,8 @@
             --mmf-ui-font-bump: clamp(1px, 0.2vw + 0.35px, 2px);
             --mmf-ui-compact-font-bump: clamp(0px, 0.15vw + 0.2px, 1px);
             --mmf-ui-button-bump: clamp(0px, 0.12vw + 0.2px, 1px);
+            --mmf-ui-icon-size: 1.18em;
+            --mmf-ui-action-icon-size: 1.28em;
         }
 
         body {
@@ -1803,6 +1807,8 @@
             --mmf-ui-font-bump: 1px;
             --mmf-ui-compact-font-bump: 0px;
             --mmf-ui-button-bump: 0px;
+            --mmf-ui-icon-size: 1.1em;
+            --mmf-ui-action-icon-size: 1.18em;
         }
 
         body {
@@ -2101,6 +2107,22 @@
                         </svg>
                     `,
                 },
+                browserAudioMuteToggle: {
+                    label: (language) => language === 'en' ? 'Mute browser sound' : 'Silenciar sonido del navegador',
+                    activeLabel: (language) => language === 'en' ? 'Restore browser sound' : 'Activar sonido del navegador',
+                    svg: `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor" d="m19.8 22.6l-3.025-3.025q-.625.4-1.325.688t-1.45.462v-2.05q.35-.125.688-.25t.637-.3L12 14.8V20l-5-5H3V9h3.2L1.4 4.2l1.4-1.4l18.4 18.4zm-.2-5.8l-1.45-1.45q.425-.775.638-1.625t.212-1.75q0-2.35-1.375-4.2T14 5.275v-2.05q3.1.7 5.05 3.138T21 11.975q0 1.325-.363 2.55T19.6 16.8m-3.35-3.35L14 11.2V7.95q1.175.55 1.838 1.65T16.5 12q0 .375-.062.738t-.188.712M12 9.2L9.4 6.6L12 4z" />
+                        </svg>
+                    `,
+                    activeSvg: `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor" d="M14 20.725v-2.05q2.25-.65 3.625-2.5t1.375-4.2t-1.375-4.2T14 5.275v-2.05q3.1.7 5.05 3.138T21 11.975t-1.95 5.613T14 20.725M3 15V9h4l5-5v16l-5-5zm11 1V7.95q1.175.55 1.838 1.65T16.5 12q0 1.275-.663 2.363T14 16" />
+                        </svg>
+                    `,
+                },
                 openManualCalBtn: {
                     label: () => 'Calibración Manual',
                     svg: `
@@ -2143,8 +2165,10 @@
                 Object.entries(MMF_ICON_BUTTONS).forEach(([buttonId, config]) => {
                     const button = document.getElementById(buttonId);
                     if (!button || !config) return;
-                    button.innerHTML = config.svg;
-                    const label = typeof config.label === 'function' ? config.label(source.value) : config.label;
+                    const isActive = button.getAttribute('aria-pressed') === 'true' || button.dataset.muted === 'true';
+                    button.innerHTML = isActive && config.activeSvg ? config.activeSvg : config.svg;
+                    const labelFactory = isActive && config.activeLabel ? config.activeLabel : config.label;
+                    const label = typeof labelFactory === 'function' ? labelFactory(source.value) : labelFactory;
                     button.setAttribute('aria-label', label);
                     button.setAttribute('title', label);
                 });
@@ -2443,6 +2467,7 @@
     <!-- Sound Controls -->
     <div class="calibration-actions">
         <button id="soundControlsToggle" class="cal-action-btn" aria-expanded="false" aria-controls="soundControlsPanel" data-i18n="soundControls">Sound Controls</button>
+        <button id="browserAudioMuteToggle" class="cal-action-btn" aria-pressed="false" title="Silenciar sonido del navegador">Mute Browser Sound</button>
     </div>
     <div id="soundControlsPanel" class="hidden" aria-hidden="true">
         <div class="sound-controls">
