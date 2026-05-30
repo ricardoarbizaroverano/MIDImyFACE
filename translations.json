@@ -112,7 +112,7 @@
       "es": "Spanish",
       "en": "English"
     },
-    "dynamicsWithWink": "Dynamics with Wink",
+    "dynamicsWithWink": "Squint Dynamics",
     "dynamicsWithMouth": "Dynamics with Mouth",
     "instructionsModal": {
       "title": "Instructions",
@@ -303,7 +303,7 @@
       "es": "Español",
       "en": "Inglés"
     },
-    "dynamicsWithWink": "Dinámica con Guiño",
+    "dynamicsWithWink": "Dinámica con Guiño (Squint)",
     "dynamicsWithMouth": "Dinámica con Boca",
     "instructionsModal": {
       "title": "Instrucciones de Uso",
