@@ -1204,6 +1204,35 @@
         transition: transform 80ms linear, filter 120ms ease;
     }
 
+    .toggle-button,
+    .mode-button,
+    .cal-action-btn,
+    .wizard-btn,
+    .gesture-calibrate-btn,
+    #instructionButton,
+    #presentationModeButton,
+    #networkConsoleBtn,
+    #soundControlsToggle {
+        align-items: center;
+        display: inline-flex;
+        justify-content: center;
+    }
+
+    .toggle-button svg,
+    .mode-button svg,
+    .cal-action-btn svg,
+    .wizard-btn svg,
+    .gesture-calibrate-btn svg,
+    #instructionButton svg,
+    #presentationModeButton svg,
+    #networkConsoleBtn svg,
+    #soundControlsToggle svg {
+        display: block;
+        flex: 0 0 auto;
+        width: 1em;
+        height: 1em;
+    }
+
     .toggle-button:hover,
     .mode-button:hover,
     .cal-action-btn:hover,
@@ -2011,8 +2040,83 @@
             function syncSessionLabel() {
                 const sessionLink = document.getElementById('networkConsoleBtn');
                 if (!sessionLink) return;
-                sessionLink.textContent = source.value === 'en' ? 'Connect to session' : 'Conectar a sesión';
+                const label = source.value === 'en' ? 'Connect to session' : 'Conectar a sesión';
+                sessionLink.setAttribute('aria-label', label);
+                sessionLink.setAttribute('title', label);
             }
+
+            const MMF_ICON_BUTTONS = {
+                networkConsoleBtn: {
+                    label: (language) => language === 'en' ? 'Connect to session' : 'Conectar a sesión',
+                    svg: `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10" d="M13.5 13.25L10 15.5l-3.5-2.25v-3.5L10 7.5l3.5 2.25zm-9-6.5L2.5 8l-2-1.25v-2l2-1.25l2 1.25zm15-2L17.5 6l-2-1.25v-2l2-1.25l2 1.25zm-15 16.5l-2 1.25l-2-1.25v-2l2-1.25l2 1.25zm16.5 1l-2 1.25l-2-1.25v-2L19 19l2 1.25zm1.5-9.75l-2 1.25l-2-1.25v-2l2-1.25l2 1.25zm-16-2.75L3.813 7.18m13.883 12.635l-5.968-5.426M18.5 11.5h-5m-5.548 2.684l-4.27 4.555M16.318 5.261l-3.686 3.931" />
+                        </svg>
+                    `,
+                },
+                soundControlsToggle: {
+                    label: () => 'Controles de sonido',
+                    svg: `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                            <path d="M0 0h48v48H0z" fill="none" />
+                            <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="m31.304 12.934l7.627-7.617l3.798 3.798l-7.647 7.597Zm5.788 2.158a15.845 15.845 0 0 1-2.087 20.323l3.928 4.069a21.5 21.5 0 0 0 2.224-28.425" />
+                            <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M32.997 10.974a15.845 15.845 0 0 0-20.002 24.441l-3.928 4.069A21.5 21.5 0 0 1 37.034 6.918" />
+                        </svg>
+                    `,
+                },
+                openManualCalBtn: {
+                    label: () => 'Calibración Manual',
+                    svg: `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor" d="M8.463 20.538Q7 19.075 7 17t1.463-3.537T12 12t3.538 1.463T17 17t-1.463 3.538T12 22t-3.537-1.463M7 12.15l-5-5q2-2 4.588-3.075T12 3t5.413 1.075T22 7.15l-5 5q-1.025-1.025-2.3-1.588T12 10t-2.7.563T7 12.15" />
+                        </svg>
+                    `,
+                },
+                openAutoCalBtn: {
+                    label: () => 'Auto Calibración',
+                    svg: `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor" d="M8.463 20.538Q7 19.075 7 17t1.463-3.537T12 12t3.538 1.463T17 17t-1.463 3.538T12 22t-3.537-1.463m5.662-1.412Q15 18.25 15 17t-.875-2.125T12 14t-2.125.875T9 17t.875 2.125T12 20t2.125-.875M7 12.15l-5-5q2-2 4.588-3.075T12 3t5.413 1.075T22 7.15l-5 5q-1.025-1.025-2.3-1.588T12 10t-2.7.563T7 12.15m.15-2.65q1.05-.75 2.288-1.125T12 8t2.538.363T16.85 9.45l2.2-2.2q-1.55-1.1-3.338-1.675T12 5t-3.713.575T4.95 7.25zM12 17" />
+                        </svg>
+                    `,
+                },
+                sample: {
+                    label: () => 'SAMPLE',
+                    svg: `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M0 0h24v24H0z" fill="none" />
+                            <path fill="currentColor" d="M4.225 18.325q-1.05-1.3-1.637-2.912T2 12q0-3.925 2.588-6.75T11 2.05v2q-3 .35-5 2.6T4 12q0 1.4.425 2.638T5.65 16.9zM12 22q-1.825 0-3.45-.6t-2.925-1.675l1.4-1.425q1.025.8 2.288 1.25T12 20t2.688-.45t2.287-1.25l1.4 1.425q-1.3 1.075-2.925 1.675T12 22m7.775-3.675L18.35 16.9q.8-1.025 1.225-2.262T20 12q0-3.1-2-5.35t-5-2.6v-2q3.825.375 6.413 3.2T22 12q0 1.8-.587 3.413t-1.638 2.912M9.5 16.5v-9l7 4.5z" />
+                        </svg>
+                    `,
+                },
+            };
+
+            function applyIconButtons() {
+                Object.entries(MMF_ICON_BUTTONS).forEach(([buttonId, config]) => {
+                    const button = document.getElementById(buttonId);
+                    if (!button || !config) return;
+                    button.innerHTML = config.svg;
+                    const label = typeof config.label === 'function' ? config.label(source.value) : config.label;
+                    button.setAttribute('aria-label', label);
+                    button.setAttribute('title', label);
+                });
+            }
+
+            function relocateSoundControlsToggle() {
+                const toggle = document.getElementById('soundControlsToggle');
+                const calibrationActions = document.querySelector('.calibration-actions');
+                const autoButton = document.getElementById('openAutoCalBtn');
+                if (!toggle || !calibrationActions || !autoButton) return;
+                if (toggle.parentElement === calibrationActions) return;
+                calibrationActions.insertBefore(toggle, autoButton.nextSibling);
+            }
+
+            window.mmfIconButtons = MMF_ICON_BUTTONS;
+            window.mmfApplyIconButtons = applyIconButtons;
+            window.mmfRelocateSoundControlsToggle = relocateSoundControlsToggle;
             choices.forEach((choice) => {
                 choice.addEventListener('change', () => {
                     if (!choice.checked) return;
@@ -2023,8 +2127,13 @@
             source.addEventListener('change', () => {
                 syncChoices();
                 syncSessionLabel();
+                applyIconButtons();
             });
-            document.addEventListener('DOMContentLoaded', syncSessionLabel);
+            document.addEventListener('DOMContentLoaded', () => {
+                syncSessionLabel();
+                relocateSoundControlsToggle();
+                applyIconButtons();
+            });
             syncChoices();
         })();
     </script>
@@ -2852,6 +2961,8 @@
                 }
             });
             if (optionCount > 0) console.log('[MIDImyFACE] Applied ' + optionCount + ' option translations');
+            if (window.mmfApplyIconButtons) window.mmfApplyIconButtons();
+            if (window.mmfRelocateSoundControlsToggle) window.mmfRelocateSoundControlsToggle();
         }
 
         function getNestedTranslation(obj, key) {
