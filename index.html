@@ -941,6 +941,9 @@
         --mmf-red: #ff5a5a;
         --mmf-muted: #87a987;
         --mmf-font: 'Courier New', Courier, monospace;
+        --mmf-ui-font-bump: clamp(2px, 0.28vw + 0.6px, 4px);
+        --mmf-ui-compact-font-bump: clamp(1px, 0.18vw + 0.3px, 3px);
+        --mmf-ui-button-bump: clamp(1px, 0.20vw + 0.35px, 3px);
         image-rendering: pixelated;
     }
 
@@ -955,9 +958,9 @@
             linear-gradient(180deg, #07070c 0%, var(--mmf-black) 42%, #020302 100%);
         color: var(--mmf-lime);
         font-family: var(--mmf-font);
+        font-size: calc(14px + var(--mmf-ui-font-bump));
         padding-bottom: 56px;
         text-shadow: 0 0 7px rgba(124, 255, 79, 0.10);
-        zoom: 1.28;
     }
 
     body::before,
@@ -1030,7 +1033,7 @@
 
     #subtitle {
         color: var(--mmf-cyan);
-        font-size: 13px;
+        font-size: calc(13px + var(--mmf-ui-compact-font-bump));
         letter-spacing: 0.06em;
         margin-top: 8px;
     }
@@ -1072,10 +1075,10 @@
         box-shadow: 3px 3px 0 #000;
         color: #111116;
         display: inline-block;
-        font-size: 13px;
+        font-size: calc(13px + var(--mmf-ui-compact-font-bump));
         line-height: 1;
         min-width: 52px;
-        padding: 7px 10px;
+        padding: calc(7px + (var(--mmf-ui-button-bump) * 0.35)) calc(10px + (var(--mmf-ui-button-bump) * 0.5));
         text-align: center;
     }
 
@@ -1187,8 +1190,8 @@
     #inviteDisconnectButton,
     #invitePromptCancel,
     #invitePromptConnect {
-        min-height: 31px;
-        padding: 7px 11px;
+        min-height: calc(31px + var(--mmf-ui-button-bump));
+        padding: calc(7px + (var(--mmf-ui-button-bump) * 0.35)) calc(11px + (var(--mmf-ui-button-bump) * 0.7));
         border: 3px solid #ffffff;
         border-right-color: #555566;
         border-bottom-color: #555566;
@@ -1197,7 +1200,7 @@
         box-shadow: 3px 3px 0 #000;
         cursor: pointer;
         font-family: var(--mmf-font);
-        font-size: 13px;
+        font-size: calc(13px + var(--mmf-ui-font-bump));
         line-height: 1.05;
         letter-spacing: 0;
         text-transform: uppercase;
@@ -1302,8 +1305,9 @@
         color: var(--mmf-lime-bright);
         box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.65);
         font-family: var(--mmf-font);
-        min-height: 30px;
-        padding: 5px 8px;
+        font-size: calc(13px + var(--mmf-ui-compact-font-bump));
+        min-height: calc(30px + var(--mmf-ui-button-bump));
+        padding: calc(5px + (var(--mmf-ui-button-bump) * 0.3)) calc(8px + (var(--mmf-ui-button-bump) * 0.45));
     }
 
     select:focus,
@@ -1376,11 +1380,11 @@
         cursor: pointer;
         display: inline-block;
         font-family: var(--mmf-font);
-        font-size: 13px;
+        font-size: calc(13px + var(--mmf-ui-font-bump));
         line-height: 1.05;
-        min-height: 31px;
+        min-height: calc(31px + var(--mmf-ui-button-bump));
         min-width: 86px;
-        padding: 7px 11px;
+        padding: calc(7px + (var(--mmf-ui-button-bump) * 0.35)) calc(11px + (var(--mmf-ui-button-bump) * 0.7));
         text-align: center;
         text-transform: uppercase;
     }
@@ -1425,6 +1429,7 @@
     .midi-status label,
     .session-panel label {
         color: var(--mmf-cyan);
+        font-size: calc(14px + var(--mmf-ui-compact-font-bump));
         font-weight: bold;
     }
 
@@ -1434,6 +1439,7 @@
     .gesture-note-name,
     .cc-display,
     .envelope-value {
+        font-size: calc(12px + var(--mmf-ui-compact-font-bump));
         min-height: 27px;
         border: 2px solid #1d411d;
         background: #020302;
@@ -1445,8 +1451,8 @@
     .gesture-summary-row .toggle-button,
     .gesture-summary-row .gesture-calibrate-btn {
         min-width: 74px;
-        padding: 6px 9px;
-        font-size: 12px;
+        padding: calc(6px + (var(--mmf-ui-button-bump) * 0.25)) calc(9px + (var(--mmf-ui-button-bump) * 0.35));
+        font-size: calc(12px + var(--mmf-ui-compact-font-bump));
         text-align: center;
     }
 
@@ -1507,7 +1513,7 @@
 
     .footer-credit#subtitle {
         color: rgba(135, 169, 135, 0.62);
-        font-size: 11px;
+        font-size: calc(11px + var(--mmf-ui-compact-font-bump));
         letter-spacing: 0.02em;
         margin: 24px auto 18px;
         text-align: center;
@@ -1530,6 +1536,7 @@
 
     .envelope-controls h3 {
         color: var(--mmf-amber);
+        font-size: calc(16px + var(--mmf-ui-compact-font-bump));
         letter-spacing: 0.08em;
         text-transform: uppercase;
         margin: 0 0 4px;
@@ -1568,6 +1575,7 @@
 
     .effects-controls h3 {
         color: var(--mmf-amber);
+        font-size: calc(16px + var(--mmf-ui-compact-font-bump));
         letter-spacing: 0.08em;
         text-transform: uppercase;
         margin: 0 0 8px;
@@ -1654,6 +1662,12 @@
     }
 
     @media (max-width: 900px) {
+        :root {
+            --mmf-ui-font-bump: clamp(1px, 0.2vw + 0.35px, 2px);
+            --mmf-ui-compact-font-bump: clamp(0px, 0.15vw + 0.2px, 1px);
+            --mmf-ui-button-bump: clamp(0px, 0.12vw + 0.2px, 1px);
+        }
+
         body {
             padding-left: 8px;
             padding-right: 8px;
@@ -1785,6 +1799,12 @@
     }
 
     @media (max-width: 640px) {
+        :root {
+            --mmf-ui-font-bump: 1px;
+            --mmf-ui-compact-font-bump: 0px;
+            --mmf-ui-button-bump: 0px;
+        }
+
         body {
             padding-left: 6px;
             padding-right: 6px;
@@ -2111,8 +2131,8 @@
             };
 
             function applyIconButtons() {
-                // Ensure every interactive element has a tooltip from its visible text
-                document.querySelectorAll('button[data-i18n], a[data-i18n]').forEach((el) => {
+                // Ensure every interactive text control exposes a native hover tooltip
+                document.querySelectorAll('button, a.toggle-button').forEach((el) => {
                     const text = el.textContent.trim();
                     if (text) {
                         el.setAttribute('title', text);
