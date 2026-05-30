@@ -461,13 +461,29 @@
     .calibration-actions .cal-action-btn,
     .calibration-actions #soundControlsToggle,
     #instructionButton,
-    #presentationModeButton {
+    #presentationModeButton,
+    #networkConsoleBtn,
+    .gesture-calibrate-btn,
+    .toggle-button[id$="Mute"],
+    .toggle-button[id$="Solo"],
+    .toggle-button[id$="Control"],
+    .toggle-button[id$="Disparador"],
+    #dynamicsWithMouthButton,
+    #dynamicsWithWinkButton {
         position: relative;
     }
     .calibration-actions .cal-action-btn[title]::after,
     .calibration-actions #soundControlsToggle[title]::after,
     #instructionButton[title]::after,
-    #presentationModeButton[title]::after {
+    #presentationModeButton[title]::after,
+    #networkConsoleBtn[title]::after,
+    .gesture-calibrate-btn[title]::after,
+    .toggle-button[id$="Mute"][title]::after,
+    .toggle-button[id$="Solo"][title]::after,
+    .toggle-button[id$="Control"][title]::after,
+    .toggle-button[id$="Disparador"][title]::after,
+    #dynamicsWithMouthButton[title]::after,
+    #dynamicsWithWinkButton[title]::after {
         content: attr(title);
         position: absolute;
         bottom: calc(100% + 6px);
@@ -488,7 +504,15 @@
     .calibration-actions .cal-action-btn[title]:hover::after,
     .calibration-actions #soundControlsToggle[title]:hover::after,
     #instructionButton[title]:hover::after,
-    #presentationModeButton[title]:hover::after {
+    #presentationModeButton[title]:hover::after,
+    #networkConsoleBtn[title]:hover::after,
+    .gesture-calibrate-btn[title]:hover::after,
+    .toggle-button[id$="Mute"][title]:hover::after,
+    .toggle-button[id$="Solo"][title]:hover::after,
+    .toggle-button[id$="Control"][title]:hover::after,
+    .toggle-button[id$="Disparador"][title]:hover::after,
+    #dynamicsWithMouthButton[title]:hover::after,
+    #dynamicsWithWinkButton[title]:hover::after {
         opacity: 1;
     }
 
@@ -1262,6 +1286,15 @@
         margin-bottom: 0;
     }
 
+    /* Extra 4px size for the main UI action buttons */
+    #soundControlsToggle,
+    #browserAudioMuteToggle,
+    #instructionButton,
+    #presentationModeButton {
+        min-height: calc(39px + var(--mmf-ui-button-bump));
+        font-size: calc(15px + var(--mmf-ui-font-bump));
+    }
+
     .calibration-actions .cal-action-btn svg,
     .calibration-actions #soundControlsToggle svg {
         width: var(--mmf-ui-action-icon-size);
@@ -1303,7 +1336,10 @@
     .wizard-btn:hover,
     .gesture-calibrate-btn:hover,
     #instructionButton:hover,
-    #presentationModeButton:hover {
+    #presentationModeButton:hover,
+    #networkConsoleBtn:hover,
+    #dynamicsWithMouthButton:hover,
+    #dynamicsWithWinkButton:hover {
         filter: brightness(1.15);
         transform: translate(-1px, -1px);
     }
@@ -1314,7 +1350,10 @@
     .wizard-btn:active,
     .gesture-calibrate-btn:active,
     #instructionButton:active,
-    #presentationModeButton:active {
+    #presentationModeButton:active,
+    #networkConsoleBtn:active,
+    #dynamicsWithMouthButton:active,
+    #dynamicsWithWinkButton:active {
         transform: translate(3px, 3px);
         box-shadow: 0 0 0 #000;
         border-color: #555566 #ffffff #ffffff #555566;
