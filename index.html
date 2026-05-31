@@ -337,6 +337,48 @@
         font-size: 12px;
     }
 
+    .performance-range-piano-wrap {
+        width: min(100%, 800px);
+        margin-top: 6px;
+        padding: 6px 8px;
+        border: 1px solid rgba(140, 255, 200, 0.45);
+        background: rgba(10, 40, 20, 0.28);
+    }
+
+    .performance-range-piano {
+        display: grid;
+        grid-template-columns: repeat(9, minmax(0, 1fr));
+        gap: 4px;
+        width: 100%;
+        margin-top: 6px;
+    }
+
+    .performance-range-key {
+        min-height: 34px;
+        border: 1px solid rgba(170, 255, 220, 0.55);
+        background: rgba(12, 18, 14, 0.76);
+        color: #b8ffe6;
+        font-size: 11px;
+        cursor: pointer;
+        transition: filter .12s ease, background .12s ease;
+    }
+
+    .performance-range-key.in-range {
+        background: rgba(60, 210, 140, 0.3);
+        border-color: rgba(170, 255, 220, 0.75);
+    }
+
+    .performance-range-key.boundary {
+        background: rgba(120, 255, 180, 0.68);
+        color: #0b1b10;
+        border-color: rgba(215, 255, 235, 0.95);
+        font-weight: bold;
+    }
+
+    .performance-range-key:hover {
+        filter: brightness(1.14);
+    }
+
     .theremin-option {
         margin-top: 10px;
     }
@@ -2513,8 +2555,8 @@
             <label for="performancePattern" data-i18n="performancePattern">Pattern</label>
             <select id="performancePattern" class="dropdown">
                 <option value="serpentine" data-i18n="performancePatternSerpentine">Serpentine</option>
-                <option value="row" data-i18n="performancePatternRow">Row</option>
-                <option value="column" data-i18n="performancePatternColumn">Column</option>
+                <option value="inverse" data-i18n="performancePatternInverse">Inverse</option>
+                <option value="random" data-i18n="performancePatternRandom">Random</option>
             </select>
         </div>
 
@@ -2525,11 +2567,25 @@
                 <option value="wink" data-i18n="performanceGateWink">Wink Close</option>
             </select>
 
-            <label for="performanceLowMidi" data-i18n="performanceLowMidi">Low MIDI</label>
-            <input id="performanceLowMidi" class="dropdown" type="number" min="0" max="127" step="1" value="60" style="width:76px;" />
+            <label for="performanceTriggerSensitivity" data-i18n="performanceTriggerSensitivity">Trigger Sensitivity</label>
+            <input id="performanceTriggerSensitivity" class="slider" type="range" min="0" max="10" step="1" value="5" />
+            <span id="performanceTriggerSensitivityValue" class="duration-display">5</span>
+        </div>
 
-            <label for="performanceHighMidi" data-i18n="performanceHighMidi">High MIDI</label>
-            <input id="performanceHighMidi" class="dropdown" type="number" min="0" max="127" step="1" value="72" style="width:76px;" />
+        <div class="performance-range-piano-wrap">
+            <div class="performance-options-row">
+                <label data-i18n="performanceRangeReference">C Note Range Reference</label>
+                <button id="performanceRangePickLow" class="toggle-button active" type="button" data-i18n="performancePickLow">Pick Low</button>
+                <button id="performanceRangePickHigh" class="toggle-button" type="button" data-i18n="performancePickHigh">Pick High</button>
+            </div>
+            <div id="performanceRangePiano" class="performance-range-piano" aria-label="Performance C note range selector"></div>
+            <div class="performance-options-row">
+                <label for="performanceLowMidi" data-i18n="performanceLowMidi">Low MIDI</label>
+                <input id="performanceLowMidi" class="dropdown" type="number" min="0" max="127" step="1" value="60" style="width:76px;" />
+
+                <label for="performanceHighMidi" data-i18n="performanceHighMidi">High MIDI</label>
+                <input id="performanceHighMidi" class="dropdown" type="number" min="0" max="127" step="1" value="72" style="width:76px;" />
+            </div>
         </div>
     </div>
 
