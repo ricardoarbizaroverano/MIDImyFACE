@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title data-i18n="title">MIDImyFACE - Interfaz gestural web</title>
 <style>
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
     body {
         background-color: black;
         color: lime;
@@ -306,6 +312,17 @@
     .mode-button.active {
         background-color: lime;
         color: black;
+    }
+
+    @media (min-width: 901px) {
+        #percussionToggle,
+        #thereminToggle,
+        #performanceToggle {
+            min-height: 64px;
+            min-width: 164px;
+            padding: 12px 18px;
+            font-size: 18px;
+        }
     }
 
     .theremin-mode,
@@ -2093,6 +2110,7 @@
         }
 
         body {
+            align-items: stretch;
             padding-left: 6px;
             padding-right: 6px;
         }
@@ -2118,9 +2136,12 @@
         }
 
         #videoContainer {
-            width: calc(100vw - 18px);
+            width: 100%;
+            max-width: none;
             margin-top: 8px;
             margin-bottom: 12px;
+            margin-left: 0;
+            margin-right: 0;
         }
 
         .mode-controls,
@@ -2132,7 +2153,8 @@
         .midi-status,
         .session-panel,
         .calibration-actions {
-            width: calc(100vw - 18px);
+            width: 100%;
+            max-width: none;
             padding: 10px;
         }
 
@@ -2173,7 +2195,17 @@
             white-space: normal;
         }
 
-        .mode-controls,
+        .mode-controls {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            align-items: center;
+        }
+
+        .mode-controls .mode-button {
+            width: 100%;
+            min-width: 0;
+        }
+
         .calibration-actions,
         .midi-status {
             display: grid;
