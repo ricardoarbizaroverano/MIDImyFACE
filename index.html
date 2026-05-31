@@ -345,13 +345,6 @@
         background: rgba(10, 40, 20, 0.28);
     }
 
-    .performance-range-hint {
-        color: #b8ffe6;
-        font-size: 11px;
-        text-align: center;
-        margin-top: 4px;
-    }
-
     .performance-range-piano {
         position: relative;
         width: 100%;
@@ -371,7 +364,7 @@
 
     .performance-range-key {
         position: absolute;
-        bottom: 0;
+        top: 0;
         cursor: pointer;
         transition: filter .12s ease, background .12s ease, border-color .12s ease;
         user-select: none;
@@ -418,6 +411,17 @@
     .performance-range-key.boundary.black {
         background: linear-gradient(180deg, rgba(68, 240, 155, 0.98), rgba(38, 180, 116, 0.98));
         border-color: rgba(220, 255, 240, 0.95);
+    }
+
+    .performance-range-key.anchor.white {
+        background: linear-gradient(180deg, rgba(255, 250, 170, 0.98), rgba(250, 220, 92, 0.98));
+        border-color: rgba(255, 252, 210, 0.98);
+        color: #2f2606;
+    }
+
+    .performance-range-key.anchor.black {
+        background: linear-gradient(180deg, rgba(210, 172, 38, 0.98), rgba(150, 115, 18, 0.98));
+        border-color: rgba(255, 239, 180, 0.96);
     }
 
     .performance-range-key.c-mark {
@@ -2644,9 +2648,8 @@
 
         <div class="performance-range-piano-wrap">
             <div class="performance-options-row">
-                <label data-i18n="performanceRangeReference">Performance Keyboard Range</label>
+                <label data-i18n="performanceRangeReference">Select range</label>
             </div>
-            <div class="performance-range-hint" data-i18n="performanceRangeHint">Click keys to set min/max range. C notes are labeled for octave reference.</div>
             <div id="performanceRangePiano" class="performance-range-piano" aria-label="Performance keyboard range selector"></div>
             <div id="performanceRangeReadout" class="performance-range-readout">C4–C5</div>
             <div class="performance-options-row">
