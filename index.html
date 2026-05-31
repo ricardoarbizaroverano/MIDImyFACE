@@ -309,13 +309,32 @@
     }
 
     .theremin-mode,
-    .percussion-options {
+    .percussion-options,
+    .performance-options {
         display: none;
     }
 
     .theremin-mode.active,
-    .percussion-options.active {
+    .percussion-options.active,
+    .performance-options.active {
         display: block;
+    }
+
+    .performance-options {
+        margin-top: 10px;
+    }
+
+    .performance-options-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+    }
+
+    .performance-options label {
+        font-size: 12px;
     }
 
     .theremin-option {
@@ -1418,7 +1437,8 @@
     }
 
     .theremin-mode.active,
-    .percussion-options.active {
+    .percussion-options.active,
+    .performance-options.active {
         display: block;
     }
 
@@ -1427,6 +1447,14 @@
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
+        justify-content: center;
+    }
+
+    .performance-options.active {
+        align-items: center;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
         justify-content: center;
     }
 
@@ -2401,6 +2429,7 @@
     <div class="mode-controls">
         <button id="percussionToggle" class="mode-button" data-i18n="percussionToggle">Percusión</button>
         <button id="thereminToggle" class="mode-button active" data-i18n="thereminToggle">Theremin</button>
+        <button id="performanceToggle" class="mode-button" data-i18n="performanceToggle">Performance Grid</button>
     </div>
 
     <!-- Opciones de Percusión -->
@@ -2448,6 +2477,59 @@
                     <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Armónico (B3–B5)</option>
                 </select>
             </div>
+        </div>
+    </div>
+
+    <div id="performanceOptions" class="performance-options" aria-hidden="true">
+        <div class="performance-options-row">
+            <label for="performancePitchCount" data-i18n="performancePitchCount">Pitch Count</label>
+            <select id="performancePitchCount" class="dropdown">
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4" selected>4</option>
+                <option value="6">6</option>
+                <option value="8">8</option>
+                <option value="12">12</option>
+                <option value="16">16</option>
+            </select>
+
+            <label for="performanceCoverage" data-i18n="performanceCoverage">Grid Size</label>
+            <select id="performanceCoverage" class="dropdown">
+                <option value="1" selected>100%</option>
+                <option value="0.75">75%</option>
+                <option value="0.5">50%</option>
+                <option value="0.25">25%</option>
+            </select>
+        </div>
+
+        <div class="performance-options-row">
+            <label for="performanceLayout" data-i18n="performanceLayout">Layout</label>
+            <select id="performanceLayout" class="dropdown">
+                <option value="grid" data-i18n="performanceLayoutGrid">Grid</option>
+                <option value="horizontal" data-i18n="performanceLayoutHorizontal">Horizontal Bars</option>
+                <option value="vertical" data-i18n="performanceLayoutVertical">Vertical Bars</option>
+            </select>
+
+            <label for="performancePattern" data-i18n="performancePattern">Pattern</label>
+            <select id="performancePattern" class="dropdown">
+                <option value="serpentine" data-i18n="performancePatternSerpentine">Serpentine</option>
+                <option value="row" data-i18n="performancePatternRow">Row</option>
+                <option value="column" data-i18n="performancePatternColumn">Column</option>
+            </select>
+        </div>
+
+        <div class="performance-options-row">
+            <label for="performanceGateSource" data-i18n="performanceGateSource">Gate Source</label>
+            <select id="performanceGateSource" class="dropdown">
+                <option value="mouth" data-i18n="performanceGateMouth">Mouth Open</option>
+                <option value="wink" data-i18n="performanceGateWink">Wink Close</option>
+            </select>
+
+            <label for="performanceLowMidi" data-i18n="performanceLowMidi">Low MIDI</label>
+            <input id="performanceLowMidi" class="dropdown" type="number" min="0" max="127" step="1" value="60" style="width:76px;" />
+
+            <label for="performanceHighMidi" data-i18n="performanceHighMidi">High MIDI</label>
+            <input id="performanceHighMidi" class="dropdown" type="number" min="0" max="127" step="1" value="72" style="width:76px;" />
         </div>
     </div>
 
@@ -3041,6 +3123,10 @@
             <h4 data-i18n="instructionsModal.usageModes.midiOutput.title">Salida MIDI</h4>
             <p data-i18n="instructionsModal.usageModes.midiOutput.description">
                 Si no están activados los modos Theremin o Percusión, el sistema funciona como un controlador MIDI. Puedes utilizar los gestos para enviar señales MIDI de Control, Notas o Disparadores según las configuraciones establecidas.
+            </p>
+            <h4 data-i18n="instructionsModal.usageModes.performanceGrid.title">Grid de Performance</h4>
+            <p data-i18n="instructionsModal.usageModes.performanceGrid.description">
+                El modo Grid de Performance separa el apuntado de nota del disparo de nota. Mueve la nariz para elegir una celda del grid (pitch), luego abre la boca o cierra el guiño (según Fuente de Gate) para iniciar la nota y suelta para detenerla.
             </p>
             <p data-i18n="instructionsModal.midiCustomization">
                 Ajusta Escala, Fundamental y el rango Min/Max calibrado de cada gesto para personalizar la respuesta del sistema.

@@ -5,6 +5,22 @@
     "connectToSession": "Connect to session",
     "percussionToggle": "Percussion",
     "thereminToggle": "Theremin",
+    "performanceToggle": "Performance Grid",
+    "performancePitchCount": "Pitch Count",
+    "performanceCoverage": "Grid Size",
+    "performanceLayout": "Layout",
+    "performanceLayoutGrid": "Grid",
+    "performanceLayoutHorizontal": "Horizontal Bars",
+    "performanceLayoutVertical": "Vertical Bars",
+    "performancePattern": "Pattern",
+    "performancePatternSerpentine": "Serpentine",
+    "performancePatternRow": "Row",
+    "performancePatternColumn": "Column",
+    "performanceGateSource": "Gate Source",
+    "performanceGateMouth": "Mouth Open",
+    "performanceGateWink": "Wink Close",
+    "performanceLowMidi": "Low MIDI",
+    "performanceHighMidi": "High MIDI",
     "percussionSensitivity": "Sensitivity",
     "percussionSample": "Sample",
     "percussionPreview": "Preview",
@@ -136,6 +152,10 @@
         "midiOutput": {
           "title": "MIDI Output",
           "description": "If Theremin or Percussion modes are not activated, the system functions as a MIDI controller. You can use gestures to send MIDI Control, Notes, or Trigger signals based on the established configurations."
+        },
+        "performanceGrid": {
+          "title": "Performance Grid",
+          "description": "Performance Grid mode separates note aiming from note triggering. Move your nose to choose a grid cell (pitch), then open mouth or close wink (depending on Gate Source) to start the note and release to stop it."
         }
       },
       "midiCustomization": "Adjust <em>Scale</em>, <em>Root</em>, and each gesture's calibrated Min/Max range to customize the system's response.",
@@ -196,6 +216,22 @@
     "connectToSession": "Conectar a sesión",
     "percussionToggle": "Percusión",
     "thereminToggle": "Theremin",
+    "performanceToggle": "Grid de Performance",
+    "performancePitchCount": "Cantidad de Notas",
+    "performanceCoverage": "Tamaño de Grid",
+    "performanceLayout": "Distribución",
+    "performanceLayoutGrid": "Cuadrícula",
+    "performanceLayoutHorizontal": "Barras Horizontales",
+    "performanceLayoutVertical": "Barras Verticales",
+    "performancePattern": "Patrón",
+    "performancePatternSerpentine": "Serpentina",
+    "performancePatternRow": "Fila",
+    "performancePatternColumn": "Columna",
+    "performanceGateSource": "Fuente de Gate",
+    "performanceGateMouth": "Boca Abierta",
+    "performanceGateWink": "Guiño Cerrado",
+    "performanceLowMidi": "MIDI Bajo",
+    "performanceHighMidi": "MIDI Alto",
     "percussionSensitivity": "Sensibilidad",
     "percussionSample": "Sample",
     "percussionPreview": "Preescuchar",
@@ -327,6 +363,10 @@
         "midiOutput": {
           "title": "Salida MIDI",
           "description": "Si no están activados los modos Theremin o Percusión, el sistema funciona como un controlador MIDI. Puedes utilizar los gestos para enviar señales MIDI de Control, Notas o Disparadores según las configuraciones establecidas."
+        },
+        "performanceGrid": {
+          "title": "Grid de Performance",
+          "description": "El modo Grid de Performance separa el apuntado de nota del disparo de nota. Mueve la nariz para elegir una celda del grid (pitch), luego abre la boca o cierra el guiño (según Fuente de Gate) para iniciar la nota y suelta para detenerla."
         }
       },
       "midiCustomization": "Ajusta <em>Escala</em>, <em>Fundamental</em> y el rango Min/Max calibrado de cada gesto para personalizar la respuesta del sistema.",

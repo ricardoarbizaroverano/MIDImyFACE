@@ -345,6 +345,39 @@
       safeSend({ type: 'gesture/update', data: { name, gesture: name, value } });
     });
 
+    window.addEventListener('performance/target', (evt) => {
+      if (!MMFRelay.isConnected()) return;
+      const d = readDetail(evt);
+      safeSend({ type: 'performance/target', data: {
+        cellIndex: Number(d.cellIndex),
+        midi: d.midi == null ? null : Number(d.midi),
+        rows: Number(d.rows),
+        cols: Number(d.cols),
+        gateOpen: Boolean(d.gateOpen),
+      }});
+    });
+
+    window.addEventListener('performance/gate_on', (evt) => {
+      if (!MMFRelay.isConnected()) return;
+      const d = readDetail(evt);
+      safeSend({ type: 'performance/gate_on', data: {
+        note: d.note == null ? null : Number(d.note),
+        gateSource: d.gateSource || null,
+        cellIndex: d.cellIndex == null ? null : Number(d.cellIndex),
+        ts: Date.now(),
+      }});
+    });
+
+    window.addEventListener('performance/gate_off', (evt) => {
+      if (!MMFRelay.isConnected()) return;
+      const d = readDetail(evt);
+      safeSend({ type: 'performance/gate_off', data: {
+        note: d.note == null ? null : Number(d.note),
+        gateSource: d.gateSource || null,
+        ts: Date.now(),
+      }});
+    });
+
     window.addEventListener('midi/cc', (evt) => {
       if (!MMFRelay.isConnected()) return;
       const d = readDetail(evt);
