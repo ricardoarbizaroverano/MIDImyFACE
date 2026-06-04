@@ -317,7 +317,8 @@
     @media (min-width: 901px) {
         #percussionToggle,
         #thereminToggle,
-        #performanceToggle {
+        #performanceToggle,
+        #songGameToggle {
             min-height: 64px;
             min-width: 164px;
             padding: 12px 18px;
@@ -327,14 +328,33 @@
 
     .theremin-mode,
     .percussion-options,
-    .performance-options {
+    .performance-options,
+    .song-game-options {
         display: none;
     }
 
     .theremin-mode.active,
     .percussion-options.active,
-    .performance-options.active {
+    .performance-options.active,
+    .song-game-options.active {
         display: block;
+    }
+
+    .song-game-options {
+        margin-top: 10px;
+        width: min(100%, 800px);
+        padding: 10px;
+        border: 1px solid rgba(140, 255, 200, 0.45);
+        background: rgba(10, 40, 20, 0.28);
+    }
+
+    .song-game-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 6px;
     }
 
     .performance-options {
@@ -624,6 +644,7 @@
     #percussionToggle,
     #thereminToggle,
     #performanceToggle,
+    #songGameToggle,
     label[for="thereminSynthOption"],
     label[for="thereminNotesOption"],
     #dynamicsWithMouthButton,
@@ -644,6 +665,7 @@
     #percussionToggle[title]::after,
     #thereminToggle[title]::after,
     #performanceToggle[title]::after,
+    #songGameToggle[title]::after,
     label[for="thereminSynthOption"][title]::after,
     label[for="thereminNotesOption"][title]::after,
     #dynamicsWithMouthButton[title]::after,
@@ -679,6 +701,7 @@
     #percussionToggle[title]:hover::after,
     #thereminToggle[title]:hover::after,
     #performanceToggle[title]:hover::after,
+    #songGameToggle[title]:hover::after,
     label[for="thereminSynthOption"][title]:hover::after,
     label[for="thereminNotesOption"][title]:hover::after,
     #dynamicsWithMouthButton[title]:hover::after,
@@ -696,6 +719,7 @@
     #percussionToggle[title]:hover,
     #thereminToggle[title]:hover,
     #performanceToggle[title]:hover,
+    #songGameToggle[title]:hover,
     label[for="thereminSynthOption"][title]:hover {
         z-index: 10001;
     }
@@ -2461,6 +2485,15 @@
                         </svg>
                     `,
                 },
+                songGameToggle: {
+                    label: (language) => language === 'en' ? 'Game Mode' : 'Modo Juego',
+                    svg: `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 15 15" aria-hidden="true" focusable="false">
+                            <path d="M0 0h15v15H0z" fill="none" />
+                            <path fill="currentColor" d="M12.1 2.952a2.988 2.988 0 0 0-5.11 1.965l3.142 3.142A2.988 2.988 0 0 0 12.1 2.952m-7.428 5.3L2.55 10.377a1 1 0 0 0 0 1.414l.707.707a1 1 0 0 0 1.414 0l2.121-2.121l2.122-2.122l-2.121-2.121Zm.741 2.087l-.707-.707l2.087-2.084l.707.707Z" />
+                        </svg>
+                    `,
+                },
                 percussionToggle: {
                     label: (language) => language === 'en' ? 'Percussion' : 'Percusión',
                     svg: `
@@ -2685,6 +2718,7 @@
         <button id="percussionToggle" class="mode-button" data-i18n="percussionToggle">Percusión</button>
         <button id="thereminToggle" class="mode-button active" data-i18n="thereminToggle">Theremin</button>
         <button id="performanceToggle" class="mode-button" data-i18n="performanceToggle">Performance Grid</button>
+        <button id="songGameToggle" class="mode-button" title="Modo Juego">Modo Juego</button>
     </div>
 
     <!-- Opciones de Percusión -->
@@ -2797,6 +2831,35 @@
                 <label for="performanceHighMidi" data-i18n="performanceHighMidi">High MIDI</label>
                 <input id="performanceHighMidi" class="dropdown" type="number" min="0" max="127" step="1" value="72" style="width:76px;" />
             </div>
+        </div>
+    </div>
+
+    <div id="songGameOptions" class="song-game-options" aria-hidden="true">
+        <div class="song-game-row">
+            <label for="songGameMidiInput">MIDI</label>
+            <input id="songGameMidiInput" type="file" accept=".mid,.midi,audio/midi,audio/x-midi">
+            <span id="songGameTrackCountReadout" class="duration-display" style="width:auto;min-width:100px;">0 tracks</span>
+        </div>
+        <div class="song-game-row">
+            <label for="songGameTrackSelect">Track</label>
+            <select id="songGameTrackSelect" class="dropdown" disabled>
+                <option value="">Select track</option>
+            </select>
+            <label for="songGameDifficultySelect">Difficulty</label>
+            <select id="songGameDifficultySelect" class="dropdown">
+                <option value="strict">Strict</option>
+                <option value="quantized">Quantized</option>
+                <option value="assisted">Assisted</option>
+            </select>
+        </div>
+        <div class="song-game-row">
+            <button id="songGameFirstMeasureButton" class="toggle-button" disabled>|&lt;</button>
+            <button id="songGamePrevMeasureButton" class="toggle-button" disabled>&lt;</button>
+            <button id="songGamePlayButton" class="toggle-button" disabled>Play</button>
+            <button id="songGamePauseButton" class="toggle-button" disabled>Pause</button>
+            <button id="songGameNextMeasureButton" class="toggle-button" disabled>&gt;</button>
+            <button id="songGameLastMeasureButton" class="toggle-button" disabled>&gt;|</button>
+            <span id="songGameTransportReadout" class="duration-display" style="width:auto;min-width:140px;">M 1 / 1</span>
         </div>
     </div>
 
@@ -3432,6 +3495,7 @@
 
     <!-- Include Libraries and Your Script -->
     <script src="p5.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.28/build/Midi.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
     <script src="camera_utils.js"></script>
     <script src="Tone.min.js"></script>    
