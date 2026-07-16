@@ -57,6 +57,9 @@ const state = {
   auth: null,
   db: null,
   currentUser: null,
+  wasLive: false,
+  notifyEnabled: window.localStorage.getItem('mmf_live_notify_enabled') === '1',
+  minimalLayout: false,
 };
 
 function resolveRelayOrigin() {
@@ -95,11 +98,116 @@ function show(node, visible) {
   node.classList.toggle('hidden', !visible);
 }
 
+function hideElement(node) {
+  if (!node) return;
+  node.classList.add('hidden');
+}
+
 function isPriorityParticipantEmail(email, bootstrap) {
   const normalized = String(email || '').trim().toLowerCase();
   if (!normalized) return false;
   const priorityEmails = (bootstrap?.auth?.priorityEmails || []).map((value) => String(value || '').trim().toLowerCase());
   return priorityEmails.includes(normalized);
+}
+
+function applyMinimalLayout(bootstrap) {
+  state.minimalLayout = true;
+  hideElement(document.querySelector('.status-grid'));
+  hideElement(elements.authUnavailable);
+  hideElement(elements.authReady);
+  hideElement(elements.authDescription);
+  hideElement(elements.signedInNotice);
+  hideElement(elements.profileForm);
+  hideElement(elements.locationTitle);
+  hideElement(elements.locationDetails);
+  hideElement(elements.liveAccessTitle);
+  hideElement(elements.liveAccessMessage);
+  hideElement(elements.policyMessage);
+  hideElement(elements.machineMode?.parentElement);
+  hideElement(elements.queuePolicy?.parentElement);
+  hideElement(elements.lastUpdateLabel?.parentElement);
+
+  const supportPanel = document.querySelector('.panel-grid > .span-4');
+  if (supportPanel) {
+    const heading = supportPanel.querySelector('h2');
+    const bodyCopy = supportPanel.querySelector('p');
+    hideElement(heading);
+    hideElement(bodyCopy);
+  }
+
+  setText(elements.heroSubtitle, 'Percussion mode');
+  setText(elements.machineMode, 'Percussion');
+  setText(elements.queuePolicy, '7 solenoids');
+  setText(elements.lastUpdateLabel, 'live');
+  setText(elements.liveAccessMessage, '');
+
+  elements.watchLiveButton.textContent = 'Previous iteration';
+  elements.visitChannelButton.textContent = 'Notify me when';
+  elements.watchLiveButton.href = bootstrap?.links?.youtubeVideosUrl || '#';
+  elements.visitChannelButton.href = '#notify';
+
+  const donorRow = elements.donationButtons;
+  donorRow.innerHTML = '';
+
+  const notifyButton = document.createElement('button');
+  notifyButton.className = 'button primary';
+  notifyButton.type = 'button';
+  notifyButton.textContent = 'Notify me when';
+  notifyButton.addEventListener('click', requestNotificationPermission);
+
+  const previousButton = document.createElement('a');
+  previousButton.className = 'button ghost';
+  previousButton.href = bootstrap?.links?.youtubeVideosUrl || '#';
+  previousButton.target = '_blank';
+  previousButton.rel = 'noreferrer';
+  previousButton.textContent = 'Previous iteration';
+
+  const youtubeButton = document.createElement('a');
+  youtubeButton.className = 'button ghost';
+  youtubeButton.href = bootstrap?.links?.youtubeChannelUrl || '#';
+  youtubeButton.target = '_blank';
+  youtubeButton.rel = 'noreferrer';
+  youtubeButton.textContent = 'YouTube';
+
+  const instagramButton = document.createElement('a');
+  instagramButton.className = 'button ghost';
+  instagramButton.href = bootstrap?.links?.instagramUrl || '#';
+  instagramButton.target = '_blank';
+  instagramButton.rel = 'noreferrer';
+  instagramButton.textContent = 'Instagram';
+
+  donorRow.appendChild(notifyButton);
+  donorRow.appendChild(previousButton);
+  donorRow.appendChild(youtubeButton);
+  donorRow.appendChild(instagramButton);
+}
+
+function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    setProfileMessage('Notifications not supported in this browser.', 'error');
+    return;
+  }
+  Notification.requestPermission().then((result) => {
+    state.notifyEnabled = result === 'granted';
+    window.localStorage.setItem('mmf_live_notify_enabled', state.notifyEnabled ? '1' : '0');
+    setProfileMessage(state.notifyEnabled ? 'Live notifications enabled.' : 'Notifications not enabled.', state.notifyEnabled ? 'success' : 'error');
+  });
+}
+
+function maybeNotifyLiveTransition(status, bootstrap) {
+  const nowLive = Boolean(status?.stream?.isLive);
+  if (nowLive && !state.wasLive && state.notifyEnabled && 'Notification' in window && Notification.permission === 'granted') {
+    const title = status?.content?.heroTitle || 'MIDImyFACE Live';
+    const body = status?.content?.heroSubtitle || 'The installation is live now.';
+    const notification = new Notification(title, { body });
+    notification.onclick = () => {
+      window.focus();
+      if (bootstrap?.links?.youtubeLiveEmbedUrl) {
+        window.open(bootstrap.links.youtubeChannelUrl, '_blank', 'noreferrer');
+      }
+    };
+  }
+  state.wasLive = nowLive;
 }
 
 function intlDateFormatter(timeZone) {
@@ -161,6 +269,9 @@ function normalizeMachineMode(status) {
 }
 
 function renderDonations(status, bootstrap) {
+  if (state.minimalLayout) {
+    return;
+  }
   const donationUrl = status?.donations?.paypalUrl || bootstrap?.links?.paypalDonationUrl || '#';
   const suggestedAmounts = status?.donations?.suggestedAmounts || [1, 2, 5];
   elements.donationButtons.innerHTML = '';
@@ -178,7 +289,7 @@ function renderDonations(status, bootstrap) {
 function renderStatus(status, bootstrap) {
   state.status = status;
   const heroTitle = status?.content?.heroTitle || 'MIDImyFACE Live';
-  const heroSubtitle = status?.content?.heroSubtitle || 'A public installation you can watch online or visit in person.';
+  const heroSubtitle = status?.content?.heroSubtitle || 'Percussion mode';
   const machineMode = normalizeMachineMode(status);
   const queue = status?.queue || {};
   const stream = status?.stream || {};
@@ -191,31 +302,31 @@ function renderStatus(status, bootstrap) {
   setText(elements.heroTitle, heroTitle);
   setText(elements.heroSubtitle, heroSubtitle);
   setText(elements.machineMode, machineMode);
-  setText(elements.queuePolicy, `${queue.turnDurationSeconds || 30}s turn · ${queue.cooldownMinutes || 15}m cooldown`);
+  setText(elements.queuePolicy, `${queue.turnDurationSeconds || 30}s / ${queue.cooldownMinutes || 15}m`);
   setText(elements.lastUpdateLabel, relativeTime(status?.updatedAt || machine?.heartbeatAt));
-  setText(elements.machineStatusLabel, machine.statusLabel || machineMode || 'offline');
-  setText(elements.machineStatusMessage, machine.message || machine.offlineReason || status?.content?.fallbackMessage || 'No live data yet.');
-  setText(elements.venueLabel, venueLabel);
-  setText(elements.scheduleLabel, scheduleLabel);
-  setText(elements.locationTitle, venueLabel);
-  setText(elements.locationDetails, status?.venue?.address || status?.venue?.note || 'Venue details will appear when the Raspberry Pi posts them.');
+  setText(elements.machineStatusLabel, machine.alive ? (stream.isLive ? 'Live' : 'Online') : 'Offline');
+  setText(elements.machineStatusMessage, stream.isLive ? 'Available' : (machine.alive ? 'Not available' : 'Offline'));
+  setText(elements.venueLabel, '');
+  setText(elements.scheduleLabel, '');
+  setText(elements.locationTitle, '');
+  setText(elements.locationDetails, '');
 
   if (stream.isLive) {
-    setText(elements.liveAccessTitle, 'Broadcasting now');
-    setText(elements.liveAccessMessage, machine.acceptingParticipants ? 'The machine is live and can announce queue openings here.' : 'The machine is broadcasting live right now.');
+    setText(elements.liveAccessTitle, '');
+    setText(elements.liveAccessMessage, '');
   } else if (machine.alive) {
-    setText(elements.liveAccessTitle, 'Machine online');
-    setText(elements.liveAccessMessage, 'The installation is awake. A live feed will load automatically when the broadcast starts.');
+    setText(elements.liveAccessTitle, '');
+    setText(elements.liveAccessMessage, '');
   } else {
-    setText(elements.liveAccessTitle, 'Currently offline');
-    setText(elements.liveAccessMessage, status?.content?.fallbackMessage || 'Come back later or check social channels for the next activation.');
+    setText(elements.liveAccessTitle, '');
+    setText(elements.liveAccessMessage, '');
   }
 
-  setText(elements.policyMessage, queue.message || 'One free turn per visitor, then a 15-minute cooldown to keep the installation fair and avoid abuse.');
-  setText(elements.streamTitle, stream.isLive ? 'YouTube feed' : 'Live feed');
+  setText(elements.policyMessage, '');
+  setText(elements.streamTitle, stream.isLive ? 'Live feed' : 'Not available');
   setText(elements.streamDescription, stream.isLive
-    ? 'The broadcast is live — watch it here or open the full channel in a new tab.'
-    : 'No broadcast is active right now. Explore the channel and social links while the installation is offline.');
+    ? 'Live.'
+    : (machine.alive ? 'Not available.' : 'Offline.'));
 
   const channelUrl = stream.channelUrl || bootstrap?.links?.youtubeChannelUrl || '#';
   const videosUrl = stream.videosUrl || bootstrap?.links?.youtubeVideosUrl || channelUrl;
@@ -232,9 +343,11 @@ function renderStatus(status, bootstrap) {
     elements.youtubeEmbed.src = embedUrl;
   } else {
     elements.youtubeEmbed.removeAttribute('src');
+    elements.streamFallback.textContent = machine.alive ? 'Not available' : 'Offline';
   }
 
   renderDonations(status, bootstrap);
+  maybeNotifyLiveTransition(status, bootstrap);
 }
 
 function buildCountryOptions() {
@@ -400,16 +513,11 @@ async function initialize() {
     elements.channelButton.href = bootstrap.links.youtubeChannelUrl;
     elements.videosButton.href = bootstrap.links.youtubeVideosUrl;
     elements.instagramButton.href = bootstrap.links.instagramUrl;
-    setText(elements.authDescription, bootstrap.auth.firebaseConfigured
-      ? 'Sign in with Google to save your email, nickname, country, and notification preference for future live sessions.'
-      : `Google sign-in will be enabled after the Firebase web app for ${bootstrap.ownerEmail} is configured.`);
+    applyMinimalLayout(bootstrap);
     await refreshStatus();
-    if (bootstrap.auth.firebaseConfigured) {
-      await initFirebaseAuth(bootstrap);
-    }
   } catch (error) {
     setText(elements.machineStatusLabel, 'Relay unavailable');
-    setText(elements.machineStatusMessage, `Could not load live bootstrap data: ${error?.message || 'Unknown error'}`);
+    setText(elements.machineStatusMessage, `Unavailable`);
   }
 
   window.setInterval(refreshStatus, POLL_INTERVAL_MS);
