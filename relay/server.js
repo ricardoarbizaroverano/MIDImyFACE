@@ -392,6 +392,7 @@ function persistLiveState(state) {
 }
 
 let liveState = loadLiveState();
+let liveGestureSnapshot = null;
 
 function updateLiveState(rawPatch, updatedBy = 'raspberry-pi') {
   const normalizedPatch = sanitizeLiveStatePatch({ ...rawPatch, updatedBy, updatedAt: new Date().toISOString() });
@@ -771,6 +772,49 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       } catch {
         return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
       }
+    }
+
+    // Public participant posts gesture snapshot from their browser camera
+    if (req.method === 'POST' && parsed.pathname === '/api/live/session/gestures') {
+      try {
+        const body = await readBody(req);
+        const gestures = isPlainObject(body?.gestures) ? body.gestures : {};
+        const sanitized = {};
+        const GESTURE_KEYS = ['mouthOpen','smile','leftWink','rightWink','noseX','noseY','accent'];
+        for (const key of GESTURE_KEYS) {
+          const v = gestures[key];
+          if (v !== undefined && v !== null) {
+            const n = Number(v);
+            if (Number.isFinite(n)) sanitized[key] = Math.round(n * 100) / 100;
+          }
+        }
+        liveGestureSnapshot = {
+          gestures: sanitized,
+          updatedAt: new Date().toISOString(),
+          participant: {
+            nickname: cleanString(body?.nickname || '', 40) || 'Guest',
+            countryCode: cleanString(body?.countryCode || '', 2).toUpperCase(),
+          },
+        };
+        return sendJson(res, 200, { ok: true, gestures: sanitized, serverTime: new Date().toISOString() }, {
+          ...c,
+          'Cache-Control': 'no-store',
+        });
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
+    }
+
+    // Pi polls this to get the latest gesture snapshot from the current participant
+    if (req.method === 'GET' && parsed.pathname === '/api/live/session/gestures') {
+      return sendJson(res, 200, {
+        ok: true,
+        ...(liveGestureSnapshot || { gestures: {}, updatedAt: null, participant: null }),
+        serverTime: new Date().toISOString(),
+      }, {
+        ...c,
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      });
     }
 
     if (req.method === 'POST' && parsed.pathname === '/api/live/device/message') {

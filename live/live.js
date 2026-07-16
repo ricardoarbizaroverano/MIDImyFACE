@@ -1,5 +1,6 @@
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const POLL_INTERVAL_MS = 30_000;
+const GESTURE_BAR_MAX = { mouthOpen: 50, smile: 120, leftWink: 60, rightWink: 60, noseX: 640, noseY: 480, accent: 100 };
 const COUNTRY_CODES = [
   'AR', 'AU', 'AT', 'BE', 'BO', 'BR', 'BG', 'CA', 'CL', 'CN', 'CO', 'CR', 'CU', 'CZ', 'DK', 'DO', 'EC', 'EG',
   'SV', 'FI', 'FR', 'DE', 'GR', 'GT', 'HN', 'HK', 'HU', 'IS', 'IN', 'ID', 'IE', 'IL', 'IT', 'JP', 'KE', 'KR', 'LV',
@@ -521,7 +522,77 @@ async function initialize() {
     setText(elements.machineStatusMessage, `Unavailable`);
   }
 
+  initSession();
   window.setInterval(refreshStatus, POLL_INTERVAL_MS);
+}
+
+// ─── Participant session ───────────────────────────────────────────────────
+
+let _session = null;
+
+function initSession() {
+  const startBtn  = document.getElementById('startSessionBtn');
+  const stopBtn   = document.getElementById('stopSessionBtn');
+  const statusEl  = document.getElementById('sessionStatus');
+  const videoSec  = document.getElementById('sessionVideoSection');
+  const videoEl   = document.getElementById('sessionVideo');
+  const canvasEl  = document.getElementById('sessionCanvas');
+
+  if (!startBtn) return;
+
+  startBtn.addEventListener('click', async () => {
+    if (_session) return;
+    startBtn.disabled = true;
+    startBtn.textContent = 'Loading…';
+
+    const { ParticipantSession } = await import('./live_session.js');
+    _session = new ParticipantSession({
+      relayOrigin: state.relayOrigin,
+      nickname: 'Guest',
+      countryCode: '',
+      onStatus({ phase, message }) {
+        statusEl.textContent = message;
+        statusEl.className = 'session-status ' + (phase === 'active' ? 'active' : phase === 'error' ? 'error' : '');
+        if (phase === 'active') {
+          videoSec.classList.remove('hidden');
+          videoSec.style.display = '';
+          startBtn.classList.add('hidden');
+          stopBtn.classList.remove('hidden');
+          stopBtn.disabled = false;
+        }
+        if (phase === 'error' || phase === 'stopped') {
+          startBtn.disabled = false;
+          startBtn.textContent = 'Start Session';
+          startBtn.classList.remove('hidden');
+          stopBtn.classList.add('hidden');
+          videoSec.classList.add('hidden');
+          _session = null;
+        }
+      },
+      onGestures(gestures) {
+        renderGestureBars(gestures);
+      },
+    });
+
+    await _session.start(videoEl, canvasEl);
+  });
+
+  stopBtn.addEventListener('click', () => {
+    _session?.stop();
+    _session = null;
+  });
+}
+
+function renderGestureBars(gestures) {
+  for (const [name, value] of Object.entries(gestures)) {
+    const bar = document.getElementById(`bar-${name}`);
+    const val = document.getElementById(`val-${name}`);
+    if (!bar || !val) continue;
+    const max = GESTURE_BAR_MAX[name] || 100;
+    const pct = Math.min(100, Math.round((value / max) * 100));
+    bar.style.width = `${pct}%`;
+    val.textContent = Math.round(value);
+  }
 }
 
 initialize();
