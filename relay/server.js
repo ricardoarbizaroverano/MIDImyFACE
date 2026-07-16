@@ -63,6 +63,7 @@ const LIVE_FIREBASE_STORAGE_BUCKET   = process.env.LIVE_FIREBASE_STORAGE_BUCKET 
 const LIVE_FIREBASE_MESSAGING_ID     = process.env.LIVE_FIREBASE_MESSAGING_ID      || '';
 const LIVE_FIREBASE_APP_ID           = process.env.LIVE_FIREBASE_APP_ID            || '';
 const LIVE_FIREBASE_MEASUREMENT_ID   = process.env.LIVE_FIREBASE_MEASUREMENT_ID    || '';
+const LIVE_PRIORITY_EMAILS_RAW       = process.env.LIVE_PRIORITY_EMAILS            || 'ricardoarbizaroverano@gmail.com';
 
 // Comma-separated list like:
 // "https://midimyface.com,https://www.midimyface.com,http://127.0.0.1:5500"
@@ -79,6 +80,10 @@ const LIVE_INSTAGRAM_URL = `https://www.instagram.com/${LIVE_INSTAGRAM_HANDLE.re
 const LIVE_YOUTUBE_CHANNEL_URL = `https://www.youtube.com/channel/${LIVE_YOUTUBE_CHANNEL_ID}`;
 const LIVE_YOUTUBE_VIDEOS_URL = `${LIVE_YOUTUBE_CHANNEL_URL}/videos`;
 const LIVE_YOUTUBE_LIVE_EMBED_URL = `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(LIVE_YOUTUBE_CHANNEL_ID)}&autoplay=1`;
+const LIVE_PRIORITY_EMAILS = LIVE_PRIORITY_EMAILS_RAW
+  .split(',')
+  .map((email) => String(email || '').trim().toLowerCase())
+  .filter(Boolean);
 
 function ensureSecureConfig() {
   const missing = [];
@@ -264,6 +269,7 @@ function createDefaultLiveState() {
       enabled: firebaseConfigured(),
       firebaseConfigured: firebaseConfigured(),
       ownerEmail: LIVE_OWNER_EMAIL,
+      priorityEmails: LIVE_PRIORITY_EMAILS,
       collectionNames: {
         participants: 'liveParticipants',
         notifications: 'liveNotifications',
@@ -341,6 +347,7 @@ function sanitizeLiveStatePatch(input) {
       enabled: firebaseConfigured(),
       firebaseConfigured: firebaseConfigured(),
       ownerEmail: LIVE_OWNER_EMAIL,
+      priorityEmails: LIVE_PRIORITY_EMAILS,
       collectionNames: {
         participants: 'liveParticipants',
         notifications: 'liveNotifications',
@@ -413,6 +420,7 @@ function buildLiveBootstrapPayload() {
       firebaseConfigured: firebaseConfigured(),
       firebase: firebasePublicConfig(),
       ownerEmail: LIVE_OWNER_EMAIL,
+      priorityEmails: LIVE_PRIORITY_EMAILS,
       collectionNames: {
         participants: 'liveParticipants',
         notifications: 'liveNotifications',

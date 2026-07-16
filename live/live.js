@@ -95,6 +95,13 @@ function show(node, visible) {
   node.classList.toggle('hidden', !visible);
 }
 
+function isPriorityParticipantEmail(email, bootstrap) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return false;
+  const priorityEmails = (bootstrap?.auth?.priorityEmails || []).map((value) => String(value || '').trim().toLowerCase());
+  return priorityEmails.includes(normalized);
+}
+
 function intlDateFormatter(timeZone) {
   try {
     return new Intl.DateTimeFormat(undefined, {
@@ -352,7 +359,8 @@ function renderAuthState(bootstrap) {
 
   if (user) {
     const email = user.email || 'No email returned';
-    setText(elements.signedInNotice, `Signed in as ${user.displayName || 'MIDImyFACE guest'} · ${email}`);
+    const priorityBadge = isPriorityParticipantEmail(email, bootstrap) ? ' · Priority tester enabled' : '';
+    setText(elements.signedInNotice, `Signed in as ${user.displayName || 'MIDImyFACE guest'} · ${email}${priorityBadge}`);
     elements.signedInNotice.className = 'notice success';
     if (!elements.nicknameInput.value) {
       elements.nicknameInput.value = (user.displayName || '').slice(0, 40);
