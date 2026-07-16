@@ -63,6 +63,10 @@ async function run() {
   assert.equal(result.response.status, 201);
   assert.ok(result.body.token);
   const participantToken = result.body.token;
+  const fullFaceLandmarks = Array.from({ length: 468 }, (_, index) => ({
+    x: (index % 26) / 25,
+    y: Math.floor(index / 26) / 17,
+  }));
 
   result = await request('/api/live/session/gestures', {
     method: 'POST',
@@ -76,7 +80,7 @@ async function run() {
     headers: { Authorization: `Bearer ${participantToken}`, 'Content-Type': 'application/json', Origin: origin },
     body: JSON.stringify({
       gestures: { mouthOpen: 20.123, accent: 8.5 },
-      landmarks: [{ x: 0.25, y: 0.75 }, { x: 2, y: -1 }],
+      landmarks: fullFaceLandmarks,
     }),
   });
   assert.equal(result.response.status, 200);
@@ -90,7 +94,8 @@ async function run() {
   assert.equal(result.response.status, 200);
   assert.equal(result.body.fresh, true);
   assert.equal(result.body.participant.nickname, 'Test Player');
-  assert.deepEqual(result.body.landmarks, [{ x: 0.25, y: 0.75 }, { x: 1, y: 0 }]);
+  assert.equal(result.body.landmarks.length, 468);
+  assert.deepEqual(result.body.landmarks[0], { x: 0, y: 0 });
 
   result = await request('/api/live/session/stop', {
     method: 'POST',
