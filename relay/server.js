@@ -64,6 +64,9 @@ const LIVE_FIREBASE_MESSAGING_ID     = process.env.LIVE_FIREBASE_MESSAGING_ID   
 const LIVE_FIREBASE_APP_ID           = process.env.LIVE_FIREBASE_APP_ID            || '';
 const LIVE_FIREBASE_MEASUREMENT_ID   = process.env.LIVE_FIREBASE_MEASUREMENT_ID    || '';
 const LIVE_PRIORITY_EMAILS_RAW       = process.env.LIVE_PRIORITY_EMAILS            || 'ricardoarbizaroverano@gmail.com';
+const LIVE_SESSION_DURATION_SECONDS  = Math.max(15, Math.min(Number(process.env.LIVE_SESSION_DURATION_SECONDS || 30), 300));
+const LIVE_SNAPSHOT_TTL_MS           = Math.max(500, Math.min(Number(process.env.LIVE_SNAPSHOT_TTL_MS || 2500), 10_000));
+const LIVE_MAX_LANDMARKS             = 478;
 
 // Comma-separated list like:
 // "https://midimyface.com,https://www.midimyface.com,http://127.0.0.1:5500"
@@ -393,6 +396,62 @@ function persistLiveState(state) {
 
 let liveState = loadLiveState();
 let liveGestureSnapshot = null;
+let activeLiveSession = null;
+const liveSessionStartByIp = new Map();
+
+function liveRequestIp(req) {
+  return cleanString(String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0], 80);
+}
+
+function liveSessionExpired(session = activeLiveSession) {
+  return !session || Date.now() >= session.expiresAtMs;
+}
+
+function clearLiveSession() {
+  activeLiveSession = null;
+  liveGestureSnapshot = null;
+}
+
+function expireLiveSessionIfNeeded() {
+  if (activeLiveSession && liveSessionExpired(activeLiveSession)) clearLiveSession();
+}
+
+function liveParticipantAuth(req) {
+  expireLiveSessionIfNeeded();
+  if (!activeLiveSession) return null;
+  const bearerToken = parseBearerToken(req);
+  if (!bearerToken) return null;
+  const providedHash = Buffer.from(sha256(bearerToken), 'hex');
+  const expectedHash = Buffer.from(activeLiveSession.tokenHash, 'hex');
+  if (providedHash.length !== expectedHash.length || !crypto.timingSafeEqual(providedHash, expectedHash)) return null;
+  return activeLiveSession;
+}
+
+function sanitizeLiveLandmarks(value) {
+  if (!Array.isArray(value)) return [];
+  const landmarks = [];
+  for (const item of value.slice(0, LIVE_MAX_LANDMARKS)) {
+    const x = Number(item?.x);
+    const y = Number(item?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    landmarks.push({
+      x: Math.round(Math.max(0, Math.min(1, x)) * 10_000) / 10_000,
+      y: Math.round(Math.max(0, Math.min(1, y)) * 10_000) / 10_000,
+    });
+  }
+  return landmarks;
+}
+
+function publicLiveSession(session = activeLiveSession) {
+  if (!session) return null;
+  return {
+    sessionId: session.sessionId,
+    nickname: session.nickname,
+    countryCode: session.countryCode,
+    startedAt: session.startedAt,
+    expiresAt: session.expiresAt,
+  };
+}
 
 function updateLiveState(rawPatch, updatedBy = 'raspberry-pi') {
   const normalizedPatch = sanitizeLiveStatePatch({ ...rawPatch, updatedBy, updatedAt: new Date().toISOString() });
@@ -428,7 +487,7 @@ function buildLiveBootstrapPayload() {
       },
     },
     queuePolicy: {
-      turnDurationSeconds: 30,
+      turnDurationSeconds: LIVE_SESSION_DURATION_SECONDS,
       cooldownMinutes: 15,
       freeTurnsPerCooldownWindow: 1,
       paidExtraTurnsEnabled: false,
@@ -489,11 +548,24 @@ function parseConsoleAuth(req) {
   return consoleUsers.get(pl.sub) || null;
 }
 
-function readBody(req) {
+function readBody(req, maxBytes = 1_000_000) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', c => chunks.push(c));
+    let byteCount = 0;
+    let tooLarge = false;
+    req.on('data', c => {
+      byteCount += c.length;
+      if (byteCount > maxBytes) {
+        tooLarge = true;
+        return;
+      }
+      chunks.push(c);
+    });
     req.on('end', () => {
+      if (tooLarge) {
+        reject(new Error('payload_too_large'));
+        return;
+      }
       try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); }
       catch (e) { reject(e); }
     });
@@ -740,9 +812,11 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
     }
 
     if (req.method === 'GET' && parsed.pathname === '/api/live/status') {
+      expireLiveSessionIfNeeded();
       return sendJson(res, 200, {
         ok: true,
         status: liveState,
+        session: publicLiveSession(),
         serverTime: new Date().toISOString(),
       }, {
         ...c,
@@ -762,7 +836,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       }
 
       try {
-        const body = await readBody(req);
+        const body = await readBody(req, 8_192);
         const nextState = updateLiveState(body, cleanString(body?.updatedBy || 'raspberry-pi', 80) || 'raspberry-pi');
         return sendJson(res, 200, {
           ok: true,
@@ -774,10 +848,68 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       }
     }
 
-    // Public participant posts gesture snapshot from their browser camera
+    // Anonymous testing sessions still use a short-lived capability token. This
+    // prevents arbitrary public POSTs from being translated into GPIO activity.
+    if (req.method === 'POST' && parsed.pathname === '/api/live/session/start') {
+      try {
+        expireLiveSessionIfNeeded();
+        if (!liveState.machine?.alive || !liveState.machine?.acceptingParticipants) {
+          return sendJson(res, 409, { ok: false, error: 'installation_not_accepting' }, c);
+        }
+
+        const ip = liveRequestIp(req);
+        if (liveSessionStartByIp.size > 1000) liveSessionStartByIp.clear();
+        const lastStart = liveSessionStartByIp.get(ip) || 0;
+        if (Date.now() - lastStart < 3000) {
+          return sendJson(res, 429, { ok: false, error: 'start_rate_limited', retryAfterMs: 3000 - (Date.now() - lastStart) }, c);
+        }
+        liveSessionStartByIp.set(ip, Date.now());
+
+        if (activeLiveSession) {
+          return sendJson(res, 409, {
+            ok: false,
+            error: 'installation_busy',
+            retryAfterMs: Math.max(0, activeLiveSession.expiresAtMs - Date.now()),
+          }, c);
+        }
+
+        const body = await readBody(req, 8_192);
+        const nickname = cleanString(body?.nickname || '', 40);
+        const countryCode = cleanString(body?.countryCode || '', 2).toUpperCase();
+        if (nickname.length < 2) return sendJson(res, 400, { ok: false, error: 'nickname_required' }, c);
+        if (!/^[A-Z]{2}$/.test(countryCode)) return sendJson(res, 400, { ok: false, error: 'country_required' }, c);
+
+        const token = crypto.randomBytes(32).toString('base64url');
+        const startedAtMs = Date.now();
+        const expiresAtMs = startedAtMs + LIVE_SESSION_DURATION_SECONDS * 1000;
+        activeLiveSession = {
+          sessionId: genId(),
+          tokenHash: sha256(token),
+          nickname,
+          countryCode,
+          startedAt: new Date(startedAtMs).toISOString(),
+          expiresAt: new Date(expiresAtMs).toISOString(),
+          expiresAtMs,
+          lastSeenAtMs: startedAtMs,
+        };
+        liveGestureSnapshot = null;
+        return sendJson(res, 201, {
+          ok: true,
+          token,
+          session: publicLiveSession(activeLiveSession),
+          serverTime: new Date().toISOString(),
+        }, { ...c, 'Cache-Control': 'no-store' });
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
+    }
+
+    // The active participant posts gesture and landmark snapshots.
     if (req.method === 'POST' && parsed.pathname === '/api/live/session/gestures') {
       try {
-        const body = await readBody(req);
+        const session = liveParticipantAuth(req);
+        if (!session) return sendJson(res, 401, { ok: false, error: 'invalid_or_expired_session' }, c);
+        const body = await readBody(req, 128_000);
         const gestures = isPlainObject(body?.gestures) ? body.gestures : {};
         const sanitized = {};
         const GESTURE_KEYS = ['mouthOpen','smile','leftWink','rightWink','noseX','noseY','accent'];
@@ -790,13 +922,19 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         }
         liveGestureSnapshot = {
           gestures: sanitized,
+          landmarks: sanitizeLiveLandmarks(body?.landmarks),
           updatedAt: new Date().toISOString(),
-          participant: {
-            nickname: cleanString(body?.nickname || '', 40) || 'Guest',
-            countryCode: cleanString(body?.countryCode || '', 2).toUpperCase(),
-          },
+          participant: { nickname: session.nickname, countryCode: session.countryCode },
+          sessionId: session.sessionId,
         };
-        return sendJson(res, 200, { ok: true, gestures: sanitized, serverTime: new Date().toISOString() }, {
+        session.lastSeenAtMs = Date.now();
+        return sendJson(res, 200, {
+          ok: true,
+          gestures: sanitized,
+          expiresAt: session.expiresAt,
+          remainingMs: Math.max(0, session.expiresAtMs - Date.now()),
+          serverTime: new Date().toISOString(),
+        }, {
           ...c,
           'Cache-Control': 'no-store',
         });
@@ -807,13 +945,43 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
 
     // Pi polls this to get the latest gesture snapshot from the current participant
     if (req.method === 'GET' && parsed.pathname === '/api/live/session/gestures') {
+      if (!RPI_DEVICE_TOKEN) return sendJson(res, 503, { ok: false, error: 'rpi_device_token_not_configured' }, c);
+      const bearerToken = parseBearerToken(req);
+      if (!bearerToken || bearerToken !== RPI_DEVICE_TOKEN) {
+        return sendJson(res, 401, { ok: false, error: 'unauthorized_device' }, c);
+      }
+      expireLiveSessionIfNeeded();
+      const snapshotAgeMs = liveGestureSnapshot?.updatedAt ? Date.now() - Date.parse(liveGestureSnapshot.updatedAt) : null;
+      const fresh = snapshotAgeMs !== null && Number.isFinite(snapshotAgeMs) && snapshotAgeMs <= LIVE_SNAPSHOT_TTL_MS;
       return sendJson(res, 200, {
         ok: true,
-        ...(liveGestureSnapshot || { gestures: {}, updatedAt: null, participant: null }),
+        active: Boolean(activeLiveSession),
+        fresh,
+        stale: Boolean(activeLiveSession && !fresh),
+        session: publicLiveSession(),
+        ...(fresh ? liveGestureSnapshot : {
+          gestures: {},
+          landmarks: [],
+          updatedAt: liveGestureSnapshot?.updatedAt || null,
+          participant: activeLiveSession ? {
+            nickname: activeLiveSession.nickname,
+            countryCode: activeLiveSession.countryCode,
+          } : null,
+        }),
         serverTime: new Date().toISOString(),
       }, {
         ...c,
         'Cache-Control': 'no-store, no-cache, must-revalidate',
+      });
+    }
+
+    if (req.method === 'POST' && parsed.pathname === '/api/live/session/stop') {
+      const session = liveParticipantAuth(req);
+      if (!session) return sendJson(res, 401, { ok: false, error: 'invalid_or_expired_session' }, c);
+      clearLiveSession();
+      return sendJson(res, 200, { ok: true, stopped: true, serverTime: new Date().toISOString() }, {
+        ...c,
+        'Cache-Control': 'no-store',
       });
     }
 

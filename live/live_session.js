@@ -4,7 +4,7 @@
  * Landmark indices match the main MIDImyFACE source: src/script.js.
  */
 
-const GESTURE_POST_INTERVAL_MS = 80;   // ~12 Hz posting rate
+const GESTURE_POST_INTERVAL_MS = 100;  // 10 Hz: responsive without flooding the relay
 const MEDIAPIPE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619';
 
 // Landmark indices used in the main script
@@ -62,15 +62,17 @@ export function smoothLandmarks(raw, cache) {
 
 // ------- session class -------
 export class ParticipantSession {
-  constructor({ relayOrigin, nickname, countryCode, onStatus, onGestures }) {
+  constructor({ relayOrigin, token, session, onStatus, onGestures }) {
     this.relayOrigin   = relayOrigin;
-    this.nickname      = nickname || 'Guest';
-    this.countryCode   = (countryCode || '').toUpperCase();
+    this.token         = token;
+    this.session       = session;
     this.onStatus      = onStatus || (() => {});
     this.onGestures    = onGestures || (() => {});
     this.running       = false;
     this._lmCache      = {};
     this._lastGestures = null;
+    this._lastLandmarks = null;
+    this._accentLandmarks = null;
     this._postTimer    = null;
     this._video        = null;
     this._canvas       = null;
@@ -88,12 +90,13 @@ export class ParticipantSession {
       this._stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
     } catch (err) {
       this.onStatus({ phase: 'error', message: `Camera denied: ${err.message}` });
+      await this._stopRemote();
       return;
     }
 
     this._video.srcObject = this._stream;
     await new Promise((resolve) => { this._video.onloadedmetadata = resolve; });
-    this._video.play();
+    await this._video.play();
     this._clearCanvas(this._video.videoWidth || 640, this._video.videoHeight || 480);
 
     this.onStatus({ phase: 'model', message: 'Loading face model…' });
@@ -101,6 +104,8 @@ export class ParticipantSession {
       await this._loadFaceMesh();
     } catch (err) {
       this.onStatus({ phase: 'error', message: `Model failed: ${err.message}` });
+      await this._stopRemote();
+      this._stream?.getTracks().forEach((track) => track.stop());
       return;
     }
 
@@ -109,12 +114,13 @@ export class ParticipantSession {
     this._processLoop();
   }
 
-  stop() {
+  async stop({ notifyRelay = true } = {}) {
     this.running = false;
     clearTimeout(this._postTimer);
     this._stream?.getTracks().forEach((t) => t.stop());
     this._faceMesh?.close?.();
     this._clearCanvas(this._canvas?.width || 640, this._canvas?.height || 480);
+    if (notifyRelay) await this._stopRemote();
     this.onStatus({ phase: 'stopped', message: 'Session ended.' });
   }
 
@@ -142,11 +148,30 @@ export class ParticipantSession {
     const W = this._video.videoWidth  || 640;
     const H = this._video.videoHeight || 480;
     const gestures = extractGestures(smoothed, W, H);
+    gestures.accent = this._computeAccent(smoothed, W, H);
     this._lastGestures = gestures;
+    this._lastLandmarks = smoothed.map((landmark) => ({ x: landmark.x, y: landmark.y }));
     this.onGestures(gestures, smoothed);
 
     // Draw landmark overlay on canvas
     this._drawLandmarks(smoothed, W, H);
+  }
+
+  _computeAccent(landmarks, W, H) {
+    const indices = [1, 10, 13, 14, 61, 152, 263, 291];
+    const current = indices.map((index) => landmarks[index]).filter(Boolean);
+    if (!this._accentLandmarks || this._accentLandmarks.length !== current.length) {
+      this._accentLandmarks = current.map((landmark) => ({ x: landmark.x, y: landmark.y }));
+      return 0;
+    }
+    let totalPixels = 0;
+    current.forEach((landmark, index) => {
+      const previous = this._accentLandmarks[index];
+      totalPixels += Math.hypot((landmark.x - previous.x) * W, (landmark.y - previous.y) * H);
+      previous.x = landmark.x;
+      previous.y = landmark.y;
+    });
+    return Math.min(100, totalPixels / Math.max(1, current.length) * 4);
   }
 
   _drawLandmarks(landmarks, W, H) {
@@ -186,19 +211,50 @@ export class ParticipantSession {
     if (!this.running) return;
     this._postTimer = setTimeout(async () => {
       if (this._lastGestures) {
-        await this._postGestures(this._lastGestures).catch(() => {});
+        try {
+          await this._postGestures(this._lastGestures, this._lastLandmarks || []);
+        } catch (error) {
+          if (error?.status === 401 || error?.status === 410) {
+            this.running = false;
+            this._stream?.getTracks().forEach((track) => track.stop());
+            this._faceMesh?.close?.();
+            this.onStatus({ phase: 'expired', message: 'Your turn is complete.' });
+            return;
+          }
+        }
       }
       this._schedulePost();
     }, GESTURE_POST_INTERVAL_MS);
   }
 
-  async _postGestures(gestures) {
+  async _postGestures(gestures, landmarks) {
     const url = `${this.relayOrigin}/api/live/session/gestures`;
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gestures, nickname: this.nickname, countryCode: this.countryCode }),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` },
+      body: JSON.stringify({ gestures, landmarks }),
     });
+    if (!response.ok) {
+      const error = new Error(`gesture_post_${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+  }
+
+  async _stopRemote() {
+    if (!this.token) return;
+    const token = this.token;
+    this.token = '';
+    try {
+      await fetch(`${this.relayOrigin}/api/live/session/stop`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: '{}',
+        keepalive: true,
+      });
+    } catch {
+      // The server-side expiry remains the final hardware safety boundary.
+    }
   }
 }
 

@@ -2,547 +2,255 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>MIDImyFACE Live</title>
-  <meta name="description" content="MIDImyFACE live percussion stage.">
+  <meta name="description" content="Control the MIDImyFACE live percussion installation with facial gestures.">
   <style>
+    *, *::before, *::after { box-sizing: border-box; }
     :root {
       color-scheme: dark;
-      --bg: #000;
-      --panel: rgba(3, 8, 3, 0.96);
-      --line: rgba(0, 255, 0, 0.72);
-      --line-soft: rgba(0, 255, 0, 0.2);
-      --text: #e6ffe6;
-      --muted: #7fa07f;
-      --danger: #ff7b7b;
-      --radius: 18px;
-      --shadow: 0 0 24px rgba(0, 255, 0, 0.08);
+      --green: lime;
+      --green-soft: #7cff7c;
+      --muted: #8a8a8a;
+      --panel: #071007;
+      --danger: #ff6d6d;
     }
-
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      min-height: 100%;
-      background: var(--bg);
-      color: var(--text);
+    html, body { margin: 0; min-height: 100%; background: #000; color: var(--green); }
+    body {
       font-family: "Courier New", Courier, monospace;
-    }
-
-    body { overflow-x: hidden; }
-    a, button, input, select { font: inherit; color: inherit; }
-    a { text-decoration: none; }
-    h1, h2, p { margin: 0; }
-    .hidden { display: none !important; }
-
-    .shell {
-      width: min(1280px, calc(100vw - 24px));
-      margin: 0 auto;
-      padding: 12px 0 20px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .topbar,
-    .stage-card,
-    .stream-card,
-    .footer-bar {
-      background: var(--panel);
-      border: 1px solid var(--line-soft);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
-
-    .topbar {
-      padding: 14px 16px;
-      display: grid;
-      gap: 12px;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-    }
-
-    .brand {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 14px;
-      min-width: 0;
+      overflow-x: hidden;
     }
-
-    .brand-mark,
-    .glyph-button,
-    .glyph-link {
-      border: 1px solid var(--line-soft);
+    button, input, select, a { font: inherit; }
+    button, select, input {
       background: #000;
-      border-radius: 999px;
+      color: var(--green);
+      border: 1px solid var(--green);
+      border-radius: 0;
     }
-
-    .brand-mark {
-      width: 44px;
-      height: 44px;
-      display: grid;
-      place-items: center;
-      color: lime;
-      font-size: 22px;
-      flex-shrink: 0;
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.2em;
-      font-size: 11px;
-    }
-
-    .dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 999px;
-      background: var(--muted);
-      box-shadow: 0 0 14px rgba(127, 160, 127, 0.32);
-    }
-
-    #heroTitle {
-      color: lime;
-      font-size: clamp(1.35rem, 3vw, 2.4rem);
-      line-height: 1;
-      letter-spacing: -0.05em;
-    }
-
-    #heroSubtitle {
-      margin-top: 4px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .hud {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .hud-pill {
-      min-width: 92px;
-      padding: 8px 12px;
-      border: 1px solid var(--line-soft);
-      border-radius: 999px;
-      background: #000;
-      text-align: center;
-    }
-
-    .hud-value {
-      color: lime;
-      font-size: 14px;
-      line-height: 1;
-    }
-
-    .hud-label {
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      font-size: 10px;
-      margin-top: 3px;
-    }
-
-    .stage-card {
-      padding: 12px;
-      display: grid;
-      gap: 12px;
-      min-height: 74vh;
-    }
-
-    .stage-head,
-    .footer-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .status-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
+    button, a.action {
+      min-height: 42px;
       padding: 8px 14px;
-      border: 1px solid var(--line-soft);
-      border-radius: 999px;
-      background: #000;
-      color: var(--muted);
-    }
-
-    .status-chip .status-text { color: lime; }
-    .status-offline .dot { background: var(--danger); box-shadow: 0 0 16px rgba(255, 123, 123, 0.4); }
-    .status-online .dot,
-    .status-live .dot { background: lime; box-shadow: 0 0 16px rgba(0, 255, 0, 0.4); }
-
-    .control-row,
-    .footer-links,
-    #donationButtons {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .glyph-button,
-    .glyph-link {
-      appearance: none;
-      min-width: 48px;
-      min-height: 48px;
-      padding: 0 14px;
+      cursor: pointer;
+      text-decoration: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      cursor: pointer;
-      transition: transform 120ms ease, border-color 120ms ease, opacity 120ms ease;
-    }
-
-    .glyph-button:hover,
-    .glyph-link:hover {
-      transform: translateY(-1px);
-      border-color: var(--line);
-    }
-
-    .glyph-button[disabled] {
-      opacity: 0.5;
-      cursor: wait;
-      transform: none;
-    }
-
-    .glyph-primary { background: rgba(0, 255, 0, 0.12); }
-    .glyph-danger { border-color: rgba(255, 123, 123, 0.28); }
-    .glyph { font-size: 18px; line-height: 1; color: lime; }
-    .glyph-label { font-size: 12px; color: var(--muted); }
-
-    .stage {
-      position: relative;
-      min-height: clamp(420px, 68vh, 940px);
-      background: #000;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      overflow: hidden;
-    }
-
-    #sessionVideoSection {
-      position: absolute;
-      inset: 0;
-      display: block;
-    }
-
-    #sessionVideo,
-    #sessionCanvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    #sessionVideo {
-      opacity: 0;
-      transform: scaleX(-1);
-      pointer-events: none;
-    }
-
-    #sessionCanvas { z-index: 1; }
-
-    .session-intro,
-    .session-status,
-    .gesture-dock,
-    .close-session {
-      position: absolute;
-      z-index: 2;
-    }
-
-    .session-intro {
-      inset: 0;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background: radial-gradient(circle at center, rgba(0, 35, 0, 0.18), rgba(0, 0, 0, 0.9) 70%);
-      text-align: center;
-    }
-
-    .session-intro.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .intro-card {
-      width: min(100%, 420px);
-      padding: 24px 20px;
-      border: 1px solid var(--line-soft);
-      border-radius: 18px;
-      background: rgba(0, 0, 0, 0.84);
-      display: grid;
-      gap: 12px;
-      justify-items: center;
-    }
-
-    .intro-icon {
-      width: 72px;
-      height: 72px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      display: grid;
-      place-items: center;
-      color: lime;
-      font-size: 32px;
-    }
-
-    .intro-title { color: lime; font-size: 24px; }
-    .intro-copy { color: var(--muted); font-size: 13px; line-height: 1.45; max-width: 28ch; }
-
-    .session-status {
-      top: 14px;
-      left: 14px;
-      min-height: 40px;
-      display: inline-flex;
-      align-items: center;
-      padding: 8px 14px;
-      border: 1px solid var(--line-soft);
-      border-radius: 999px;
-      background: rgba(0, 0, 0, 0.72);
-      color: var(--muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-    }
-
-    .session-status.active { color: lime; }
-    .session-status.error { color: #ffdcdc; border-color: rgba(255, 123, 123, 0.36); }
-
-    .close-session {
-      top: 14px;
-      right: 14px;
-      width: 42px;
-      height: 42px;
-      padding: 0;
-      display: grid;
-      place-items: center;
-    }
-
-    .gesture-dock {
-      left: 14px;
-      right: 14px;
-      bottom: 14px;
-      display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
       gap: 8px;
     }
-
-    .gesture-meter {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 8px;
-      align-items: center;
-      min-width: 0;
-      padding: 8px 10px;
-      border: 1px solid var(--line-soft);
-      border-radius: 999px;
-      background: rgba(0, 0, 0, 0.74);
+    button:hover, button:focus-visible, a.action:hover, a.action:focus-visible {
+      background: var(--green);
+      color: #000;
+      outline: none;
     }
+    button:disabled { opacity: .45; cursor: not-allowed; background: #000; color: var(--green); }
+    .hidden { display: none !important; }
 
-    .gesture-icon { color: lime; font-size: 15px; }
-    .gesture-track { height: 6px; border-radius: 999px; overflow: hidden; background: rgba(0, 255, 0, 0.12); }
-    .gesture-fill { width: 0%; height: 100%; background: lime; box-shadow: 0 0 10px rgba(0, 255, 0, 0.28); transition: width 70ms linear; }
-    .gesture-value { min-width: 24px; text-align: right; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    #header { margin-top: 10px; text-align: center; padding: 0 12px; }
+    #title { font-size: 24px; margin: 0; }
+    #subtitle { font-size: 14px; color: gray; margin: 0; }
 
-    .stream-card {
-      padding: 12px 14px;
-      display: grid;
-      gap: 10px;
-    }
-
-    .stream-head {
+    .installation-status {
+      width: 90vw;
+      max-width: 1280px;
+      margin: 10px auto 0;
+      min-height: 36px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    #streamTitle {
-      color: lime;
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-    }
-
-    #streamDescription,
-    #streamFallback,
-    #machineStatusMessage {
+      gap: 12px;
       color: var(--muted);
+      font-size: 13px;
+    }
+    .status-left, .status-right { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .status-dot { width: 11px; height: 11px; border-radius: 50%; background: #d33; box-shadow: 0 0 10px rgba(255,0,0,.35); }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 12px rgba(0,255,0,.45); }
+    #machineStatus { color: var(--green); }
+    #participantBadge { color: white; }
+    #sessionCountdown { color: var(--green); font-weight: bold; min-width: 4ch; text-align: right; }
+
+    #videoContainer {
+      width: 90vw;
+      max-width: 1280px;
+      aspect-ratio: 16 / 9;
+      border: 2px solid var(--green);
+      overflow: hidden;
+      position: relative;
+      margin: 10px auto;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #sessionVideo, #sessionCanvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    #sessionVideo { opacity: 0; transform: scaleX(-1); pointer-events: none; }
+    #sessionCanvas { z-index: 10; }
+
+    .session-intro {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: radial-gradient(circle, rgba(0,35,0,.26), rgba(0,0,0,.94) 72%);
+    }
+    .intro-panel { width: min(100%, 520px); border: 1px solid var(--green); background: rgba(0,0,0,.9); padding: 22px; }
+    .intro-panel h2 { font-size: 21px; margin: 0 0 8px; text-align: center; }
+    .intro-panel p { color: #aaa; font-size: 13px; line-height: 1.45; margin: 0 0 18px; text-align: center; }
+    .identity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { display: grid; gap: 5px; color: #aaa; font-size: 12px; }
+    .field input, .field select { width: 100%; min-height: 42px; padding: 8px 10px; }
+    .field input:focus, .field select:focus { outline: 2px solid rgba(0,255,0,.35); outline-offset: 1px; }
+    #startSessionBtn { width: 100%; margin-top: 14px; font-weight: bold; }
+    #formMessage { min-height: 18px; margin-top: 10px; color: #aaa; font-size: 12px; text-align: center; }
+    #formMessage.error { color: #ffb2b2; }
+
+    .session-overlay-status {
+      position: absolute;
+      z-index: 30;
+      top: 12px;
+      left: 12px;
+      max-width: calc(100% - 90px);
+      padding: 7px 10px;
+      color: var(--green);
+      background: rgba(0,0,0,.82);
+      border: 1px solid rgba(0,255,0,.55);
       font-size: 12px;
     }
-
-    iframe {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      border: 1px solid var(--line-soft);
-      border-radius: 14px;
-      background: #000;
-    }
-
-    .footer-bar { padding: 12px 14px; }
-    .footer-note { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .aux-root { display: none; }
-
-    body.session-active { overflow: hidden; }
-    body.session-active .topbar,
-    body.session-active .stream-card,
-    body.session-active .footer-bar {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    body.session-active .stage-card {
-      position: fixed;
-      inset: 0;
-      z-index: 999;
-      margin: 0;
-      width: 100vw;
-      min-height: 100vh;
-      padding: 0;
-      border: none;
-      border-radius: 0;
-      box-shadow: none;
-      background: #000;
-    }
-
-    body.session-active .stage-head {
+    #closeSessionBtn {
       position: absolute;
-      top: 14px;
-      right: 70px;
-      z-index: 3;
+      z-index: 31;
+      top: 12px;
+      right: 12px;
+      width: 42px;
+      padding: 0;
+      font-size: 22px;
+      background: rgba(0,0,0,.82);
     }
 
-    body.session-active .status-chip { display: none; }
-    body.session-active .stage {
-      min-height: 100vh;
-      height: 100vh;
-      border: none;
-      border-radius: 0;
+    .gesture-dock {
+      position: absolute;
+      z-index: 25;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
     }
+    .gesture-meter { background: rgba(0,0,0,.82); border: 1px solid rgba(0,255,0,.45); padding: 6px; min-width: 0; }
+    .gesture-label { display: flex; justify-content: space-between; gap: 4px; color: #aaa; font-size: 10px; white-space: nowrap; }
+    .gesture-label span:last-child { color: var(--green); }
+    .gesture-track { height: 5px; margin-top: 5px; background: #183018; overflow: hidden; }
+    .gesture-fill { width: 0; height: 100%; background: var(--green); transition: width 70ms linear; }
 
-    @media (max-width: 920px) {
-      .topbar { grid-template-columns: 1fr; }
-      .hud { justify-content: flex-start; }
+    .control-row {
+      width: 90vw;
+      max-width: 1280px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0 auto 12px;
+    }
+    #stopSessionBtn { border-color: var(--danger); color: var(--danger); }
+    #stopSessionBtn:hover { background: var(--danger); color: #000; }
+    a.action { border: 1px solid var(--green); color: var(--green); }
+
+    .live-info {
+      width: 90vw;
+      max-width: 900px;
+      margin: 8px auto 28px;
+      padding-top: 12px;
+      border-top: 1px solid #175817;
+      color: #888;
+      font-size: 12px;
+      line-height: 1.5;
+      text-align: center;
+    }
+    .live-info strong { color: var(--green); }
+    .privacy-note { display: block; margin-top: 5px; color: #666; }
+
+    body.session-active #header,
+    body.session-active .installation-status,
+    body.session-active .control-row,
+    body.session-active .live-info { display: none; }
+    body.session-active #videoContainer { width: 100vw; max-width: none; height: 100vh; aspect-ratio: auto; border: 0; margin: 0; }
+
+    @media (max-width: 760px) {
+      .installation-status { align-items: flex-start; }
+      .status-right { justify-content: flex-end; }
+      #videoContainer { width: 94vw; min-height: 520px; aspect-ratio: auto; }
+      .identity-grid { grid-template-columns: 1fr; }
+      .intro-panel { padding: 17px; }
       .gesture-dock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-
-    @media (max-width: 640px) {
-      .glyph-label { display: none; }
-      .gesture-dock { grid-template-columns: 1fr; }
-      .session-status { right: 14px; }
-      body.session-active .stage-head { left: 14px; right: 14px; justify-content: flex-end; }
+      .gesture-meter:last-child { grid-column: 1 / -1; }
+      .control-row, .live-info { width: 94vw; }
     }
   </style>
 </head>
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">◉</div>
-        <div>
-          <div class="eyebrow" id="heroEyebrow"><span class="dot"></span><span>Live stage</span></div>
-          <h1 id="heroTitle">MIDImyFACE</h1>
-          <p id="heroSubtitle">Percussion · landmarks</p>
+  <header id="header">
+    <h1 id="title">MIDImyFACE Live</h1>
+    <p id="subtitle">Control the percussion installation with your face</p>
+  </header>
+
+  <div class="installation-status" aria-live="polite">
+    <div class="status-left"><span id="statusDot" class="status-dot"></span><span id="machineStatus">Connecting…</span><span id="machineMessage"></span></div>
+    <div class="status-right"><span id="participantBadge"></span><span id="sessionCountdown"></span></div>
+  </div>
+
+  <main id="videoContainer">
+    <video id="sessionVideo" autoplay playsinline muted></video>
+    <canvas id="sessionCanvas"></canvas>
+
+    <section id="sessionIntro" class="session-intro">
+      <form id="identityForm" class="intro-panel">
+        <h2>Join the live instrument</h2>
+        <p>Choose how you appear on the Raspberry Pi screen. Your camera stays in this browser; only landmark coordinates and gesture values are sent during your short turn.</p>
+        <div class="identity-grid">
+          <label class="field">Nickname
+            <input id="nicknameInput" name="nickname" type="text" maxlength="40" minlength="2" autocomplete="nickname" required placeholder="Your stage name">
+          </label>
+          <label class="field">Country
+            <select id="countrySelect" name="country" required><option value="">Choose country</option></select>
+          </label>
         </div>
-      </div>
-      <div class="hud">
-        <div class="hud-pill"><div class="hud-value" id="machineMode">Offline</div><div class="hud-label">Mode</div></div>
-        <div class="hud-pill"><div class="hud-value" id="queuePolicy">7 solenoids</div><div class="hud-label">Rig</div></div>
-        <div class="hud-pill"><div class="hud-value" id="lastUpdateLabel">Waiting</div><div class="hud-label">Status</div></div>
-      </div>
-    </header>
-
-    <section class="stage-card" id="sessionPanel">
-      <div class="stage-head">
-        <div class="status-chip" id="statusCard"><span class="dot"></span><span class="status-text" id="machineStatusLabel">Loading…</span></div>
-        <div class="control-row">
-          <button id="startSessionBtn" class="glyph-button glyph-primary" type="button" title="Start session" aria-label="Start session"><span class="glyph">▶</span><span class="glyph-label">Start</span></button>
-          <button id="stopSessionBtn" class="glyph-button glyph-danger hidden" type="button" title="Stop session" aria-label="Stop session"><span class="glyph">■</span><span class="glyph-label">Stop</span></button>
-          <a id="watchLiveButton" class="glyph-link" href="#streamPanel" title="Past videos" aria-label="Past videos"><span class="glyph">⏺</span><span class="glyph-label">Past</span></a>
-          <a id="visitChannelButton" class="glyph-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noreferrer" title="Channel" aria-label="Channel"><span class="glyph">↗</span><span class="glyph-label">Channel</span></a>
-        </div>
-      </div>
-
-      <div class="stage">
-        <div id="sessionVideoSection" class="hidden">
-          <video id="sessionVideo" autoplay playsinline muted></video>
-          <canvas id="sessionCanvas"></canvas>
-        </div>
-
-        <div class="session-intro" id="sessionIntro">
-          <div class="intro-card">
-            <div class="intro-icon">☺</div>
-            <div class="intro-title" id="sessionTitle">Presentation mode</div>
-            <p class="intro-copy" id="sessionDesc">Start the camera and use the same landmark-only percussion feeling as the main MIDImyFACE presentation mode.</p>
-          </div>
-        </div>
-
-        <div class="session-status" id="sessionStatus">Ready</div>
-        <button id="closeSessionBtn" class="glyph-button close-session hidden" type="button" title="Close presentation" aria-label="Close presentation"><span class="glyph">×</span></button>
-
-        <div class="gesture-dock" id="gestureBars">
-          <div class="gesture-meter"><span class="gesture-icon" title="Mouth open">◔</span><div class="gesture-track"><div class="gesture-fill" id="bar-mouthOpen"></div></div><span class="gesture-value" id="val-mouthOpen">0</span></div>
-          <div class="gesture-meter"><span class="gesture-icon" title="Smile">☺</span><div class="gesture-track"><div class="gesture-fill" id="bar-smile"></div></div><span class="gesture-value" id="val-smile">0</span></div>
-          <div class="gesture-meter"><span class="gesture-icon" title="Left wink">◐</span><div class="gesture-track"><div class="gesture-fill" id="bar-leftWink"></div></div><span class="gesture-value" id="val-leftWink">0</span></div>
-          <div class="gesture-meter"><span class="gesture-icon" title="Right wink">◑</span><div class="gesture-track"><div class="gesture-fill" id="bar-rightWink"></div></div><span class="gesture-value" id="val-rightWink">0</span></div>
-          <div class="gesture-meter"><span class="gesture-icon" title="Nose X">↔</span><div class="gesture-track"><div class="gesture-fill" id="bar-noseX"></div></div><span class="gesture-value" id="val-noseX">0</span></div>
-          <div class="gesture-meter"><span class="gesture-icon" title="Nose Y">↕</span><div class="gesture-track"><div class="gesture-fill" id="bar-noseY"></div></div><span class="gesture-value" id="val-noseY">0</span></div>
-          <div class="gesture-meter"><span class="gesture-icon" title="Accent">✶</span><div class="gesture-track"><div class="gesture-fill" id="bar-accent"></div></div><span class="gesture-value" id="val-accent">0</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="stream-card" id="streamPanel">
-      <div class="stream-head">
-        <h2 id="streamTitle">Live feed</h2>
-        <div class="footer-links">
-          <a id="channelButton" class="glyph-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noreferrer" title="YouTube" aria-label="YouTube"><span class="glyph">▶</span><span class="glyph-label">YouTube</span></a>
-          <a id="videosButton" class="glyph-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g/videos" target="_blank" rel="noreferrer" title="Past videos" aria-label="Past videos"><span class="glyph">⌁</span><span class="glyph-label">Past</span></a>
-          <a id="instagramButton" class="glyph-link" href="https://www.instagram.com/midimyface/" target="_blank" rel="noreferrer" title="Instagram" aria-label="Instagram"><span class="glyph">◎</span><span class="glyph-label">IG</span></a>
-        </div>
-      </div>
-      <p id="streamDescription">Waiting for stream status.</p>
-      <div id="streamEmbedWrap" class="hidden"><iframe id="youtubeEmbed" title="MIDImyFACE live stream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
-      <div id="streamFallback">No stream right now.</div>
-    </section>
-
-    <footer class="footer-bar">
-      <div class="footer-note"><span class="dot"></span><span id="machineStatusMessage">Waiting for Raspberry Pi updates.</span></div>
-      <div id="donationButtons"></div>
-    </footer>
-
-    <section class="aux-root" aria-hidden="true">
-      <div id="venueLabel"></div>
-      <div id="scheduleLabel"></div>
-      <div id="locationTitle"></div>
-      <div id="locationDetails"></div>
-      <div id="liveAccessTitle"></div>
-      <div id="liveAccessMessage"></div>
-      <div id="policyMessage"></div>
-      <div id="authUnavailable"></div>
-      <div id="authReady"></div>
-      <div id="authDescription"></div>
-      <button id="googleSignInButton" type="button"></button>
-      <button id="googleSignOutButton" type="button"></button>
-      <div id="signedInNotice"></div>
-      <form id="profileForm">
-        <input id="nicknameInput" name="nickname" type="text">
-        <select id="countrySelect" name="country"></select>
-        <input id="notifyCheckbox" name="notify" type="checkbox">
-        <button id="saveProfileButton" type="submit"></button>
-        <div id="profileMessage"></div>
+        <button id="startSessionBtn" type="submit">▶ Start camera session</button>
+        <div id="formMessage" aria-live="polite">No login required during testing.</div>
       </form>
     </section>
+
+    <div id="sessionStatus" class="session-overlay-status hidden" aria-live="polite">Ready</div>
+    <button id="closeSessionBtn" class="hidden" type="button" aria-label="End session">×</button>
+
+    <div id="gestureBars" class="gesture-dock hidden" aria-label="Live gesture values">
+      <div class="gesture-meter"><div class="gesture-label"><span>Mouth</span><span id="val-mouthOpen">0</span></div><div class="gesture-track"><div id="bar-mouthOpen" class="gesture-fill"></div></div></div>
+      <div class="gesture-meter"><div class="gesture-label"><span>Smile</span><span id="val-smile">0</span></div><div class="gesture-track"><div id="bar-smile" class="gesture-fill"></div></div></div>
+      <div class="gesture-meter"><div class="gesture-label"><span>L wink</span><span id="val-leftWink">0</span></div><div class="gesture-track"><div id="bar-leftWink" class="gesture-fill"></div></div></div>
+      <div class="gesture-meter"><div class="gesture-label"><span>R wink</span><span id="val-rightWink">0</span></div><div class="gesture-track"><div id="bar-rightWink" class="gesture-fill"></div></div></div>
+      <div class="gesture-meter"><div class="gesture-label"><span>Nose X</span><span id="val-noseX">0</span></div><div class="gesture-track"><div id="bar-noseX" class="gesture-fill"></div></div></div>
+      <div class="gesture-meter"><div class="gesture-label"><span>Nose Y</span><span id="val-noseY">0</span></div><div class="gesture-track"><div id="bar-noseY" class="gesture-fill"></div></div></div>
+      <div class="gesture-meter"><div class="gesture-label"><span>Accent</span><span id="val-accent">0</span></div><div class="gesture-track"><div id="bar-accent" class="gesture-fill"></div></div></div>
+    </div>
   </main>
+
+  <nav class="control-row" aria-label="Live controls">
+    <button id="stopSessionBtn" class="hidden" type="button">■ End session</button>
+    <a id="youtubeLink" class="action" target="_blank" rel="noreferrer">▶ YouTube</a>
+    <a id="pastVideosLink" class="action" target="_blank" rel="noreferrer">⌁ Previous sessions</a>
+    <a id="instagramLink" class="action" target="_blank" rel="noreferrer">◎ Instagram</a>
+  </nav>
+
+  <footer class="live-info">
+    <strong>7 facial triggers → 7 physical solenoids</strong><br>
+    One participant controls the installation at a time. Sessions end automatically and hardware output stops if the connection is lost.
+    <span class="privacy-note">No video or photograph is uploaded.</span>
+  </footer>
 
   <script type="module" src="./live.js"></script>
 </body>
