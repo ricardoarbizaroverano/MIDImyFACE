@@ -4,555 +4,544 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MIDImyFACE Live</title>
-  <meta name="description" content="Watch the MIDImyFACE installation, see venue status, and save your details for future live sessions.">
+  <meta name="description" content="MIDImyFACE live percussion stage.">
   <style>
     :root {
       color-scheme: dark;
-      --bg: #000000;
-      --bg-panel: rgba(0, 0, 0, 0.94);
-      --border: rgba(103, 255, 158, 0.42);
-      --border-strong: rgba(103, 255, 158, 0.82);
-      --text: #f4fff6;
-      --muted: #9ab79f;
-      --accent: #67ff9e;
-      --accent-2: #b5ff56;
-      --danger: #ff6d6d;
-      --warn: #ffd66d;
-      --shadow: none;
-      --radius: 14px;
+      --bg: #000;
+      --panel: rgba(3, 8, 3, 0.96);
+      --line: rgba(0, 255, 0, 0.72);
+      --line-soft: rgba(0, 255, 0, 0.2);
+      --text: #e6ffe6;
+      --muted: #7fa07f;
+      --danger: #ff7b7b;
+      --radius: 18px;
+      --shadow: 0 0 24px rgba(0, 255, 0, 0.08);
     }
 
     * { box-sizing: border-box; }
-
-    body {
+    html, body {
       margin: 0;
-      min-height: 100vh;
-      font-family: "Courier New", Courier, monospace;
+      min-height: 100%;
       background: var(--bg);
       color: var(--text);
+      font-family: "Courier New", Courier, monospace;
     }
 
-    a { color: inherit; }
+    body { overflow-x: hidden; }
+    a, button, input, select { font: inherit; color: inherit; }
+    a { text-decoration: none; }
+    h1, h2, p { margin: 0; }
+    .hidden { display: none !important; }
 
     .shell {
-      width: min(1180px, calc(100vw - 32px));
+      width: min(1280px, calc(100vw - 24px));
       margin: 0 auto;
-      padding: 32px 0 64px;
+      padding: 12px 0 20px;
+      display: grid;
+      gap: 12px;
     }
 
-    .hero,
-    .panel {
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
+    .topbar,
+    .stage-card,
+    .stream-card,
+    .footer-bar {
+      background: var(--panel);
+      border: 1px solid var(--line-soft);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      backdrop-filter: none;
     }
 
-    .hero {
+    .topbar {
+      padding: 14px 16px;
       display: grid;
-      gap: 24px;
-      padding: 28px;
-      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+      gap: 12px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-mark,
+    .glyph-button,
+    .glyph-link {
+      border: 1px solid var(--line-soft);
+      background: #000;
+      border-radius: 999px;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      color: lime;
+      font-size: 22px;
+      flex-shrink: 0;
     }
 
     .eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      font-size: 12px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
       color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      font-size: 11px;
     }
 
     .dot {
-      width: 10px;
-      height: 10px;
+      width: 9px;
+      height: 9px;
       border-radius: 999px;
-      background: var(--warn);
-      box-shadow: 0 0 20px rgba(255, 214, 109, 0.52);
+      background: var(--muted);
+      box-shadow: 0 0 14px rgba(127, 160, 127, 0.32);
     }
 
-    h1,
-    h2,
-    h3,
-    p { margin: 0; }
-
-    h1 {
-      font-size: clamp(2rem, 3.8vw, 4.2rem);
-      line-height: 0.95;
-      letter-spacing: -0.04em;
-      max-width: 11ch;
+    #heroTitle {
+      color: lime;
+      font-size: clamp(1.35rem, 3vw, 2.4rem);
+      line-height: 1;
+      letter-spacing: -0.05em;
     }
 
-    .hero-copy {
-      display: grid;
-      gap: 18px;
-      align-content: start;
-    }
-
-    .hero-copy p,
-    .meta-card p,
-    .panel p,
-    .small-copy {
+    #heroSubtitle {
+      margin-top: 4px;
       color: var(--muted);
-      line-height: 1.55;
+      font-size: 13px;
     }
 
-    .hero-actions,
-    .pill-row,
-    .donation-row,
-    .social-row {
+    .hud {
       display: flex;
+      gap: 10px;
       flex-wrap: wrap;
-      gap: 12px;
+      justify-content: flex-end;
     }
 
-    .button,
-    button,
-    select,
-    input {
-      font: inherit;
-    }
-
-    .button,
-    button {
-      appearance: none;
-      border: 1px solid var(--border-strong);
+    .hud-pill {
+      min-width: 92px;
+      padding: 8px 12px;
+      border: 1px solid var(--line-soft);
       border-radius: 999px;
-      background: #050805;
-      color: var(--text);
-      padding: 12px 18px;
-      cursor: pointer;
-      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
-      text-decoration: none;
+      background: #000;
+      text-align: center;
     }
 
-    .button:hover,
-    button:hover {
-      transform: translateY(-1px);
-      border-color: var(--accent);
+    .hud-value {
+      color: lime;
+      font-size: 14px;
+      line-height: 1;
     }
 
-    .button.primary,
-    button.primary {
-      background: linear-gradient(135deg, rgba(103, 255, 158, 0.22), rgba(181, 255, 86, 0.18));
+    .hud-label {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 10px;
+      margin-top: 3px;
     }
 
-    .button.ghost {
-      background: transparent;
-      border-color: rgba(255, 255, 255, 0.16);
+    .stage-card {
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+      min-height: 74vh;
+    }
+
+    .stage-head,
+    .footer-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border: 1px solid var(--line-soft);
+      border-radius: 999px;
+      background: #000;
       color: var(--muted);
     }
 
-    button[disabled] {
-      opacity: 0.55;
-      cursor: not-allowed;
+    .status-chip .status-text { color: lime; }
+    .status-offline .dot { background: var(--danger); box-shadow: 0 0 16px rgba(255, 123, 123, 0.4); }
+    .status-online .dot,
+    .status-live .dot { background: lime; box-shadow: 0 0 16px rgba(0, 255, 0, 0.4); }
+
+    .control-row,
+    .footer-links,
+    #donationButtons {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .glyph-button,
+    .glyph-link {
+      appearance: none;
+      min-width: 48px;
+      min-height: 48px;
+      padding: 0 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, opacity 120ms ease;
+    }
+
+    .glyph-button:hover,
+    .glyph-link:hover {
+      transform: translateY(-1px);
+      border-color: var(--line);
+    }
+
+    .glyph-button[disabled] {
+      opacity: 0.5;
+      cursor: wait;
       transform: none;
     }
 
-    .status-card,
-    .meta-card {
-      border-radius: 20px;
-      padding: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.03);
-      display: grid;
-      gap: 14px;
-      align-content: start;
-    }
+    .glyph-primary { background: rgba(0, 255, 0, 0.12); }
+    .glyph-danger { border-color: rgba(255, 123, 123, 0.28); }
+    .glyph { font-size: 18px; line-height: 1; color: lime; }
+    .glyph-label { font-size: 12px; color: var(--muted); }
 
-    .status-grid,
-    .panel-grid {
-      margin-top: 24px;
-      display: grid;
-      gap: 18px;
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-    }
-
-    .panel {
-      padding: 22px;
-    }
-
-    .span-4 { grid-column: span 4; }
-    .span-5 { grid-column: span 5; }
-    .span-6 { grid-column: span 6; }
-    .span-7 { grid-column: span 7; }
-    .span-8 { grid-column: span 8; }
-    .span-12 { grid-column: span 12; }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 14px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .pill strong,
-    .meta-value,
-    .status-value {
-      color: var(--text);
-    }
-
-    .kicker {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--muted);
-    }
-
-    .status-value {
-      font-size: 1.35rem;
-      font-weight: 700;
-    }
-
-    .status-offline .dot { background: var(--danger); box-shadow: 0 0 20px rgba(255, 109, 109, 0.5); }
-    .status-online .dot { background: var(--accent); box-shadow: 0 0 20px rgba(103, 255, 158, 0.46); }
-    .status-live .dot { background: var(--accent-2); box-shadow: 0 0 22px rgba(181, 255, 86, 0.56); }
-
-    iframe {
-      width: 100%;
-      border: 0;
-      border-radius: 18px;
-      background: rgba(0, 0, 0, 0.45);
-      aspect-ratio: 16 / 9;
-    }
-
-    .hidden { display: none !important; }
-
-    .field-grid {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    label {
-      display: grid;
-      gap: 8px;
-      font-size: 14px;
-      color: var(--muted);
-    }
-
-    input,
-    select {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(0, 0, 0, 0.28);
-      color: var(--text);
-    }
-
-    .checkbox-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .checkbox-row input {
-      width: 18px;
-      height: 18px;
-      margin-top: 2px;
-    }
-
-    .notice {
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .notice.success {
-      border-color: rgba(103, 255, 158, 0.36);
-      color: var(--text);
-      background: rgba(103, 255, 158, 0.09);
-    }
-
-    .notice.error {
-      border-color: rgba(255, 109, 109, 0.4);
-      color: #ffd9d9;
-      background: rgba(255, 109, 109, 0.08);
-    }
-
-    .session-panel {
-      background: var(--bg-panel);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius);
-      padding: 22px;
-      display: grid;
-      gap: 16px;
-    }
-
-    .session-video-wrap {
+    .stage {
       position: relative;
+      min-height: clamp(420px, 68vh, 940px);
+      background: #000;
+      border: 1px solid var(--line);
       border-radius: 14px;
       overflow: hidden;
-      background: #000;
-      aspect-ratio: 4 / 3;
     }
 
-    .session-video-wrap video,
-    .session-video-wrap canvas {
+    #sessionVideoSection {
+      position: absolute;
+      inset: 0;
+      display: block;
+    }
+
+    #sessionVideo,
+    #sessionCanvas {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
+    }
+
+    #sessionVideo {
+      opacity: 0;
       transform: scaleX(-1);
-    }
-
-    .session-video-wrap canvas {
       pointer-events: none;
-      transform: none; /* canvas is drawn already mirrored */
     }
 
-    .gesture-bars {
+    #sessionCanvas { z-index: 1; }
+
+    .session-intro,
+    .session-status,
+    .gesture-dock,
+    .close-session {
+      position: absolute;
+      z-index: 2;
+    }
+
+    .session-intro {
+      inset: 0;
       display: grid;
+      place-items: center;
+      padding: 24px;
+      background: radial-gradient(circle at center, rgba(0, 35, 0, 0.18), rgba(0, 0, 0, 0.9) 70%);
+      text-align: center;
+    }
+
+    .session-intro.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .intro-card {
+      width: min(100%, 420px);
+      padding: 24px 20px;
+      border: 1px solid var(--line-soft);
+      border-radius: 18px;
+      background: rgba(0, 0, 0, 0.84);
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+
+    .intro-icon {
+      width: 72px;
+      height: 72px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: lime;
+      font-size: 32px;
+    }
+
+    .intro-title { color: lime; font-size: 24px; }
+    .intro-copy { color: var(--muted); font-size: 13px; line-height: 1.45; max-width: 28ch; }
+
+    .session-status {
+      top: 14px;
+      left: 14px;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 14px;
+      border: 1px solid var(--line-soft);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.72);
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .session-status.active { color: lime; }
+    .session-status.error { color: #ffdcdc; border-color: rgba(255, 123, 123, 0.36); }
+
+    .close-session {
+      top: 14px;
+      right: 14px;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .gesture-dock {
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
       gap: 8px;
     }
 
-    .gesture-bar-row {
+    .gesture-meter {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+      padding: 8px 10px;
+      border: 1px solid var(--line-soft);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.74);
+    }
+
+    .gesture-icon { color: lime; font-size: 15px; }
+    .gesture-track { height: 6px; border-radius: 999px; overflow: hidden; background: rgba(0, 255, 0, 0.12); }
+    .gesture-fill { width: 0%; height: 100%; background: lime; box-shadow: 0 0 10px rgba(0, 255, 0, 0.28); transition: width 70ms linear; }
+    .gesture-value { min-width: 24px; text-align: right; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+    .stream-card {
+      padding: 12px 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .stream-head {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 10px;
-      font-size: 13px;
+      flex-wrap: wrap;
     }
 
-    .gesture-bar-label {
-      width: 74px;
-      color: var(--muted);
-      flex-shrink: 0;
+    #streamTitle {
+      color: lime;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
     }
 
-    .gesture-bar-track {
-      flex: 1;
-      height: 8px;
-      border-radius: 4px;
-      background: rgba(255,255,255,0.08);
-      overflow: hidden;
-    }
-
-    .gesture-bar-fill {
-      height: 100%;
-      background: var(--accent);
-      border-radius: 4px;
-      transition: width 60ms linear;
-      width: 0%;
-    }
-
-    .gesture-bar-value {
-      width: 36px;
-      text-align: right;
+    #streamDescription,
+    #streamFallback,
+    #machineStatusMessage {
       color: var(--muted);
       font-size: 12px;
-      font-variant-numeric: tabular-nums;
     }
 
-    .session-status {
-      font-size: 13px;
-      color: var(--muted);
-      min-height: 20px;
+    iframe {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      background: #000;
     }
 
-    .session-status.active { color: var(--accent); }
-    .session-status.error  { color: var(--danger); }
+    .footer-bar { padding: 12px 14px; }
+    .footer-note { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .aux-root { display: none; }
 
-    .footer {
-      margin-top: 24px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 13px;
+    body.session-active { overflow: hidden; }
+    body.session-active .topbar,
+    body.session-active .stream-card,
+    body.session-active .footer-bar {
+      opacity: 0;
+      pointer-events: none;
     }
 
-    @media (max-width: 980px) {
-      .hero,
-      .status-grid,
-      .panel-grid,
-      .field-grid {
-        grid-template-columns: 1fr;
-      }
+    body.session-active .stage-card {
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      margin: 0;
+      width: 100vw;
+      min-height: 100vh;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      background: #000;
+    }
 
-      .span-4,
-      .span-5,
-      .span-6,
-      .span-7,
-      .span-8,
-      .span-12 {
-        grid-column: auto;
-      }
+    body.session-active .stage-head {
+      position: absolute;
+      top: 14px;
+      right: 70px;
+      z-index: 3;
+    }
 
-      .shell {
-        width: min(100vw - 20px, 100%);
-        padding-top: 18px;
-      }
+    body.session-active .status-chip { display: none; }
+    body.session-active .stage {
+      min-height: 100vh;
+      height: 100vh;
+      border: none;
+      border-radius: 0;
+    }
 
-      .hero,
-      .panel {
-        padding: 18px;
-      }
+    @media (max-width: 920px) {
+      .topbar { grid-template-columns: 1fr; }
+      .hud { justify-content: flex-start; }
+      .gesture-dock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+      .glyph-label { display: none; }
+      .gesture-dock { grid-template-columns: 1fr; }
+      .session-status { right: 14px; }
+      body.session-active .stage-head { left: 14px; right: 14px; justify-content: flex-end; }
     }
   </style>
 </head>
 <body>
   <main class="shell">
-    <section class="hero">
-      <div class="hero-copy">
-        <div class="eyebrow" id="heroEyebrow"><span class="dot"></span><span>Installation status</span></div>
-        <h1 id="heroTitle">MIDImyFACE Live</h1>
-        <p id="heroSubtitle">A public installation you can watch online or visit in person.</p>
-        <div class="pill-row">
-          <div class="pill"><strong id="machineMode">Offline</strong><span>Mode</span></div>
-          <div class="pill"><strong id="queuePolicy">30s turn · 15m cooldown</strong><span>Access</span></div>
-          <div class="pill"><strong id="lastUpdateLabel">Waiting for data</strong><span>Last update</span></div>
-        </div>
-        <div class="hero-actions">
-          <a id="watchLiveButton" class="button primary" href="#streamPanel">Watch the feed</a>
-          <a id="visitChannelButton" class="button ghost" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noreferrer">Visit YouTube channel</a>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">◉</div>
+        <div>
+          <div class="eyebrow" id="heroEyebrow"><span class="dot"></span><span>Live stage</span></div>
+          <h1 id="heroTitle">MIDImyFACE</h1>
+          <p id="heroSubtitle">Percussion · landmarks</p>
         </div>
       </div>
-      <aside class="status-card" id="statusCard">
-        <div class="kicker">Machine</div>
-        <div class="status-value" id="machineStatusLabel">Loading…</div>
-        <p id="machineStatusMessage">Checking the installation status.</p>
-        <div class="meta-card">
-          <div class="kicker">Venue</div>
-          <p class="meta-value" id="venueLabel">Waiting for Raspberry Pi updates.</p>
-          <p id="scheduleLabel">If no data arrives, come back later or check social channels.</p>
+      <div class="hud">
+        <div class="hud-pill"><div class="hud-value" id="machineMode">Offline</div><div class="hud-label">Mode</div></div>
+        <div class="hud-pill"><div class="hud-value" id="queuePolicy">7 solenoids</div><div class="hud-label">Rig</div></div>
+        <div class="hud-pill"><div class="hud-value" id="lastUpdateLabel">Waiting</div><div class="hud-label">Status</div></div>
+      </div>
+    </header>
+
+    <section class="stage-card" id="sessionPanel">
+      <div class="stage-head">
+        <div class="status-chip" id="statusCard"><span class="dot"></span><span class="status-text" id="machineStatusLabel">Loading…</span></div>
+        <div class="control-row">
+          <button id="startSessionBtn" class="glyph-button glyph-primary" type="button" title="Start session" aria-label="Start session"><span class="glyph">▶</span><span class="glyph-label">Start</span></button>
+          <button id="stopSessionBtn" class="glyph-button glyph-danger hidden" type="button" title="Stop session" aria-label="Stop session"><span class="glyph">■</span><span class="glyph-label">Stop</span></button>
+          <a id="watchLiveButton" class="glyph-link" href="#streamPanel" title="Past videos" aria-label="Past videos"><span class="glyph">⏺</span><span class="glyph-label">Past</span></a>
+          <a id="visitChannelButton" class="glyph-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noreferrer" title="Channel" aria-label="Channel"><span class="glyph">↗</span><span class="glyph-label">Channel</span></a>
         </div>
-      </aside>
+      </div>
+
+      <div class="stage">
+        <div id="sessionVideoSection" class="hidden">
+          <video id="sessionVideo" autoplay playsinline muted></video>
+          <canvas id="sessionCanvas"></canvas>
+        </div>
+
+        <div class="session-intro" id="sessionIntro">
+          <div class="intro-card">
+            <div class="intro-icon">☺</div>
+            <div class="intro-title" id="sessionTitle">Presentation mode</div>
+            <p class="intro-copy" id="sessionDesc">Start the camera and use the same landmark-only percussion feeling as the main MIDImyFACE presentation mode.</p>
+          </div>
+        </div>
+
+        <div class="session-status" id="sessionStatus">Ready</div>
+        <button id="closeSessionBtn" class="glyph-button close-session hidden" type="button" title="Close presentation" aria-label="Close presentation"><span class="glyph">×</span></button>
+
+        <div class="gesture-dock" id="gestureBars">
+          <div class="gesture-meter"><span class="gesture-icon" title="Mouth open">◔</span><div class="gesture-track"><div class="gesture-fill" id="bar-mouthOpen"></div></div><span class="gesture-value" id="val-mouthOpen">0</span></div>
+          <div class="gesture-meter"><span class="gesture-icon" title="Smile">☺</span><div class="gesture-track"><div class="gesture-fill" id="bar-smile"></div></div><span class="gesture-value" id="val-smile">0</span></div>
+          <div class="gesture-meter"><span class="gesture-icon" title="Left wink">◐</span><div class="gesture-track"><div class="gesture-fill" id="bar-leftWink"></div></div><span class="gesture-value" id="val-leftWink">0</span></div>
+          <div class="gesture-meter"><span class="gesture-icon" title="Right wink">◑</span><div class="gesture-track"><div class="gesture-fill" id="bar-rightWink"></div></div><span class="gesture-value" id="val-rightWink">0</span></div>
+          <div class="gesture-meter"><span class="gesture-icon" title="Nose X">↔</span><div class="gesture-track"><div class="gesture-fill" id="bar-noseX"></div></div><span class="gesture-value" id="val-noseX">0</span></div>
+          <div class="gesture-meter"><span class="gesture-icon" title="Nose Y">↕</span><div class="gesture-track"><div class="gesture-fill" id="bar-noseY"></div></div><span class="gesture-value" id="val-noseY">0</span></div>
+          <div class="gesture-meter"><span class="gesture-icon" title="Accent">✶</span><div class="gesture-track"><div class="gesture-fill" id="bar-accent"></div></div><span class="gesture-value" id="val-accent">0</span></div>
+        </div>
+      </div>
     </section>
 
-    <section class="status-grid">
-      <article class="panel span-4">
-        <div class="kicker">Location</div>
-        <h2 id="locationTitle">Not announced yet</h2>
-        <p id="locationDetails">The Raspberry Pi will publish venue details here when the installation is active.</p>
-      </article>
-      <article class="panel span-4">
-        <div class="kicker">Live access</div>
-        <h2 id="liveAccessTitle">Waiting for stream status</h2>
-        <p id="liveAccessMessage">When a broadcast goes live, the YouTube feed appears automatically here.</p>
-      </article>
-      <article class="panel span-4">
-        <div class="kicker">Participation policy</div>
-        <h2>30 seconds per person</h2>
-        <p id="policyMessage">One free turn per visitor, then a 15-minute cooldown to keep the installation fair and avoid abuse.</p>
-      </article>
-    </section>
-
-    <section class="panel-grid">
-      <article class="panel span-8" id="streamPanel">
-        <div class="kicker">Watch</div>
+    <section class="stream-card" id="streamPanel">
+      <div class="stream-head">
         <h2 id="streamTitle">Live feed</h2>
-        <p id="streamDescription">The embedded stream appears here when the installation broadcasts live on YouTube.</p>
-        <div id="streamEmbedWrap" class="hidden" style="margin-top:16px;">
-          <iframe id="youtubeEmbed" title="MIDImyFACE live stream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        <div class="footer-links">
+          <a id="channelButton" class="glyph-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noreferrer" title="YouTube" aria-label="YouTube"><span class="glyph">▶</span><span class="glyph-label">YouTube</span></a>
+          <a id="videosButton" class="glyph-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g/videos" target="_blank" rel="noreferrer" title="Past videos" aria-label="Past videos"><span class="glyph">⌁</span><span class="glyph-label">Past</span></a>
+          <a id="instagramButton" class="glyph-link" href="https://www.instagram.com/midimyface/" target="_blank" rel="noreferrer" title="Instagram" aria-label="Instagram"><span class="glyph">◎</span><span class="glyph-label">IG</span></a>
         </div>
-        <div id="streamFallback" class="notice" style="margin-top:16px;">
-          No live stream is active right now. Check the latest uploads or follow MIDImyFACE for the next activation.
-        </div>
-        <div class="hero-actions" style="margin-top:16px;">
-          <a id="channelButton" class="button" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noreferrer">Open YouTube channel</a>
-          <a id="videosButton" class="button ghost" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g/videos" target="_blank" rel="noreferrer">Past live videos</a>
-          <a id="instagramButton" class="button ghost" href="https://www.instagram.com/midimyface/" target="_blank" rel="noreferrer">Follow @midimyface</a>
-        </div>
-      </article>
-
-      <article class="panel span-4">
-        <div class="kicker">Support</div>
-        <h2>Keep the machine alive</h2>
-        <p>Support maintenance, future exhibitions, and new builds. Suggested donations open the same PayPal support page.</p>
-        <div class="donation-row" id="donationButtons" style="margin-top:16px;"></div>
-        <p class="small-copy" style="margin-top:12px;">Donation-based only for now — no paid priority and no extra turns.</p>
-      </article>
-
-      <article class="panel span-7">
-        <div class="kicker">Save your spot for later</div>
-        <h2>Google sign-in</h2>
-        <p id="authDescription">Sign in with Google to save your email, nickname, country, and notification preference for future live sessions.</p>
-        <div id="authUnavailable" class="notice" style="margin-top:16px;">Google sign-in will activate after the Firebase web app is configured for `midimyface@gmail.com`.</div>
-        <div id="authReady" class="hidden" style="margin-top:16px; display:grid; gap:16px;">
-          <div class="hero-actions">
-            <button id="googleSignInButton" class="primary" type="button">Sign in with Google</button>
-            <button id="googleSignOutButton" class="ghost hidden" type="button">Sign out</button>
-          </div>
-          <div id="signedInNotice" class="notice hidden"></div>
-          <form id="profileForm" class="hidden" style="display:grid; gap:16px;">
-            <div class="field-grid">
-              <label>
-                Nickname
-                <input id="nicknameInput" name="nickname" type="text" maxlength="40" placeholder="Choose the name shown on the public screen" required>
-              </label>
-              <label>
-                Country
-                <select id="countrySelect" name="country" required></select>
-              </label>
-            </div>
-            <label class="checkbox-row">
-              <input id="notifyCheckbox" name="notify" type="checkbox">
-              <span>Email me the next time MIDImyFACE goes live or announces the next public installation session.</span>
-            </label>
-            <button id="saveProfileButton" class="primary" type="submit">Save my details</button>
-            <div id="profileMessage" class="notice hidden"></div>
-          </form>
-        </div>
-      </article>
-
-      <article class="panel span-5">
-        <div class="kicker">What happens next</div>
-        <h2>Queue phase comes next</h2>
-        <p>The next implementation phase will connect this page to the live queue, 30-second turns, Raspberry Pi status updates, and the public screen display.</p>
-        <div class="notice" style="margin-top:16px;">
-          This first release focuses on status, location, stream visibility, donations, and collecting user interest cleanly.
-        </div>
-      </article>
+      </div>
+      <p id="streamDescription">Waiting for stream status.</p>
+      <div id="streamEmbedWrap" class="hidden"><iframe id="youtubeEmbed" title="MIDImyFACE live stream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+      <div id="streamFallback">No stream right now.</div>
     </section>
 
-    <!-- ===== PARTICIPANT SESSION ===== -->
-    <section id="sessionSection" class="panel-grid" style="margin-top:18px;">
-      <article class="session-panel span-12" id="sessionPanel">
-        <div class="kicker">Your turn</div>
-        <h2 id="sessionTitle">Start your session</h2>
-        <p id="sessionDesc" style="color:var(--muted);">When the installation is live, press Start to activate your camera. Your facial gestures will control the solenoids in real time.</p>
+    <footer class="footer-bar">
+      <div class="footer-note"><span class="dot"></span><span id="machineStatusMessage">Waiting for Raspberry Pi updates.</span></div>
+      <div id="donationButtons"></div>
+    </footer>
 
-        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-          <button id="startSessionBtn" class="primary" type="button">Start Session</button>
-          <button id="stopSessionBtn" class="ghost hidden" type="button">Stop</button>
-          <div class="session-status" id="sessionStatus">Not started.</div>
-        </div>
-
-        <div id="sessionVideoSection" class="hidden" style="display:grid;gap:16px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);">
-          <div class="session-video-wrap">
-            <video id="sessionVideo" autoplay playsinline muted></video>
-            <canvas id="sessionCanvas"></canvas>
-          </div>
-          <div>
-            <div class="kicker" style="margin-bottom:10px;">Gestures → Solenoids</div>
-            <div class="gesture-bars" id="gestureBars">
-              <div class="gesture-bar-row"><span class="gesture-bar-label">Mouth open</span><div class="gesture-bar-track"><div class="gesture-bar-fill" id="bar-mouthOpen"></div></div><span class="gesture-bar-value" id="val-mouthOpen">0</span></div>
-              <div class="gesture-bar-row"><span class="gesture-bar-label">Smile</span><div class="gesture-bar-track"><div class="gesture-bar-fill" id="bar-smile"></div></div><span class="gesture-bar-value" id="val-smile">0</span></div>
-              <div class="gesture-bar-row"><span class="gesture-bar-label">Left wink</span><div class="gesture-bar-track"><div class="gesture-bar-fill" id="bar-leftWink"></div></div><span class="gesture-bar-value" id="val-leftWink">0</span></div>
-              <div class="gesture-bar-row"><span class="gesture-bar-label">Right wink</span><div class="gesture-bar-track"><div class="gesture-bar-fill" id="bar-rightWink"></div></div><span class="gesture-bar-value" id="val-rightWink">0</span></div>
-              <div class="gesture-bar-row"><span class="gesture-bar-label">Nose X</span><div class="gesture-bar-track"><div class="gesture-bar-fill" id="bar-noseX"></div></div><span class="gesture-bar-value" id="val-noseX">0</span></div>
-              <div class="gesture-bar-row"><span class="gesture-bar-label">Nose Y</span><div class="gesture-bar-track"><div class="gesture-bar-fill" id="bar-noseY"></div></div><span class="gesture-bar-value" id="val-noseY">0</span></div>
-              <div class="gesture-bar-row"><span class="gesture-bar-label">Accent</span><div class="gesture-bar-track"><div class="gesture-bar-fill" id="bar-accent"></div></div><span class="gesture-bar-value" id="val-accent">0</span></div>
-            </div>
-          </div>
-        </div>
-      </article>
+    <section class="aux-root" aria-hidden="true">
+      <div id="venueLabel"></div>
+      <div id="scheduleLabel"></div>
+      <div id="locationTitle"></div>
+      <div id="locationDetails"></div>
+      <div id="liveAccessTitle"></div>
+      <div id="liveAccessMessage"></div>
+      <div id="policyMessage"></div>
+      <div id="authUnavailable"></div>
+      <div id="authReady"></div>
+      <div id="authDescription"></div>
+      <button id="googleSignInButton" type="button"></button>
+      <button id="googleSignOutButton" type="button"></button>
+      <div id="signedInNotice"></div>
+      <form id="profileForm">
+        <input id="nicknameInput" name="nickname" type="text">
+        <select id="countrySelect" name="country"></select>
+        <input id="notifyCheckbox" name="notify" type="checkbox">
+        <button id="saveProfileButton" type="submit"></button>
+        <div id="profileMessage"></div>
+      </form>
     </section>
-
-    <p class="footer">MIDImyFACE Live polls the relay for machine status updates. If the installation is offline, check YouTube and Instagram for the next activation.</p>
   </main>
 
   <script type="module" src="./live.js"></script>
