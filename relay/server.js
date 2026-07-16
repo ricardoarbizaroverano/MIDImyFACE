@@ -773,6 +773,47 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       }
     }
 
+    if (req.method === 'POST' && parsed.pathname === '/api/live/device/message') {
+      if (!RPI_DEVICE_TOKEN) {
+        return sendJson(res, 503, { ok: false, error: 'rpi_device_token_not_configured' }, c);
+      }
+
+      const bearerToken = parseBearerToken(req);
+      if (!bearerToken || bearerToken !== RPI_DEVICE_TOKEN) {
+        return sendJson(res, 401, { ok: false, error: 'unauthorized_device' }, c);
+      }
+
+      try {
+        const body = await readBody(req);
+        const message = cleanString(body?.message || '', 240);
+        if (!message) {
+          return sendJson(res, 400, { ok: false, error: 'message_required' }, c);
+        }
+
+        const updatedBy = cleanString(body?.updatedBy || 'raspberry-pi-desktop', 80) || 'raspberry-pi-desktop';
+        const nextState = updateLiveState({
+          machine: {
+            message,
+          },
+          queue: {
+            message,
+          },
+          content: {
+            fallbackMessage: message,
+          },
+        }, updatedBy);
+
+        return sendJson(res, 200, {
+          ok: true,
+          message,
+          status: nextState,
+          serverTime: new Date().toISOString(),
+        }, c);
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
+    }
+
     return sendJson(res, 404, { ok: false, error: 'not_found' }, c);
   }
 

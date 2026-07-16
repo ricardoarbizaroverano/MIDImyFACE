@@ -294,6 +294,7 @@ function renderStatus(status, bootstrap) {
   const queue = status?.queue || {};
   const stream = status?.stream || {};
   const machine = status?.machine || {};
+  const message = String(machine?.message || status?.queue?.message || status?.content?.fallbackMessage || '').trim();
   const venueLabel = buildVenueLabel(status);
   const scheduleLabel = buildScheduleLabel(status);
 
@@ -305,7 +306,7 @@ function renderStatus(status, bootstrap) {
   setText(elements.queuePolicy, `${queue.turnDurationSeconds || 30}s / ${queue.cooldownMinutes || 15}m`);
   setText(elements.lastUpdateLabel, relativeTime(status?.updatedAt || machine?.heartbeatAt));
   setText(elements.machineStatusLabel, machine.alive ? (stream.isLive ? 'Live' : 'Online') : 'Offline');
-  setText(elements.machineStatusMessage, stream.isLive ? 'Available' : (machine.alive ? 'Not available' : 'Offline'));
+  setText(elements.machineStatusMessage, message || (stream.isLive ? 'Available' : (machine.alive ? 'Not available' : 'Offline')));
   setText(elements.venueLabel, '');
   setText(elements.scheduleLabel, '');
   setText(elements.locationTitle, '');
@@ -326,7 +327,7 @@ function renderStatus(status, bootstrap) {
   setText(elements.streamTitle, stream.isLive ? 'Live feed' : 'Not available');
   setText(elements.streamDescription, stream.isLive
     ? 'Live.'
-    : (machine.alive ? 'Not available.' : 'Offline.'));
+    : (message || (machine.alive ? 'Not available.' : 'Offline.')));
 
   const channelUrl = stream.channelUrl || bootstrap?.links?.youtubeChannelUrl || '#';
   const videosUrl = stream.videosUrl || bootstrap?.links?.youtubeVideosUrl || channelUrl;
@@ -343,7 +344,7 @@ function renderStatus(status, bootstrap) {
     elements.youtubeEmbed.src = embedUrl;
   } else {
     elements.youtubeEmbed.removeAttribute('src');
-    elements.streamFallback.textContent = machine.alive ? 'Not available' : 'Offline';
+    elements.streamFallback.textContent = message || (machine.alive ? 'Not available' : 'Offline');
   }
 
   renderDonations(status, bootstrap);
