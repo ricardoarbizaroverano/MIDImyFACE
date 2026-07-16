@@ -2,83 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MIDImyFACE Live</title>
   <meta name="description" content="Control the MIDImyFACE live percussion installation with facial gestures.">
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    :root {
-      color-scheme: dark;
-      --green: lime;
-      --green-soft: #7cff7c;
-      --muted: #8a8a8a;
-      --panel: #071007;
-      --danger: #ff6d6d;
-    }
+    :root { color-scheme: dark; --green: #63ff85; --muted: #a0a7a2; --danger: #ff7474; }
     html, body { margin: 0; min-height: 100%; background: #000; color: var(--green); }
     body {
+      min-height: 100dvh;
       font-family: "Courier New", Courier, monospace;
       display: flex;
       flex-direction: column;
       align-items: center;
       overflow-x: hidden;
     }
-    button, input, select, a { font: inherit; }
+    button, input, select { font: inherit; }
     button, select, input {
       background: #000;
       color: var(--green);
-      border: 1px solid var(--green);
+      border: 2px solid var(--green);
       border-radius: 0;
     }
-    button, a.action {
-      min-height: 42px;
-      padding: 8px 14px;
+    button {
+      min-height: 54px;
+      padding: 12px 18px;
       cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      font-weight: 700;
     }
-    button:hover, button:focus-visible, a.action:hover, a.action:focus-visible {
-      background: var(--green);
-      color: #000;
-      outline: none;
-    }
-    button:disabled { opacity: .45; cursor: not-allowed; background: #000; color: var(--green); }
+    button:active, button:focus-visible { background: var(--green); color: #000; outline: none; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
     .hidden { display: none !important; }
 
-    #header { margin-top: 10px; text-align: center; padding: 0 12px; }
-    #title { font-size: 24px; margin: 0; }
-    #subtitle { font-size: 14px; color: gray; margin: 0; }
+    #header { width: min(94vw, 760px); padding: 22px 0 4px; text-align: center; }
+    #title { margin: 0; font-size: clamp(28px, 8vw, 50px); line-height: 1; letter-spacing: -.06em; white-space: nowrap; }
+    #subtitle { margin: 8px 0 0; color: #b5b5b5; font-size: clamp(16px, 4.5vw, 21px); }
 
     .installation-status {
-      width: 90vw;
-      max-width: 1280px;
-      margin: 10px auto 0;
-      min-height: 36px;
+      width: min(94vw, 760px);
+      min-height: 44px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      justify-content: center;
+      gap: 10px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 16px;
+      text-align: center;
     }
-    .status-left, .status-right { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-    .status-dot { width: 11px; height: 11px; border-radius: 50%; background: #d33; box-shadow: 0 0 10px rgba(255,0,0,.35); }
-    .status-dot.online { background: var(--green); box-shadow: 0 0 12px rgba(0,255,0,.45); }
-    #machineStatus { color: var(--green); }
-    #participantBadge { color: white; }
-    #sessionCountdown { color: var(--green); font-weight: bold; min-width: 4ch; text-align: right; }
+    .status-left, .status-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #d33; }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 14px rgba(99,255,133,.65); }
+    #machineStatus, #sessionCountdown { color: var(--green); font-weight: 700; }
+    #machineMessage { display: none; }
+    #participantBadge { color: #fff; }
 
     #videoContainer {
-      width: 90vw;
-      max-width: 1280px;
-      aspect-ratio: 16 / 9;
+      width: min(94vw, 760px);
+      min-height: min(68dvh, 660px);
       border: 2px solid var(--green);
       overflow: hidden;
       position: relative;
-      margin: 10px auto;
+      margin: 6px auto 18px;
       background: #000;
       display: flex;
       align-items: center;
@@ -94,41 +78,41 @@
       z-index: 20;
       display: grid;
       place-items: center;
-      padding: 20px;
-      background: radial-gradient(circle, rgba(0,35,0,.26), rgba(0,0,0,.94) 72%);
+      padding: clamp(14px, 4vw, 28px);
+      background: radial-gradient(circle, rgba(0,38,10,.2), #000 72%);
     }
-    .intro-panel { width: min(100%, 520px); border: 1px solid var(--green); background: rgba(0,0,0,.9); padding: 22px; }
-    .intro-panel h2 { font-size: 21px; margin: 0 0 8px; text-align: center; }
-    .intro-panel p { color: #aaa; font-size: 13px; line-height: 1.45; margin: 0 0 18px; text-align: center; }
-    .identity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .field { display: grid; gap: 5px; color: #aaa; font-size: 12px; }
-    .field input, .field select { width: 100%; min-height: 42px; padding: 8px 10px; }
-    .field input:focus, .field select:focus { outline: 2px solid rgba(0,255,0,.35); outline-offset: 1px; }
-    #startSessionBtn { width: 100%; margin-top: 14px; font-weight: bold; }
-    #formMessage { min-height: 18px; margin-top: 10px; color: #aaa; font-size: 12px; text-align: center; }
+    .intro-panel { width: min(100%, 540px); }
+    .intro-panel h2 { font-size: clamp(22px, 6vw, 34px); line-height: 1.1; margin: 0 0 22px; text-align: center; }
+    .identity-grid { display: grid; gap: 16px; }
+    .field { display: grid; gap: 7px; color: #fff; font-size: 17px; }
+    .field input, .field select { width: 100%; min-height: 58px; padding: 12px 14px; font-size: 18px; }
+    .field input:focus, .field select:focus { outline: 3px solid rgba(99,255,133,.3); outline-offset: 2px; }
+    #startSessionBtn { width: 100%; min-height: 62px; margin-top: 20px; font-size: 19px; }
+    #formMessage { min-height: 24px; margin-top: 13px; color: #c1c1c1; font-size: 15px; line-height: 1.35; text-align: center; }
     #formMessage.error { color: #ffb2b2; }
 
     .session-overlay-status {
       position: absolute;
       z-index: 30;
-      top: 12px;
+      top: max(12px, env(safe-area-inset-top));
       left: 12px;
-      max-width: calc(100% - 90px);
-      padding: 7px 10px;
+      max-width: calc(100% - 76px);
+      padding: 8px 11px;
       color: var(--green);
-      background: rgba(0,0,0,.82);
-      border: 1px solid rgba(0,255,0,.55);
-      font-size: 12px;
+      background: rgba(0,0,0,.84);
+      border: 1px solid rgba(99,255,133,.7);
+      font-size: 14px;
     }
     #closeSessionBtn {
       position: absolute;
       z-index: 31;
-      top: 12px;
+      top: max(12px, env(safe-area-inset-top));
       right: 12px;
-      width: 42px;
+      width: 50px;
+      min-height: 50px;
       padding: 0;
-      font-size: 22px;
-      background: rgba(0,0,0,.82);
+      font-size: 27px;
+      background: rgba(0,0,0,.84);
     }
 
     .gesture-dock {
@@ -136,67 +120,51 @@
       z-index: 25;
       left: 10px;
       right: 10px;
-      bottom: 10px;
+      bottom: max(10px, env(safe-area-inset-bottom));
       display: grid;
       grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 6px;
+      gap: 7px;
     }
-    .gesture-meter { background: rgba(0,0,0,.82); border: 1px solid rgba(0,255,0,.45); padding: 6px; min-width: 0; }
-    .gesture-label { display: flex; justify-content: space-between; gap: 4px; color: #aaa; font-size: 10px; white-space: nowrap; }
-    .gesture-label span:last-child { color: var(--green); }
-    .gesture-track { height: 5px; margin-top: 5px; background: #183018; overflow: hidden; }
-    .gesture-fill { width: 0; height: 100%; background: var(--green); transition: width 70ms linear; }
-
-    .control-row {
-      width: 90vw;
-      max-width: 1280px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin: 0 auto 12px;
+    .gesture-icon {
+      min-width: 0;
+      min-height: 66px;
+      padding: 6px 3px 5px;
+      display: grid;
+      place-items: center;
+      gap: 2px;
+      color: #a3b4a7;
+      background: rgba(0,0,0,.86);
+      border: 1px solid rgba(99,255,133,.42);
+      transition: color 90ms linear, background 90ms linear, transform 90ms linear, box-shadow 90ms linear;
     }
-    #stopSessionBtn { border-color: var(--danger); color: var(--danger); }
-    #stopSessionBtn:hover { background: var(--danger); color: #000; }
-    a.action { border: 1px solid var(--green); color: var(--green); }
-
-    .live-info {
-      width: 90vw;
-      max-width: 900px;
-      margin: 8px auto 28px;
-      padding-top: 12px;
-      border-top: 1px solid #175817;
-      color: #888;
-      font-size: 12px;
-      line-height: 1.5;
-      text-align: center;
+    .gesture-icon svg { width: 31px; height: 31px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .gesture-icon span { font-size: 10px; line-height: 1; white-space: nowrap; }
+    .gesture-icon.triggered {
+      color: #000;
+      background: var(--green);
+      transform: scale(1.08);
+      box-shadow: 0 0 22px rgba(99,255,133,.9);
     }
-    .live-info strong { color: var(--green); }
-    .privacy-note { display: block; margin-top: 5px; color: #666; }
 
-    body.session-active #header,
-    body.session-active .installation-status,
-    body.session-active .control-row,
-    body.session-active .live-info { display: none; }
-    body.session-active #videoContainer { width: 100vw; max-width: none; height: 100vh; aspect-ratio: auto; border: 0; margin: 0; }
+    #stopSessionBtn { width: min(94vw, 760px); margin: 0 auto max(18px, env(safe-area-inset-bottom)); border-color: var(--danger); color: var(--danger); font-size: 17px; }
+    body.session-active #header, body.session-active .installation-status, body.session-active #stopSessionBtn { display: none; }
+    body.session-active #videoContainer { width: 100vw; max-width: none; height: 100dvh; min-height: 0; border: 0; margin: 0; }
 
-    @media (max-width: 760px) {
-      .installation-status { align-items: flex-start; }
-      .status-right { justify-content: flex-end; }
-      #videoContainer { width: 94vw; min-height: 520px; aspect-ratio: auto; }
-      .identity-grid { grid-template-columns: 1fr; }
-      .intro-panel { padding: 17px; }
-      .gesture-dock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .gesture-meter:last-child { grid-column: 1 / -1; }
-      .control-row, .live-info { width: 94vw; }
+    @media (max-width: 620px) {
+      #header { padding-top: 18px; }
+      #videoContainer { width: 100vw; min-height: calc(100dvh - 150px); margin-bottom: 0; border-left: 0; border-right: 0; }
+      .gesture-dock { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .gesture-icon { min-height: 62px; }
+      .gesture-icon svg { width: 29px; height: 29px; }
+      .gesture-icon span { font-size: 9px; }
+      #stopSessionBtn { width: 100vw; margin: 0; border-width: 2px 0 0; }
     }
   </style>
 </head>
 <body>
   <header id="header">
     <h1 id="title">MIDImyFACE Live</h1>
-    <p id="subtitle">Control the percussion installation with your face</p>
+    <p id="subtitle">Play percussion with your face</p>
   </header>
 
   <div class="installation-status" aria-live="polite">
@@ -210,8 +178,7 @@
 
     <section id="sessionIntro" class="session-intro">
       <form id="identityForm" class="intro-panel">
-        <h2>Join the live instrument</h2>
-        <p>Choose how you appear on the Raspberry Pi screen. Your camera stays in this browser; only landmark coordinates and gesture values are sent during your short turn.</p>
+        <h2>Join the instrument</h2>
         <div class="identity-grid">
           <label class="field">Nickname
             <input id="nicknameInput" name="nickname" type="text" maxlength="40" minlength="2" autocomplete="nickname" required placeholder="Your stage name">
@@ -220,38 +187,26 @@
             <select id="countrySelect" name="country" required><option value="">Choose country</option></select>
           </label>
         </div>
-        <button id="startSessionBtn" type="submit">▶ Start camera session</button>
-        <div id="formMessage" aria-live="polite">No login required during testing.</div>
+        <button id="startSessionBtn" type="submit">Start camera</button>
+        <div id="formMessage" aria-live="polite">No login required.</div>
       </form>
     </section>
 
     <div id="sessionStatus" class="session-overlay-status hidden" aria-live="polite">Ready</div>
     <button id="closeSessionBtn" class="hidden" type="button" aria-label="End session">×</button>
 
-    <div id="gestureBars" class="gesture-dock hidden" aria-label="Live gesture values">
-      <div class="gesture-meter"><div class="gesture-label"><span>Mouth</span><span id="val-mouthOpen">0</span></div><div class="gesture-track"><div id="bar-mouthOpen" class="gesture-fill"></div></div></div>
-      <div class="gesture-meter"><div class="gesture-label"><span>Smile</span><span id="val-smile">0</span></div><div class="gesture-track"><div id="bar-smile" class="gesture-fill"></div></div></div>
-      <div class="gesture-meter"><div class="gesture-label"><span>L wink</span><span id="val-leftWink">0</span></div><div class="gesture-track"><div id="bar-leftWink" class="gesture-fill"></div></div></div>
-      <div class="gesture-meter"><div class="gesture-label"><span>R wink</span><span id="val-rightWink">0</span></div><div class="gesture-track"><div id="bar-rightWink" class="gesture-fill"></div></div></div>
-      <div class="gesture-meter"><div class="gesture-label"><span>Nose X</span><span id="val-noseX">0</span></div><div class="gesture-track"><div id="bar-noseX" class="gesture-fill"></div></div></div>
-      <div class="gesture-meter"><div class="gesture-label"><span>Nose Y</span><span id="val-noseY">0</span></div><div class="gesture-track"><div id="bar-noseY" class="gesture-fill"></div></div></div>
-      <div class="gesture-meter"><div class="gesture-label"><span>Accent</span><span id="val-accent">0</span></div><div class="gesture-track"><div id="bar-accent" class="gesture-fill"></div></div></div>
+    <div id="gestureTriggers" class="gesture-dock hidden" aria-label="Percussion triggers">
+      <div class="gesture-icon" data-gesture="mouthOpen"><svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="16" rx="9" ry="6"/></svg><span>Mouth</span></div>
+      <div class="gesture-icon" data-gesture="smile"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 12h4M22 12h4M8 18c4 7 12 7 16 0"/></svg><span>Smile</span></div>
+      <div class="gesture-icon" data-gesture="leftWink"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 13h7M21 13h1M8 21c5 4 11 4 16 0"/></svg><span>L wink</span></div>
+      <div class="gesture-icon" data-gesture="rightWink"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 13h1M20 13h7M8 21c5 4 11 4 16 0"/></svg><span>R wink</span></div>
+      <div class="gesture-icon" data-gesture="noseX"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 16h24M4 16l5-5M4 16l5 5M28 16l-5-5M28 16l-5 5"/></svg><span>Head X</span></div>
+      <div class="gesture-icon" data-gesture="noseY"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v24M16 4l-5 5M16 4l5 5M16 28l-5-5M16 28l5-5"/></svg><span>Head Y</span></div>
+      <div class="gesture-icon" data-gesture="accent"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l2.5 8.5L27 8l-6.5 8 8.5 3-9.5.5L21 29l-5-8-5 8 1.5-9.5L3 19l8.5-3L5 8l8.5 3.5z"/></svg><span>Accent</span></div>
     </div>
   </main>
 
-  <nav class="control-row" aria-label="Live controls">
-    <button id="stopSessionBtn" class="hidden" type="button">■ End session</button>
-    <a id="youtubeLink" class="action" target="_blank" rel="noreferrer">▶ YouTube</a>
-    <a id="pastVideosLink" class="action" target="_blank" rel="noreferrer">⌁ Previous sessions</a>
-    <a id="instagramLink" class="action" target="_blank" rel="noreferrer">◎ Instagram</a>
-  </nav>
-
-  <footer class="live-info">
-    <strong>7 facial triggers → 7 physical solenoids</strong><br>
-    One participant controls the installation at a time. Sessions end automatically and hardware output stops if the connection is lost.
-    <span class="privacy-note">No video or photograph is uploaded.</span>
-  </footer>
-
+  <button id="stopSessionBtn" class="hidden" type="button">End session</button>
   <script type="module" src="./live.js"></script>
 </body>
 </html>

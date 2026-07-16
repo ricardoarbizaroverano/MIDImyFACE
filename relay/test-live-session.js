@@ -80,7 +80,9 @@ async function run() {
     headers: { Authorization: `Bearer ${participantToken}`, 'Content-Type': 'application/json', Origin: origin },
     body: JSON.stringify({
       gestures: { mouthOpen: 20.123, accent: 8.5 },
+      triggerCounts: { mouthOpen: 2, accent: 1 },
       landmarks: fullFaceLandmarks,
+      frameAspect: 9 / 16,
     }),
   });
   assert.equal(result.response.status, 200);
@@ -96,6 +98,8 @@ async function run() {
   assert.equal(result.body.participant.nickname, 'Test Player');
   assert.equal(result.body.landmarks.length, 468);
   assert.deepEqual(result.body.landmarks[0], { x: 0, y: 0 });
+  assert.deepEqual(result.body.triggerCounts, { mouthOpen: 2, accent: 1 });
+  assert.equal(result.body.frameAspect, 0.5625);
 
   result = await request('/api/live/session/stop', {
     method: 'POST',
@@ -109,6 +113,7 @@ async function run() {
   });
   assert.equal(result.body.active, false);
   assert.deepEqual(result.body.gestures, {});
+  assert.deepEqual(result.body.triggerCounts, {});
   console.log('live session integration test passed');
 }
 

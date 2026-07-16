@@ -4,8 +4,10 @@
  * Landmark indices match the main MIDImyFACE source: src/script.js.
  */
 
-const GESTURE_POST_INTERVAL_MS = 100;  // 10 Hz: responsive without flooding the relay
+const GESTURE_POST_INTERVAL_MS = 67;  // ~15 Hz; Pi interpolates between network snapshots
 const MEDIAPIPE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619';
+const PERCUSSION_SENSITIVITY = 5;
+export const GESTURE_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent'];
 
 // Landmark indices used in the main script
 const LM = {
@@ -60,19 +62,120 @@ export function smoothLandmarks(raw, cache) {
   });
 }
 
+// This is the same sudden-movement trigger used by the main page's
+// percussion mode (src/script.js: handleGestureDisparador). Keeping the
+// decision in the participant browser avoids trying to reconstruct motion
+// from delayed network samples on the Raspberry Pi.
+export function getGestureTriggerProfile(gestureId) {
+  const profiles = {
+    mouthOpen: { mode: 'ascending', activationRatio: 0.06, rearmRatio: 0.028, spanScale: 1, speedScale: 1, minRawDelta: 4 },
+    smile: { mode: 'ascending', activationRatio: 0.05, rearmRatio: 0.024, spanScale: 0.55, speedScale: 0.75, minRawDelta: 3 },
+    leftWink: { mode: 'descending', activationRatio: 0.14, rearmRatio: 0.08, spanScale: 0.14, speedScale: 0.26, minRawDelta: 1.5 },
+    rightWink: { mode: 'descending', activationRatio: 0.14, rearmRatio: 0.08, spanScale: 0.14, speedScale: 0.26, minRawDelta: 1.5 },
+    noseX: { mode: 'bidirectional', activationRatio: 0.055, rearmRatio: 0.02, spanScale: 0.12, speedScale: 0.48, minRawDelta: 6 },
+    noseY: { mode: 'bidirectional', activationRatio: 0.05, rearmRatio: 0.02, spanScale: 0.1, speedScale: 0.45, minRawDelta: 5 },
+    // Accent is the existing seventh live channel. It uses the exact same
+    // trigger state machine on whole-face motion instead of a held distance.
+    accent: { mode: 'ascending', activationRatio: 0.04, rearmRatio: 0.02, spanScale: 0.08, speedScale: 0.2, minRawDelta: 1 },
+  };
+  return profiles[gestureId] || profiles.mouthOpen;
+}
+
+export function createGestureTriggerState() {
+  return { lastValue: null, lastSampleTime: 0, lastTriggerTime: 0, restValue: null, armed: true };
+}
+
+function mapValue(value, inMin, inMax, outMin, outMax) {
+  return outMin + ((value - inMin) / (inMax - inMin)) * (outMax - outMin);
+}
+
+export function evaluateGestureTrigger(
+  gestureId,
+  currentValue,
+  state,
+  { sensitivity = PERCUSSION_SENSITIVITY, min = 0, max = 200, now = Date.now() } = {},
+) {
+  const lastValue = state.lastValue;
+  const profile = getGestureTriggerProfile(gestureId);
+  let triggered = false;
+
+  if (!Number.isFinite(state.restValue)) state.restValue = currentValue;
+
+  if (sensitivity > 0 && lastValue !== null && state.lastSampleTime) {
+    const elapsedMs = Math.max(16, now - state.lastSampleTime);
+    const calibratedSpan = Number.isFinite(min) && Number.isFinite(max) && max > min ? max - min : 200;
+    const delta = currentValue - lastValue;
+    const absDelta = Math.abs(delta);
+    const restValue = Number.isFinite(state.restValue) ? state.restValue : currentValue;
+    const offsetFromRest = currentValue - restValue;
+    const absOffsetFromRest = Math.abs(offsetFromRest);
+    const effectiveSpan = Math.max(calibratedSpan * profile.spanScale, profile.minRawDelta * 2, 1);
+    const activationDelta = Math.max(profile.minRawDelta, effectiveSpan * profile.activationRatio);
+    const rearmDelta = Math.max(profile.minRawDelta * 0.5, effectiveSpan * profile.rearmRatio);
+    const normalizedSpeed = absDelta / effectiveSpan / (elapsedMs / 1000);
+    const triggerSpeed = mapValue(sensitivity, 1, 10, 3.2, 0.22) * profile.speedScale;
+    const cooldownMs = 220;
+    const directionOk =
+      (profile.mode === 'ascending' && delta > 0 && offsetFromRest >= activationDelta) ||
+      (profile.mode === 'descending' && delta < 0 && -offsetFromRest >= activationDelta) ||
+      (profile.mode === 'bidirectional' && absOffsetFromRest >= activationDelta && offsetFromRest * delta > 0);
+
+    if (
+      state.armed &&
+      absDelta >= Math.max(profile.minRawDelta * 0.6, 1) &&
+      directionOk &&
+      normalizedSpeed >= triggerSpeed &&
+      now - state.lastTriggerTime > cooldownMs
+    ) {
+      triggered = true;
+      state.lastTriggerTime = now;
+      state.armed = false;
+    }
+
+    if (!state.armed) {
+      if (absOffsetFromRest <= rearmDelta) {
+        state.armed = true;
+        state.restValue = currentValue;
+      }
+    } else if (absOffsetFromRest <= rearmDelta) {
+      state.restValue = lerp(restValue, currentValue, 0.18);
+    }
+  }
+
+  state.lastValue = currentValue;
+  state.lastSampleTime = now;
+  return triggered;
+}
+
+export function gestureRange(gestureId, width, height) {
+  const ranges = {
+    mouthOpen: { min: 0, max: 45 },
+    smile: { min: 10, max: 90 },
+    leftWink: { min: 5, max: 70 },
+    rightWink: { min: 5, max: 70 },
+    noseX: { min: 0, max: width },
+    noseY: { min: 0, max: height },
+    accent: { min: 0, max: 100 },
+  };
+  return ranges[gestureId] || { min: 0, max: 200 };
+}
+
 // ------- session class -------
 export class ParticipantSession {
-  constructor({ relayOrigin, token, session, onStatus, onGestures }) {
+  constructor({ relayOrigin, token, session, onStatus, onGestures, onTrigger }) {
     this.relayOrigin   = relayOrigin;
     this.token         = token;
     this.session       = session;
     this.onStatus      = onStatus || (() => {});
     this.onGestures    = onGestures || (() => {});
+    this.onTrigger     = onTrigger || (() => {});
     this.running       = false;
     this._lmCache      = {};
     this._lastGestures = null;
     this._lastLandmarks = null;
     this._accentLandmarks = null;
+    this._triggerStates = Object.fromEntries(GESTURE_IDS.map((gestureId) => [gestureId, createGestureTriggerState()]));
+    this._triggerCounts = Object.fromEntries(GESTURE_IDS.map((gestureId) => [gestureId, 0]));
     this._postTimer    = null;
     this._video        = null;
     this._canvas       = null;
@@ -149,6 +252,13 @@ export class ParticipantSession {
     const H = this._video.videoHeight || 480;
     const gestures = extractGestures(smoothed, W, H);
     gestures.accent = this._computeAccent(smoothed, W, H);
+    for (const gestureId of GESTURE_IDS) {
+      const range = gestureRange(gestureId, W, H);
+      if (evaluateGestureTrigger(gestureId, gestures[gestureId], this._triggerStates[gestureId], range)) {
+        this._triggerCounts[gestureId] += 1;
+        this.onTrigger(gestureId);
+      }
+    }
     this._lastGestures = gestures;
     this._lastLandmarks = smoothed.map((landmark) => ({ x: landmark.x, y: landmark.y }));
     this.onGestures(gestures, smoothed);
@@ -182,7 +292,7 @@ export class ParticipantSession {
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
     ctx.fillStyle = '#67ff9e';
-    const dotRadius = Math.max(2, Math.round(Math.min(this._canvas.width, this._canvas.height) * 0.005));
+    const dotRadius = Math.max(1, Math.min(1.6, Math.min(this._canvas.width, this._canvas.height) * 0.003));
     for (const lm of landmarks) {
       ctx.beginPath();
       ctx.arc((1 - lm.x) * this._canvas.width, lm.y * this._canvas.height, dotRadius, 0, Math.PI * 2);
@@ -232,7 +342,12 @@ export class ParticipantSession {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` },
-      body: JSON.stringify({ gestures, landmarks }),
+      body: JSON.stringify({
+        gestures,
+        triggerCounts: this._triggerCounts,
+        landmarks,
+        frameAspect: (this._video?.videoWidth || 640) / Math.max(1, this._video?.videoHeight || 480),
+      }),
     });
     if (!response.ok) {
       const error = new Error(`gesture_post_${response.status}`);

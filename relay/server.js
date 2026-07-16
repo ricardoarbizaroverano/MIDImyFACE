@@ -911,7 +911,9 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         if (!session) return sendJson(res, 401, { ok: false, error: 'invalid_or_expired_session' }, c);
         const body = await readBody(req, 128_000);
         const gestures = isPlainObject(body?.gestures) ? body.gestures : {};
+        const triggerCounts = isPlainObject(body?.triggerCounts) ? body.triggerCounts : {};
         const sanitized = {};
+        const sanitizedTriggerCounts = {};
         const GESTURE_KEYS = ['mouthOpen','smile','leftWink','rightWink','noseX','noseY','accent'];
         for (const key of GESTURE_KEYS) {
           const v = gestures[key];
@@ -919,10 +921,20 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
             const n = Number(v);
             if (Number.isFinite(n)) sanitized[key] = Math.round(n * 100) / 100;
           }
+          const count = Number(triggerCounts[key]);
+          if (Number.isSafeInteger(count) && count >= 0) {
+            sanitizedTriggerCounts[key] = Math.min(count, 1_000_000_000);
+          }
         }
+        const requestedFrameAspect = Number(body?.frameAspect);
+        const frameAspect = Number.isFinite(requestedFrameAspect)
+          ? Math.max(0.4, Math.min(2.5, Math.round(requestedFrameAspect * 10_000) / 10_000))
+          : 4 / 3;
         liveGestureSnapshot = {
           gestures: sanitized,
+          triggerCounts: sanitizedTriggerCounts,
           landmarks: sanitizeLiveLandmarks(body?.landmarks),
+          frameAspect,
           updatedAt: new Date().toISOString(),
           participant: { nickname: session.nickname, countryCode: session.countryCode },
           sessionId: session.sessionId,
@@ -931,6 +943,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         return sendJson(res, 200, {
           ok: true,
           gestures: sanitized,
+          triggerCounts: sanitizedTriggerCounts,
           expiresAt: session.expiresAt,
           remainingMs: Math.max(0, session.expiresAtMs - Date.now()),
           serverTime: new Date().toISOString(),
@@ -961,7 +974,9 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         session: publicLiveSession(),
         ...(fresh ? liveGestureSnapshot : {
           gestures: {},
+          triggerCounts: {},
           landmarks: [],
+          frameAspect: 4 / 3,
           updatedAt: liveGestureSnapshot?.updatedAt || null,
           participant: activeLiveSession ? {
             nickname: activeLiveSession.nickname,

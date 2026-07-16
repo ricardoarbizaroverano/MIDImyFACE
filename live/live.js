@@ -1,6 +1,5 @@
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const STATUS_POLL_MS = 10_000;
-const GESTURE_BAR_MAX = { mouthOpen: 50, smile: 120, leftWink: 60, rightWink: 60, noseX: 640, noseY: 480, accent: 100 };
 const COUNTRY_CODES = [
   'AR','AU','AT','BE','BO','BR','BG','CA','CL','CN','CO','CR','CU','CZ','DK','DO','EC','EG','SV','FI','FR','DE','GR','GT','HN','HK','HU','IS','IN','ID','IE','IL','IT','JP','KE','KR','LV','LT','LU','MY','MX','MA','NL','NZ','NI','NG','NO','PA','PY','PE','PH','PL','PT','PR','RO','SG','SK','SI','ZA','ES','SE','CH','TW','TH','TN','TR','UA','AE','GB','US','UY','VE','VN',
 ];
@@ -8,7 +7,7 @@ const COUNTRY_CODES = [
 const elements = Object.fromEntries([
   'statusDot','machineStatus','machineMessage','participantBadge','sessionCountdown','sessionIntro','identityForm',
   'nicknameInput','countrySelect','startSessionBtn','formMessage','sessionVideo','sessionCanvas','sessionStatus',
-  'closeSessionBtn','gestureBars','stopSessionBtn','youtubeLink','pastVideosLink','instagramLink',
+  'closeSessionBtn','gestureTriggers','stopSessionBtn',
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = {
@@ -93,16 +92,13 @@ function renderStatus(payload) {
   }
 }
 
-function renderGestureBars(gestures) {
-  for (const [name, rawValue] of Object.entries(gestures || {})) {
-    const value = Number(rawValue) || 0;
-    const bar = document.getElementById(`bar-${name}`);
-    const label = document.getElementById(`val-${name}`);
-    if (!bar || !label) continue;
-    const max = GESTURE_BAR_MAX[name] || 100;
-    bar.style.width = `${Math.max(0, Math.min(100, value / max * 100))}%`;
-    label.textContent = String(Math.round(value));
-  }
+function flashGestureTrigger(gestureId) {
+  const icon = document.querySelector(`[data-gesture="${gestureId}"]`);
+  if (!icon) return;
+  icon.classList.remove('triggered');
+  void icon.offsetWidth;
+  icon.classList.add('triggered');
+  window.setTimeout(() => icon.classList.remove('triggered'), 190);
 }
 
 function enterActiveUi(session) {
@@ -110,7 +106,7 @@ function enterActiveUi(session) {
   setHidden(elements.sessionIntro, true);
   setHidden(elements.sessionStatus, false);
   setHidden(elements.closeSessionBtn, false);
-  setHidden(elements.gestureBars, false);
+  setHidden(elements.gestureTriggers, false);
   setHidden(elements.stopSessionBtn, false);
   elements.participantBadge.textContent = `${session.nickname} ${countryFlag(session.countryCode)}`;
   startCountdown();
@@ -121,7 +117,7 @@ function resetUi(message = 'Session ended. You can start another turn when the i
   setHidden(elements.sessionIntro, false);
   setHidden(elements.sessionStatus, true);
   setHidden(elements.closeSessionBtn, true);
-  setHidden(elements.gestureBars, true);
+  setHidden(elements.gestureTriggers, true);
   setHidden(elements.stopSessionBtn, true);
   elements.startSessionBtn.disabled = false;
   elements.startSessionBtn.textContent = '▶ Start camera session';
@@ -131,7 +127,6 @@ function resetUi(message = 'Session ended. You can start another turn when the i
   state.countdownTimer = null;
   state.session = null;
   state.participantSession = null;
-  renderGestureBars({ mouthOpen: 0, smile: 0, leftWink: 0, rightWink: 0, noseX: 0, noseY: 0, accent: 0 });
   setFormMessage(message);
   refreshStatus();
 }
@@ -195,7 +190,7 @@ async function startSession(event) {
         if (phase === 'expired') resetUi('Your turn is complete. Thank you for playing.');
         if (phase === 'error') resetUi(message || 'The camera session could not start.');
       },
-      onGestures: renderGestureBars,
+      onTrigger: flashGestureTrigger,
     });
     await state.participantSession.start(elements.sessionVideo, elements.sessionCanvas);
   } catch (error) {
@@ -240,16 +235,6 @@ async function initialize() {
   });
   window.addEventListener('pagehide', () => state.participantSession?.stop({ notifyRelay: true }));
 
-  try {
-    state.bootstrap = await api('/api/live/bootstrap');
-    elements.youtubeLink.href = state.bootstrap.links.youtubeChannelUrl;
-    elements.pastVideosLink.href = state.bootstrap.links.youtubeVideosUrl;
-    elements.instagramLink.href = state.bootstrap.links.instagramUrl;
-  } catch {
-    elements.youtubeLink.href = 'https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g';
-    elements.pastVideosLink.href = `${elements.youtubeLink.href}/videos`;
-    elements.instagramLink.href = 'https://www.instagram.com/midimyface/';
-  }
   await refreshStatus();
   window.setInterval(refreshStatus, STATUS_POLL_MS);
 }
