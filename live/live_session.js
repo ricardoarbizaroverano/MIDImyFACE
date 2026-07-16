@@ -94,6 +94,7 @@ export class ParticipantSession {
     this._video.srcObject = this._stream;
     await new Promise((resolve) => { this._video.onloadedmetadata = resolve; });
     this._video.play();
+    this._clearCanvas(this._video.videoWidth || 640, this._video.videoHeight || 480);
 
     this.onStatus({ phase: 'model', message: 'Loading face model…' });
     try {
@@ -113,6 +114,7 @@ export class ParticipantSession {
     clearTimeout(this._postTimer);
     this._stream?.getTracks().forEach((t) => t.stop());
     this._faceMesh?.close?.();
+    this._clearCanvas(this._canvas?.width || 640, this._canvas?.height || 480);
     this.onStatus({ phase: 'stopped', message: 'Session ended.' });
   }
 
@@ -131,7 +133,10 @@ export class ParticipantSession {
   _onFaceResults(results) {
     if (!this.running) return;
     const lms = results?.multiFaceLandmarks?.[0];
-    if (!lms || lms.length === 0) return;
+    if (!lms || lms.length === 0) {
+      this._clearCanvas(this._video.videoWidth || 640, this._video.videoHeight || 480);
+      return;
+    }
 
     const smoothed = smoothLandmarks(lms, this._lmCache);
     const W = this._video.videoWidth  || 640;
@@ -149,13 +154,24 @@ export class ParticipantSession {
     if (!ctx) return;
     this._canvas.width  = this._video.videoWidth  || W;
     this._canvas.height = this._video.videoHeight || H;
-    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
     ctx.fillStyle = '#67ff9e';
+    const dotRadius = Math.max(2, Math.round(Math.min(this._canvas.width, this._canvas.height) * 0.005));
     for (const lm of landmarks) {
       ctx.beginPath();
-      ctx.arc((1 - lm.x) * this._canvas.width, lm.y * this._canvas.height, 2, 0, Math.PI * 2);
+      ctx.arc((1 - lm.x) * this._canvas.width, lm.y * this._canvas.height, dotRadius, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  _clearCanvas(W, H) {
+    const ctx = this._canvas?.getContext('2d');
+    if (!ctx || !this._canvas) return;
+    this._canvas.width = W;
+    this._canvas.height = H;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
   }
 
   async _processLoop() {

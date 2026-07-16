@@ -136,46 +136,46 @@ function applyMinimalLayout(bootstrap) {
     hideElement(bodyCopy);
   }
 
-  setText(elements.heroSubtitle, 'Percussion mode');
+  setText(elements.heroSubtitle, 'Percussion · landmarks');
   setText(elements.machineMode, 'Percussion');
   setText(elements.queuePolicy, '7 solenoids');
   setText(elements.lastUpdateLabel, 'live');
   setText(elements.liveAccessMessage, '');
 
-  elements.watchLiveButton.textContent = 'Previous iteration';
-  elements.visitChannelButton.textContent = 'Notify me when';
+  elements.watchLiveButton.innerHTML = '<span class="glyph">⏺</span><span class="glyph-label">Past</span>';
+  elements.visitChannelButton.innerHTML = '<span class="glyph">↗</span><span class="glyph-label">Channel</span>';
   elements.watchLiveButton.href = bootstrap?.links?.youtubeVideosUrl || '#';
-  elements.visitChannelButton.href = '#notify';
+  elements.visitChannelButton.href = bootstrap?.links?.youtubeChannelUrl || '#';
 
   const donorRow = elements.donationButtons;
   donorRow.innerHTML = '';
 
   const notifyButton = document.createElement('button');
-  notifyButton.className = 'button primary';
+  notifyButton.className = 'glyph-button glyph-primary';
   notifyButton.type = 'button';
-  notifyButton.textContent = 'Notify me when';
+  notifyButton.innerHTML = '<span class="glyph">✉</span><span class="glyph-label">Notify</span>';
   notifyButton.addEventListener('click', requestNotificationPermission);
 
   const previousButton = document.createElement('a');
-  previousButton.className = 'button ghost';
+  previousButton.className = 'glyph-link';
   previousButton.href = bootstrap?.links?.youtubeVideosUrl || '#';
   previousButton.target = '_blank';
   previousButton.rel = 'noreferrer';
-  previousButton.textContent = 'Previous iteration';
+  previousButton.innerHTML = '<span class="glyph">⌁</span><span class="glyph-label">Past</span>';
 
   const youtubeButton = document.createElement('a');
-  youtubeButton.className = 'button ghost';
+  youtubeButton.className = 'glyph-link';
   youtubeButton.href = bootstrap?.links?.youtubeChannelUrl || '#';
   youtubeButton.target = '_blank';
   youtubeButton.rel = 'noreferrer';
-  youtubeButton.textContent = 'YouTube';
+  youtubeButton.innerHTML = '<span class="glyph">▶</span><span class="glyph-label">YouTube</span>';
 
   const instagramButton = document.createElement('a');
-  instagramButton.className = 'button ghost';
+  instagramButton.className = 'glyph-link';
   instagramButton.href = bootstrap?.links?.instagramUrl || '#';
   instagramButton.target = '_blank';
   instagramButton.rel = 'noreferrer';
-  instagramButton.textContent = 'Instagram';
+  instagramButton.innerHTML = '<span class="glyph">◎</span><span class="glyph-label">Instagram</span>';
 
   donorRow.appendChild(notifyButton);
   donorRow.appendChild(previousButton);
@@ -289,8 +289,8 @@ function renderDonations(status, bootstrap) {
 
 function renderStatus(status, bootstrap) {
   state.status = status;
-  const heroTitle = status?.content?.heroTitle || 'MIDImyFACE Live';
-  const heroSubtitle = status?.content?.heroSubtitle || 'Percussion mode';
+  const heroTitle = status?.content?.heroTitle || 'MIDImyFACE';
+  const heroSubtitle = status?.content?.heroSubtitle || 'Percussion · landmarks';
   const machineMode = normalizeMachineMode(status);
   const queue = status?.queue || {};
   const stream = status?.stream || {};
@@ -325,10 +325,10 @@ function renderStatus(status, bootstrap) {
   }
 
   setText(elements.policyMessage, '');
-  setText(elements.streamTitle, stream.isLive ? 'Live feed' : 'Not available');
+  setText(elements.streamTitle, stream.isLive ? 'Live feed' : 'Signal idle');
   setText(elements.streamDescription, stream.isLive
-    ? 'Live.'
-    : (message || (machine.alive ? 'Not available.' : 'Offline.')));
+    ? 'Broadcast online.'
+    : (message || (machine.alive ? 'Installation online.' : 'Installation offline.')));
 
   const channelUrl = stream.channelUrl || bootstrap?.links?.youtubeChannelUrl || '#';
   const videosUrl = stream.videosUrl || bootstrap?.links?.youtubeVideosUrl || channelUrl;
@@ -345,7 +345,7 @@ function renderStatus(status, bootstrap) {
     elements.youtubeEmbed.src = embedUrl;
   } else {
     elements.youtubeEmbed.removeAttribute('src');
-    elements.streamFallback.textContent = message || (machine.alive ? 'Not available' : 'Offline');
+    elements.streamFallback.textContent = message || (machine.alive ? 'Installation online · no stream.' : 'Installation offline.');
   }
 
   renderDonations(status, bootstrap);
@@ -533,17 +533,53 @@ let _session = null;
 function initSession() {
   const startBtn  = document.getElementById('startSessionBtn');
   const stopBtn   = document.getElementById('stopSessionBtn');
+  const closeBtn  = document.getElementById('closeSessionBtn');
   const statusEl  = document.getElementById('sessionStatus');
+  const introEl   = document.getElementById('sessionIntro');
   const videoSec  = document.getElementById('sessionVideoSection');
   const videoEl   = document.getElementById('sessionVideo');
   const canvasEl  = document.getElementById('sessionCanvas');
 
   if (!startBtn) return;
 
+  const resetBars = () => renderGestureBars({ mouthOpen: 0, smile: 0, leftWink: 0, rightWink: 0, noseX: 0, noseY: 0, accent: 0 });
+
+  const setIdleUi = () => {
+    document.body.classList.remove('session-active');
+    introEl?.classList.remove('hidden');
+    videoSec?.classList.add('hidden');
+    startBtn.disabled = false;
+    startBtn.classList.remove('hidden');
+    startBtn.innerHTML = '<span class="glyph">▶</span><span class="glyph-label">Start</span>';
+    stopBtn.classList.add('hidden');
+    closeBtn?.classList.add('hidden');
+    statusEl.textContent = 'Ready';
+    statusEl.className = 'session-status';
+    resetBars();
+  };
+
+  const setActiveUi = () => {
+    document.body.classList.add('session-active');
+    introEl?.classList.add('hidden');
+    videoSec?.classList.remove('hidden');
+    startBtn.classList.add('hidden');
+    stopBtn.classList.remove('hidden');
+    stopBtn.disabled = false;
+    closeBtn?.classList.remove('hidden');
+  };
+
+  const stopSession = () => {
+    _session?.stop();
+    _session = null;
+    setIdleUi();
+  };
+
+  setIdleUi();
+
   startBtn.addEventListener('click', async () => {
     if (_session) return;
     startBtn.disabled = true;
-    startBtn.textContent = 'Loading…';
+    startBtn.innerHTML = '<span class="glyph">…</span><span class="glyph-label">Loading</span>';
 
     const { ParticipantSession } = await import('./live_session.js');
     _session = new ParticipantSession({
@@ -554,18 +590,14 @@ function initSession() {
         statusEl.textContent = message;
         statusEl.className = 'session-status ' + (phase === 'active' ? 'active' : phase === 'error' ? 'error' : '');
         if (phase === 'active') {
-          videoSec.classList.remove('hidden');
-          videoSec.style.display = '';
-          startBtn.classList.add('hidden');
-          stopBtn.classList.remove('hidden');
-          stopBtn.disabled = false;
+          setActiveUi();
         }
         if (phase === 'error' || phase === 'stopped') {
-          startBtn.disabled = false;
-          startBtn.textContent = 'Start Session';
-          startBtn.classList.remove('hidden');
-          stopBtn.classList.add('hidden');
-          videoSec.classList.add('hidden');
+          setIdleUi();
+          if (phase === 'error') {
+            statusEl.textContent = message;
+            statusEl.className = 'session-status error';
+          }
           _session = null;
         }
       },
@@ -577,9 +609,13 @@ function initSession() {
     await _session.start(videoEl, canvasEl);
   });
 
-  stopBtn.addEventListener('click', () => {
-    _session?.stop();
-    _session = null;
+  stopBtn.addEventListener('click', stopSession);
+  closeBtn?.addEventListener('click', stopSession);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && _session) {
+      stopSession();
+    }
   });
 }
 
