@@ -49,6 +49,20 @@ const DEFAULT_ADMIN_PASSWORD         = process.env.TEST_ADMIN_PASSWORD          
 const DEFAULT_ADMIN_MAX_PARTICIPANTS = Number(process.env.TEST_ADMIN_MAX_PARTICIPANTS || 50);
 const MIDIMYFACE_JOIN_URL            = process.env.MIDIMYFACE_JOIN_URL             || 'https://midimyface.com';
 const PUBLIC_BASE_URL                = process.env.PUBLIC_BASE_URL                 || 'https://midimyface-relay.onrender.com';
+const LIVE_ROUTE_PATH                = process.env.LIVE_ROUTE_PATH                 || '/live';
+const LIVE_YOUTUBE_CHANNEL_ID        = process.env.LIVE_YOUTUBE_CHANNEL_ID         || 'UCequCs51HuUdCYC-RQL-b9g';
+const LIVE_INSTAGRAM_HANDLE_RAW      = process.env.LIVE_INSTAGRAM_HANDLE           || '@midimyface';
+const LIVE_PAYPAL_DONATION_URL       = process.env.LIVE_PAYPAL_DONATION_URL        || 'https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download';
+const LIVE_OWNER_EMAIL               = process.env.LIVE_OWNER_EMAIL                || 'midimyface@gmail.com';
+const RPI_DEVICE_TOKEN               = process.env.RPI_DEVICE_TOKEN                || '';
+const LIVE_STATE_FILE                = process.env.LIVE_STATE_FILE                 || path.join(__dirname, 'data', 'live-state.json');
+const LIVE_FIREBASE_API_KEY          = process.env.LIVE_FIREBASE_API_KEY           || '';
+const LIVE_FIREBASE_AUTH_DOMAIN      = process.env.LIVE_FIREBASE_AUTH_DOMAIN       || '';
+const LIVE_FIREBASE_PROJECT_ID       = process.env.LIVE_FIREBASE_PROJECT_ID        || '';
+const LIVE_FIREBASE_STORAGE_BUCKET   = process.env.LIVE_FIREBASE_STORAGE_BUCKET    || '';
+const LIVE_FIREBASE_MESSAGING_ID     = process.env.LIVE_FIREBASE_MESSAGING_ID      || '';
+const LIVE_FIREBASE_APP_ID           = process.env.LIVE_FIREBASE_APP_ID            || '';
+const LIVE_FIREBASE_MEASUREMENT_ID   = process.env.LIVE_FIREBASE_MEASUREMENT_ID    || '';
 
 // Comma-separated list like:
 // "https://midimyface.com,https://www.midimyface.com,http://127.0.0.1:5500"
@@ -58,6 +72,13 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '*')
   .filter(Boolean);
 
 const NODE_ENV = String(process.env.NODE_ENV || 'development').toLowerCase();
+const LIVE_INSTAGRAM_HANDLE = LIVE_INSTAGRAM_HANDLE_RAW.startsWith('@')
+  ? LIVE_INSTAGRAM_HANDLE_RAW
+  : `@${LIVE_INSTAGRAM_HANDLE_RAW}`;
+const LIVE_INSTAGRAM_URL = `https://www.instagram.com/${LIVE_INSTAGRAM_HANDLE.replace(/^@/, '')}/`;
+const LIVE_YOUTUBE_CHANNEL_URL = `https://www.youtube.com/channel/${LIVE_YOUTUBE_CHANNEL_ID}`;
+const LIVE_YOUTUBE_VIDEOS_URL = `${LIVE_YOUTUBE_CHANNEL_URL}/videos`;
+const LIVE_YOUTUBE_LIVE_EMBED_URL = `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(LIVE_YOUTUBE_CHANNEL_ID)}&autoplay=1`;
 
 function ensureSecureConfig() {
   const missing = [];
@@ -129,6 +150,281 @@ function originAllowed(origin) {
   if (!origin || ALLOWED_ORIGINS.includes('*')) return true;
   // Starts-with match so scheme+host (and optional port) are enough.
   return ALLOWED_ORIGINS.some(o => o && origin.startsWith(o));
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function deepMerge(baseValue, overrideValue) {
+  if (!isPlainObject(baseValue) || !isPlainObject(overrideValue)) {
+    return overrideValue === undefined ? baseValue : overrideValue;
+  }
+
+  const merged = { ...baseValue };
+  for (const [key, value] of Object.entries(overrideValue)) {
+    merged[key] = key in baseValue ? deepMerge(baseValue[key], value) : value;
+  }
+  return merged;
+}
+
+function cleanString(value, maxLength = 240) {
+  if (value === null || value === undefined) return '';
+  return String(value).trim().slice(0, maxLength);
+}
+
+function asBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return fallback;
+}
+
+function parseBearerToken(req) {
+  const authHeader = String(req.headers.authorization || '');
+  return authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+}
+
+function firebasePublicConfig() {
+  return {
+    apiKey: LIVE_FIREBASE_API_KEY,
+    authDomain: LIVE_FIREBASE_AUTH_DOMAIN,
+    projectId: LIVE_FIREBASE_PROJECT_ID,
+    storageBucket: LIVE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: LIVE_FIREBASE_MESSAGING_ID,
+    appId: LIVE_FIREBASE_APP_ID,
+    measurementId: LIVE_FIREBASE_MEASUREMENT_ID,
+  };
+}
+
+function firebaseConfigured() {
+  const cfg = firebasePublicConfig();
+  return Boolean(cfg.apiKey && cfg.authDomain && cfg.projectId && cfg.appId);
+}
+
+function createDefaultLiveState() {
+  return {
+    updatedAt: null,
+    updatedBy: 'defaults',
+    machine: {
+      alive: false,
+      mode: 'offline',
+      acceptingParticipants: false,
+      heartbeatAt: null,
+      statusLabel: 'offline',
+      message: 'Come back later or check our latest socials and live archives.',
+      offlineReason: 'No live data yet.',
+    },
+    venue: {
+      name: '',
+      city: '',
+      country: '',
+      address: '',
+      timezone: '',
+      note: '',
+    },
+    schedule: {
+      startsAt: '',
+      endsAt: '',
+      nextStartsAt: '',
+      note: 'Venue and schedule details will appear here when the installation publishes them.',
+    },
+    stream: {
+      platform: 'youtube',
+      isLive: false,
+      watchUrl: LIVE_YOUTUBE_CHANNEL_URL,
+      embedUrl: LIVE_YOUTUBE_LIVE_EMBED_URL,
+      channelId: LIVE_YOUTUBE_CHANNEL_ID,
+      channelUrl: LIVE_YOUTUBE_CHANNEL_URL,
+      videosUrl: LIVE_YOUTUBE_VIDEOS_URL,
+    },
+    social: {
+      instagramHandle: LIVE_INSTAGRAM_HANDLE,
+      instagramUrl: LIVE_INSTAGRAM_URL,
+    },
+    donations: {
+      paypalUrl: LIVE_PAYPAL_DONATION_URL,
+      suggestedAmounts: [1, 2, 5],
+    },
+    queue: {
+      enabled: false,
+      open: false,
+      busy: false,
+      turnDurationSeconds: 30,
+      cooldownMinutes: 15,
+      oneFreeTurn: true,
+      message: 'Queue opens only when the installation is live and accepting participants.',
+      estimatedWaitMinutes: null,
+    },
+    auth: {
+      provider: 'google',
+      enabled: firebaseConfigured(),
+      firebaseConfigured: firebaseConfigured(),
+      ownerEmail: LIVE_OWNER_EMAIL,
+      collectionNames: {
+        participants: 'liveParticipants',
+        notifications: 'liveNotifications',
+      },
+    },
+    content: {
+      heroTitle: 'MIDImyFACE Live',
+      heroSubtitle: 'A public installation you can watch online or visit in person.',
+      fallbackMessage: 'No live data yet. Come back later or check the channel and social links.',
+    },
+  };
+}
+
+function sanitizeLiveStatePatch(input) {
+  const patch = isPlainObject(input) ? input : {};
+  return {
+    updatedAt: cleanString(patch.updatedAt || new Date().toISOString(), 64),
+    updatedBy: cleanString(patch.updatedBy || 'raspberry-pi', 80),
+    machine: {
+      alive: asBoolean(patch.machine?.alive, false),
+      mode: cleanString(patch.machine?.mode || 'offline', 32) || 'offline',
+      acceptingParticipants: asBoolean(patch.machine?.acceptingParticipants, false),
+      heartbeatAt: cleanString(patch.machine?.heartbeatAt || new Date().toISOString(), 64),
+      statusLabel: cleanString(patch.machine?.statusLabel || patch.machine?.mode || 'offline', 48) || 'offline',
+      message: cleanString(patch.machine?.message || '', 240),
+      offlineReason: cleanString(patch.machine?.offlineReason || '', 240),
+    },
+    venue: {
+      name: cleanString(patch.venue?.name || '', 120),
+      city: cleanString(patch.venue?.city || '', 120),
+      country: cleanString(patch.venue?.country || '', 120),
+      address: cleanString(patch.venue?.address || '', 180),
+      timezone: cleanString(patch.venue?.timezone || '', 80),
+      note: cleanString(patch.venue?.note || '', 240),
+    },
+    schedule: {
+      startsAt: cleanString(patch.schedule?.startsAt || '', 80),
+      endsAt: cleanString(patch.schedule?.endsAt || '', 80),
+      nextStartsAt: cleanString(patch.schedule?.nextStartsAt || '', 80),
+      note: cleanString(patch.schedule?.note || '', 240),
+    },
+    stream: {
+      platform: cleanString(patch.stream?.platform || 'youtube', 32) || 'youtube',
+      isLive: asBoolean(patch.stream?.isLive, false),
+      watchUrl: cleanString(patch.stream?.watchUrl || LIVE_YOUTUBE_CHANNEL_URL, 240),
+      embedUrl: cleanString(patch.stream?.embedUrl || LIVE_YOUTUBE_LIVE_EMBED_URL, 240),
+      channelId: cleanString(patch.stream?.channelId || LIVE_YOUTUBE_CHANNEL_ID, 120),
+      channelUrl: cleanString(patch.stream?.channelUrl || LIVE_YOUTUBE_CHANNEL_URL, 240),
+      videosUrl: cleanString(patch.stream?.videosUrl || LIVE_YOUTUBE_VIDEOS_URL, 240),
+    },
+    social: {
+      instagramHandle: cleanString(patch.social?.instagramHandle || LIVE_INSTAGRAM_HANDLE, 80) || LIVE_INSTAGRAM_HANDLE,
+      instagramUrl: cleanString(patch.social?.instagramUrl || LIVE_INSTAGRAM_URL, 240) || LIVE_INSTAGRAM_URL,
+    },
+    donations: {
+      paypalUrl: cleanString(patch.donations?.paypalUrl || LIVE_PAYPAL_DONATION_URL, 400) || LIVE_PAYPAL_DONATION_URL,
+      suggestedAmounts: Array.isArray(patch.donations?.suggestedAmounts)
+        ? patch.donations.suggestedAmounts.map((amount) => Number(amount)).filter((amount) => Number.isFinite(amount) && amount > 0).slice(0, 6)
+        : [1, 2, 5],
+    },
+    queue: {
+      enabled: asBoolean(patch.queue?.enabled, false),
+      open: asBoolean(patch.queue?.open, false),
+      busy: asBoolean(patch.queue?.busy, false),
+      turnDurationSeconds: Math.max(10, Math.min(Number(patch.queue?.turnDurationSeconds || 30), 180)),
+      cooldownMinutes: Math.max(1, Math.min(Number(patch.queue?.cooldownMinutes || 15), 240)),
+      oneFreeTurn: asBoolean(patch.queue?.oneFreeTurn, true),
+      message: cleanString(patch.queue?.message || '', 240),
+      estimatedWaitMinutes: patch.queue?.estimatedWaitMinutes === null || patch.queue?.estimatedWaitMinutes === undefined || patch.queue?.estimatedWaitMinutes === ''
+        ? null
+        : Math.max(0, Math.min(Number(patch.queue.estimatedWaitMinutes), 1440)),
+    },
+    auth: {
+      provider: 'google',
+      enabled: firebaseConfigured(),
+      firebaseConfigured: firebaseConfigured(),
+      ownerEmail: LIVE_OWNER_EMAIL,
+      collectionNames: {
+        participants: 'liveParticipants',
+        notifications: 'liveNotifications',
+      },
+    },
+    content: {
+      heroTitle: cleanString(patch.content?.heroTitle || 'MIDImyFACE Live', 120) || 'MIDImyFACE Live',
+      heroSubtitle: cleanString(patch.content?.heroSubtitle || 'A public installation you can watch online or visit in person.', 240),
+      fallbackMessage: cleanString(patch.content?.fallbackMessage || 'No live data yet. Come back later or check the channel and social links.', 240),
+    },
+  };
+}
+
+function ensureDataDirectory(filePath) {
+  const dirPath = path.dirname(filePath);
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+function loadLiveState() {
+  const defaults = createDefaultLiveState();
+  try {
+    if (!fs.existsSync(LIVE_STATE_FILE)) {
+      return defaults;
+    }
+    const parsed = JSON.parse(fs.readFileSync(LIVE_STATE_FILE, 'utf8'));
+    return deepMerge(defaults, parsed);
+  } catch (error) {
+    console.warn('[live] Failed to load live state file, using defaults:', error?.message || error);
+    return defaults;
+  }
+}
+
+function persistLiveState(state) {
+  try {
+    ensureDataDirectory(LIVE_STATE_FILE);
+    fs.writeFileSync(LIVE_STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+  } catch (error) {
+    console.warn('[live] Failed to persist live state:', error?.message || error);
+  }
+}
+
+let liveState = loadLiveState();
+
+function updateLiveState(rawPatch, updatedBy = 'raspberry-pi') {
+  const normalizedPatch = sanitizeLiveStatePatch({ ...rawPatch, updatedBy, updatedAt: new Date().toISOString() });
+  liveState = deepMerge(liveState, normalizedPatch);
+  persistLiveState(liveState);
+  return liveState;
+}
+
+function buildLiveBootstrapPayload() {
+  return {
+    ok: true,
+    route: LIVE_ROUTE_PATH,
+    relayOrigin: PUBLIC_BASE_URL,
+    ownerEmail: LIVE_OWNER_EMAIL,
+    links: {
+      youtubeChannelUrl: LIVE_YOUTUBE_CHANNEL_URL,
+      youtubeVideosUrl: LIVE_YOUTUBE_VIDEOS_URL,
+      youtubeLiveEmbedUrl: LIVE_YOUTUBE_LIVE_EMBED_URL,
+      instagramHandle: LIVE_INSTAGRAM_HANDLE,
+      instagramUrl: LIVE_INSTAGRAM_URL,
+      paypalDonationUrl: LIVE_PAYPAL_DONATION_URL,
+    },
+    auth: {
+      provider: 'google',
+      enabled: firebaseConfigured(),
+      firebaseConfigured: firebaseConfigured(),
+      firebase: firebasePublicConfig(),
+      ownerEmail: LIVE_OWNER_EMAIL,
+      collectionNames: {
+        participants: 'liveParticipants',
+        notifications: 'liveNotifications',
+      },
+    },
+    queuePolicy: {
+      turnDurationSeconds: 30,
+      cooldownMinutes: 15,
+      freeTurnsPerCooldownWindow: 1,
+      paidExtraTurnsEnabled: false,
+    },
+  };
 }
 
 /* ============================
@@ -360,6 +656,7 @@ setInterval(() => {
 const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
   const origin = req.headers.origin || '';
+  const isLiveApiRequest = parsed.pathname.startsWith('/api/live/');
 
   // CORS headers (reflect allowed origin, or * if configured)
   const allowStar = ALLOWED_ORIGINS.includes('*');
@@ -374,7 +671,7 @@ const server = http.createServer(async (req, res) => {
 
   // Handle preflight
   if (req.method === 'OPTIONS') {
-    if (CONSOLE_API_ENABLED && parsed.pathname.startsWith('/api/')) {
+    if (isLiveApiRequest || (CONSOLE_API_ENABLED && parsed.pathname.startsWith('/api/'))) {
       const c = apiCors(origin);
       res.writeHead(204, c);
       res.end();
@@ -420,6 +717,55 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
 `,
       { ...base, ...cors }
     );
+  }
+
+  if (isLiveApiRequest) {
+    const c = apiCors(origin);
+
+    if (req.method === 'GET' && parsed.pathname === '/api/live/bootstrap') {
+      return sendJson(res, 200, buildLiveBootstrapPayload(), {
+        ...c,
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+      });
+    }
+
+    if (req.method === 'GET' && parsed.pathname === '/api/live/status') {
+      return sendJson(res, 200, {
+        ok: true,
+        status: liveState,
+        serverTime: new Date().toISOString(),
+      }, {
+        ...c,
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+      });
+    }
+
+    if (req.method === 'POST' && parsed.pathname === '/api/live/device/status') {
+      if (!RPI_DEVICE_TOKEN) {
+        return sendJson(res, 503, { ok: false, error: 'rpi_device_token_not_configured' }, c);
+      }
+
+      const bearerToken = parseBearerToken(req);
+      if (!bearerToken || bearerToken !== RPI_DEVICE_TOKEN) {
+        return sendJson(res, 401, { ok: false, error: 'unauthorized_device' }, c);
+      }
+
+      try {
+        const body = await readBody(req);
+        const nextState = updateLiveState(body, cleanString(body?.updatedBy || 'raspberry-pi', 80) || 'raspberry-pi');
+        return sendJson(res, 200, {
+          ok: true,
+          status: nextState,
+          serverTime: new Date().toISOString(),
+        }, c);
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
+    }
+
+    return sendJson(res, 404, { ok: false, error: 'not_found' }, c);
   }
 
   /* ─── Console API ─── */

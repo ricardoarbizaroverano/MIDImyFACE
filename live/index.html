@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MIDImyFACE Live</title>
+  <meta name="description" content="Watch the MIDImyFACE installation, see venue status, and save your details for future live sessions.">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #030504;
+      --bg-panel: rgba(7, 18, 12, 0.92);
+      --border: rgba(111, 255, 163, 0.42);
+      --border-strong: rgba(111, 255, 163, 0.78);
+      --text: #effff4;
+      --muted: #9bbaa8;
+      --accent: #67ff9e;
+      --accent-2: #b5ff56;
+      --danger: #ff6d6d;
+      --warn: #ffd66d;
+      --shadow: 0 24px 54px rgba(0, 0, 0, 0.38);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(74, 180, 120, 0.22), transparent 34%),
+        linear-gradient(180deg, #07120d 0%, var(--bg) 44%, #000 100%);
+      color: var(--text);
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 64px;
+    }
+
+    .hero,
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero {
+      display: grid;
+      gap: 24px;
+      padding: 28px;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--warn);
+      box-shadow: 0 0 20px rgba(255, 214, 109, 0.52);
+    }
+
+    h1,
+    h2,
+    h3,
+    p { margin: 0; }
+
+    h1 {
+      font-size: clamp(2rem, 3.8vw, 4.2rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      max-width: 11ch;
+    }
+
+    .hero-copy {
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .hero-copy p,
+    .meta-card p,
+    .panel p,
+    .small-copy {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .hero-actions,
+    .pill-row,
+    .donation-row,
+    .social-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .button,
+    button,
+    select,
+    input {
+      font: inherit;
+    }
+
+    .button,
+    button {
+      appearance: none;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      background: rgba(16, 35, 24, 0.92);
+      color: var(--text);
+      padding: 12px 18px;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+      text-decoration: none;
+    }
+
+    .button:hover,
+    button:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+    }
+
+    .button.primary,
+    button.primary {
+      background: linear-gradient(135deg, rgba(103, 255, 158, 0.22), rgba(181, 255, 86, 0.18));
+    }
+
+    .button.ghost {
+      background: transparent;
+      border-color: rgba(255, 255, 255, 0.16);
+      color: var(--muted);
+    }
+
+    button[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status-card,
+    .meta-card {
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .status-grid,
+    .panel-grid {
+      margin-top: 24px;
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-6 { grid-column: span 6; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .pill strong,
+    .meta-value,
+    .status-value {
+      color: var(--text);
+    }
+
+    .kicker {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .status-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .status-offline .dot { background: var(--danger); box-shadow: 0 0 20px rgba(255, 109, 109, 0.5); }
+    .status-online .dot { background: var(--accent); box-shadow: 0 0 20px rgba(103, 255, 158, 0.46); }
+    .status-live .dot { background: var(--accent-2); box-shadow: 0 0 22px rgba(181, 255, 86, 0.56); }
+
+    iframe {
+      width: 100%;
+      border: 0;
+      border-radius: 18px;
+      background: rgba(0, 0, 0, 0.45);
+      aspect-ratio: 16 / 9;
+    }
+
+    .hidden { display: none !important; }
+
+    .field-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.28);
+      color: var(--text);
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .checkbox-row input {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+    }
+
+    .notice {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .notice.success {
+      border-color: rgba(103, 255, 158, 0.36);
+      color: var(--text);
+      background: rgba(103, 255, 158, 0.09);
+    }
+
+    .notice.error {
+      border-color: rgba(255, 109, 109, 0.4);
+      color: #ffd9d9;
+      background: rgba(255, 109, 109, 0.08);
+    }
+
+    .footer {
+      margin-top: 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .status-grid,
+      .panel-grid,
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .span-4,
+      .span-5,
+      .span-6,
+      .span-7,
+      .span-8,
+      .span-12 {
+        grid-column: auto;
+      }
+
+      .shell {
+        width: min(100vw - 20px, 100%);
+        padding-top: 18px;
+      }
+
+      .hero,
+      .panel {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow" id="heroEyebrow"><span class="dot"></span><span>Installation status</span></div>
+        <h1 id="heroTitle">MIDImyFACE Live</h1>
+        <p id="heroSubtitle">A public installation you can watch online or visit in person.</p>
+        <div class="pill-row">
+          <div class="pill"><strong id="machineMode">Offline</strong><span>Mode</span></div>
+          <div class="pill"><strong id="queuePolicy">30s turn · 15m cooldown</strong><span>Access</span></div>
+          <div class="pill"><strong id="lastUpdateLabel">Waiting for data</strong><span>Last update</span></div>
+        </div>
+        <div class="hero-actions">
+          <a id="watchLiveButton" class="button primary" href="#streamPanel">Watch the feed</a>
+          <a id="visitChannelButton" class="button ghost" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noreferrer">Visit YouTube channel</a>
+        </div>
+      </div>
+      <aside class="status-card" id="statusCard">
+        <div class="kicker">Machine</div>
+        <div class="status-value" id="machineStatusLabel">Loading…</div>
+        <p id="machineStatusMessage">Checking the installation status.</p>
+        <div class="meta-card">
+          <div class="kicker">Venue</div>
+          <p class="meta-value" id="venueLabel">Waiting for Raspberry Pi updates.</p>
+          <p id="scheduleLabel">If no data arrives, come back later or check social channels.</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="status-grid">
+      <article class="panel span-4">
+        <div class="kicker">Location</div>
+        <h2 id="locationTitle">Not announced yet</h2>
+        <p id="locationDetails">The Raspberry Pi will publish venue details here when the installation is active.</p>
+      </article>
+      <article class="panel span-4">
+        <div class="kicker">Live access</div>
+        <h2 id="liveAccessTitle">Waiting for stream status</h2>
+        <p id="liveAccessMessage">When a broadcast goes live, the YouTube feed appears automatically here.</p>
+      </article>
+      <article class="panel span-4">
+        <div class="kicker">Participation policy</div>
+        <h2>30 seconds per person</h2>
+        <p id="policyMessage">One free turn per visitor, then a 15-minute cooldown to keep the installation fair and avoid abuse.</p>
+      </article>
+    </section>
+
+    <section class="panel-grid">
+      <article class="panel span-8" id="streamPanel">
+        <div class="kicker">Watch</div>
+        <h2 id="streamTitle">Live feed</h2>
+        <p id="streamDescription">The embedded stream appears here when the installation broadcasts live on YouTube.</p>
+        <div id="streamEmbedWrap" class="hidden" style="margin-top:16px;">
+          <iframe id="youtubeEmbed" title="MIDImyFACE live stream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        </div>
+        <div id="streamFallback" class="notice" style="margin-top:16px;">
+          No live stream is active right now. Check the latest uploads or follow MIDImyFACE for the next activation.
+        </div>
+        <div class="hero-actions" style="margin-top:16px;">
+          <a id="channelButton" class="button" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noreferrer">Open YouTube channel</a>
+          <a id="videosButton" class="button ghost" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g/videos" target="_blank" rel="noreferrer">Past live videos</a>
+          <a id="instagramButton" class="button ghost" href="https://www.instagram.com/midimyface/" target="_blank" rel="noreferrer">Follow @midimyface</a>
+        </div>
+      </article>
+
+      <article class="panel span-4">
+        <div class="kicker">Support</div>
+        <h2>Keep the machine alive</h2>
+        <p>Support maintenance, future exhibitions, and new builds. Suggested donations open the same PayPal support page.</p>
+        <div class="donation-row" id="donationButtons" style="margin-top:16px;"></div>
+        <p class="small-copy" style="margin-top:12px;">Donation-based only for now — no paid priority and no extra turns.</p>
+      </article>
+
+      <article class="panel span-7">
+        <div class="kicker">Save your spot for later</div>
+        <h2>Google sign-in</h2>
+        <p id="authDescription">Sign in with Google to save your email, nickname, country, and notification preference for future live sessions.</p>
+        <div id="authUnavailable" class="notice" style="margin-top:16px;">Google sign-in will activate after the Firebase web app is configured for `midimyface@gmail.com`.</div>
+        <div id="authReady" class="hidden" style="margin-top:16px; display:grid; gap:16px;">
+          <div class="hero-actions">
+            <button id="googleSignInButton" class="primary" type="button">Sign in with Google</button>
+            <button id="googleSignOutButton" class="ghost hidden" type="button">Sign out</button>
+          </div>
+          <div id="signedInNotice" class="notice hidden"></div>
+          <form id="profileForm" class="hidden" style="display:grid; gap:16px;">
+            <div class="field-grid">
+              <label>
+                Nickname
+                <input id="nicknameInput" name="nickname" type="text" maxlength="40" placeholder="Choose the name shown on the public screen" required>
+              </label>
+              <label>
+                Country
+                <select id="countrySelect" name="country" required></select>
+              </label>
+            </div>
+            <label class="checkbox-row">
+              <input id="notifyCheckbox" name="notify" type="checkbox">
+              <span>Email me the next time MIDImyFACE goes live or announces the next public installation session.</span>
+            </label>
+            <button id="saveProfileButton" class="primary" type="submit">Save my details</button>
+            <div id="profileMessage" class="notice hidden"></div>
+          </form>
+        </div>
+      </article>
+
+      <article class="panel span-5">
+        <div class="kicker">What happens next</div>
+        <h2>Queue phase comes next</h2>
+        <p>The next implementation phase will connect this page to the live queue, 30-second turns, Raspberry Pi status updates, and the public screen display.</p>
+        <div class="notice" style="margin-top:16px;">
+          This first release focuses on status, location, stream visibility, donations, and collecting user interest cleanly.
+        </div>
+      </article>
+    </section>
+
+    <p class="footer">MIDImyFACE Live polls the relay for machine status updates. If the installation is offline, check YouTube and Instagram for the next activation.</p>
+  </main>
+
+  <script type="module" src="./live.js"></script>
+</body>
+</html>
