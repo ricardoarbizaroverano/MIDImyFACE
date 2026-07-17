@@ -1,5 +1,8 @@
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const STATUS_POLL_MS = 10_000;
+const DEFAULT_PAYPAL_URL = 'https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download';
+const DEFAULT_YOUTUBE_EMBED_URL = 'https://www.youtube.com/embed/live_stream?channel=UCequCs51HuUdCYC-RQL-b9g&autoplay=1';
+const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/midimyface/';
 const COUNTRY_CODES = [
   'AR','AU','AT','BE','BO','BR','BG','CA','CL','CN','CO','CR','CU','CZ','DK','DO','EC','EG','SV','FI','FR','DE','GR','GT','HN','HK','HU','IS','IN','ID','IE','IL','IT','JP','KE','KR','LV','LT','LU','MY','MX','MA','NL','NZ','NI','NG','NO','PA','PY','PE','PH','PL','PT','PR','RO','SG','SK','SI','ZA','ES','SE','CH','TW','TH','TN','TR','UA','AE','GB','US','UY','VE','VN',
 ];
@@ -7,7 +10,8 @@ const COUNTRY_CODES = [
 const elements = Object.fromEntries([
   'statusDot','machineStatus','machineMessage','participantBadge','sessionCountdown','sessionIntro','identityForm',
   'nicknameInput','countrySelect','startSessionBtn','formMessage','sessionVideo','sessionCanvas','sessionStatus',
-  'closeSessionBtn','gestureTriggers','stopSessionBtn',
+  'closeSessionBtn','gestureTriggers','stopSessionBtn','paypalDonateLink','instagramProjectLink',
+  'youtubeLivePanel','youtubeLiveFrame','youtubeSoundBtn','donationModal','donationAmounts','dismissDonationBtn',
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = {
@@ -17,6 +21,10 @@ const state = {
   session: null,
   participantSession: null,
   countdownTimer: null,
+  paypalUrl: DEFAULT_PAYPAL_URL,
+  youtubePlayer: null,
+  youtubeProbeTimer: null,
+  youtubeLiveDetected: false,
 };
 
 function resolveRelayOrigin() {
@@ -42,6 +50,137 @@ async function api(pathname, options = {}) {
 
 function setHidden(node, hidden) {
   node?.classList.toggle('hidden', hidden);
+}
+
+function safeExternalUrl(value, allowedDomains, fallback) {
+  try {
+    const parsed = new URL(String(value || ''));
+    const allowed = parsed.protocol === 'https:' && allowedDomains.some(
+      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`),
+    );
+    return allowed ? parsed.toString() : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function configurePublicLinks(bootstrap) {
+  const links = bootstrap?.links || {};
+  state.paypalUrl = safeExternalUrl(links.paypalDonationUrl, ['paypal.com'], DEFAULT_PAYPAL_URL);
+  const instagramUrl = safeExternalUrl(links.instagramUrl, ['instagram.com'], DEFAULT_INSTAGRAM_URL);
+  elements.paypalDonateLink.href = state.paypalUrl;
+  elements.instagramProjectLink.href = instagramUrl;
+  renderDonationAmounts(state.status?.donations?.suggestedAmounts);
+  setupYouTubeLiveProbe(safeExternalUrl(
+    links.youtubeLiveEmbedUrl,
+    ['youtube.com', 'youtube-nocookie.com'],
+    DEFAULT_YOUTUBE_EMBED_URL,
+  ));
+}
+
+function renderDonationAmounts(rawAmounts) {
+  const amounts = Array.isArray(rawAmounts)
+    ? rawAmounts.map(Number).filter((amount) => Number.isFinite(amount) && amount > 0).slice(0, 3)
+    : [1, 2, 5];
+  const normalized = amounts.length ? amounts : [1, 2, 5];
+  elements.donationAmounts.replaceChildren();
+  for (const amount of normalized) {
+    const link = document.createElement('a');
+    link.className = 'donation-amount';
+    link.href = state.paypalUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = String(amount);
+    link.setAttribute('aria-label', `Support MIDImyFACE with ${amount} through PayPal`);
+    elements.donationAmounts.appendChild(link);
+  }
+}
+
+function showDonationPrompt() {
+  renderDonationAmounts(state.status?.donations?.suggestedAmounts);
+  setHidden(elements.donationModal, false);
+  elements.dismissDonationBtn.focus();
+}
+
+function hideDonationPrompt() {
+  setHidden(elements.donationModal, true);
+}
+
+function loadYouTubePlayerApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT);
+  return new Promise((resolve, reject) => {
+    let script = document.querySelector('script[data-mmf-youtube-api]');
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.async = true;
+      script.dataset.mmfYoutubeApi = 'true';
+      script.onerror = () => reject(new Error('youtube_api_unavailable'));
+      document.head.appendChild(script);
+    }
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      if (window.YT?.Player) {
+        clearInterval(timer);
+        resolve(window.YT);
+      } else if (Date.now() - startedAt > 12_000) {
+        clearInterval(timer);
+        reject(new Error('youtube_api_timeout'));
+      }
+    }, 100);
+  });
+}
+
+function setYouTubeLiveVisible(visible) {
+  state.youtubeLiveDetected = Boolean(visible);
+  setHidden(elements.youtubeLivePanel, !visible);
+}
+
+function inspectYouTubePlayer(attemptPlayback = true) {
+  if (!state.youtubePlayer) return false;
+  try {
+    const videoId = String(state.youtubePlayer.getVideoData?.()?.video_id || '');
+    if (!videoId) return false;
+    setYouTubeLiveVisible(true);
+    if (attemptPlayback) {
+      state.youtubePlayer.unMute?.();
+      state.youtubePlayer.setVolume?.(80);
+      state.youtubePlayer.playVideo?.();
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function setupYouTubeLiveProbe(rawEmbedUrl) {
+  try {
+    const embedUrl = new URL(rawEmbedUrl);
+    embedUrl.searchParams.set('autoplay', '1');
+    embedUrl.searchParams.set('enablejsapi', '1');
+    embedUrl.searchParams.set('playsinline', '1');
+    embedUrl.searchParams.set('origin', window.location.origin);
+    elements.youtubeLiveFrame.src = embedUrl.toString();
+    const YT = await loadYouTubePlayerApi();
+    state.youtubePlayer = new YT.Player(elements.youtubeLiveFrame, {
+      events: {
+        onReady: () => inspectYouTubePlayer(),
+        onStateChange: (event) => {
+          if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.BUFFERING || event.data === YT.PlayerState.CUED) {
+            inspectYouTubePlayer();
+          }
+        },
+        onError: () => setYouTubeLiveVisible(false),
+        onAutoplayBlocked: () => {
+          if (inspectYouTubePlayer(false)) setHidden(elements.youtubeSoundBtn, false);
+        },
+      },
+    });
+    clearInterval(state.youtubeProbeTimer);
+    state.youtubeProbeTimer = window.setInterval(inspectYouTubePlayer, 3_000);
+  } catch {
+    setYouTubeLiveVisible(false);
+  }
 }
 
 function setFormMessage(message, error = false) {
@@ -78,6 +217,7 @@ function renderStatus(payload) {
   elements.statusDot.classList.toggle('online', Boolean(machine.alive));
   elements.machineStatus.textContent = machine.alive ? (accepting ? 'Installation ready' : 'Installation online') : 'Installation offline';
   elements.machineMessage.textContent = machine.message ? `· ${machine.message}` : '';
+  renderDonationAmounts(payload.status?.donations?.suggestedAmounts);
 
   if (!state.session) {
     if (payload.session) {
@@ -112,7 +252,7 @@ function enterActiveUi(session) {
   startCountdown();
 }
 
-function resetUi(message = 'Session ended. You can start another turn when the installation is ready.') {
+function resetUi(message = 'Session ended. You can start another turn when the installation is ready.', offerDonation = false) {
   document.body.classList.remove('session-active');
   setHidden(elements.sessionIntro, false);
   setHidden(elements.sessionStatus, true);
@@ -129,6 +269,7 @@ function resetUi(message = 'Session ended. You can start another turn when the i
   state.participantSession = null;
   setFormMessage(message);
   refreshStatus();
+  if (offerDonation) showDonationPrompt();
 }
 
 function startCountdown() {
@@ -140,7 +281,7 @@ function startCountdown() {
     if (remaining <= 0) {
       clearInterval(state.countdownTimer);
       state.countdownTimer = null;
-      endSession(true, 'Your turn is complete. Thank you for playing.');
+      endSession(true, 'Your turn is complete. Thank you for playing.', true);
     }
   };
   update();
@@ -159,6 +300,7 @@ function friendlyStartError(error) {
 async function startSession(event) {
   event.preventDefault();
   if (state.participantSession) return;
+  hideDonationPrompt();
   const nickname = elements.nicknameInput.value.trim().slice(0, 40);
   const countryCode = elements.countrySelect.value.trim().toUpperCase();
   if (nickname.length < 2 || !COUNTRY_CODES.includes(countryCode)) {
@@ -187,7 +329,7 @@ async function startSession(event) {
       onStatus({ phase, message }) {
         elements.sessionStatus.textContent = message;
         if (phase === 'active') enterActiveUi(reservation.session);
-        if (phase === 'expired') resetUi('Your turn is complete. Thank you for playing.');
+        if (phase === 'expired') resetUi('Your turn is complete. Thank you for playing.', true);
         if (phase === 'error') resetUi(message || 'The camera session could not start.');
       },
       onTrigger: flashGestureTrigger,
@@ -207,11 +349,11 @@ async function startSession(event) {
   }
 }
 
-async function endSession(notifyRelay = true, message) {
+async function endSession(notifyRelay = true, message, offerDonation = true) {
   const participantSession = state.participantSession;
   state.participantSession = null;
   if (participantSession) await participantSession.stop({ notifyRelay });
-  resetUi(message || 'Session ended safely. The solenoids have been released.');
+  resetUi(message || 'Session ended safely. The solenoids have been released.', offerDonation);
 }
 
 async function refreshStatus() {
@@ -227,14 +369,31 @@ async function refreshStatus() {
 
 async function initialize() {
   buildCountryOptions();
+  renderDonationAmounts([1, 2, 5]);
   elements.identityForm.addEventListener('submit', startSession);
-  elements.stopSessionBtn.addEventListener('click', () => endSession(true));
-  elements.closeSessionBtn.addEventListener('click', () => endSession(true));
+  elements.stopSessionBtn.addEventListener('click', () => endSession(true, undefined, true));
+  elements.closeSessionBtn.addEventListener('click', () => endSession(true, undefined, true));
+  elements.dismissDonationBtn.addEventListener('click', hideDonationPrompt);
+  elements.donationModal.addEventListener('click', (event) => {
+    if (event.target === elements.donationModal) hideDonationPrompt();
+  });
+  elements.youtubeSoundBtn.addEventListener('click', () => {
+    state.youtubePlayer?.unMute?.();
+    state.youtubePlayer?.setVolume?.(80);
+    state.youtubePlayer?.playVideo?.();
+  });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && state.participantSession) endSession(true);
+    if (event.key === 'Escape' && !elements.donationModal.classList.contains('hidden')) hideDonationPrompt();
+    else if (event.key === 'Escape' && state.participantSession) endSession(true, undefined, true);
   });
   window.addEventListener('pagehide', () => state.participantSession?.stop({ notifyRelay: true }));
 
+  try {
+    state.bootstrap = await api('/api/live/bootstrap');
+    configurePublicLinks(state.bootstrap);
+  } catch {
+    configurePublicLinks({});
+  }
   await refreshStatus();
   window.setInterval(refreshStatus, STATUS_POLL_MS);
 }

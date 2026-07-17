@@ -4,10 +4,13 @@
  * Landmark indices match the main MIDImyFACE source: src/script.js.
  */
 
-const GESTURE_POST_INTERVAL_MS = 67;  // ~15 Hz; Pi interpolates between network snapshots
+const GESTURE_POST_INTERVAL_MS = 50;  // ~20 Hz; Pi interpolates between network snapshots
 const MEDIAPIPE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619';
 const PERCUSSION_SENSITIVITY = 5;
+export const WINK_HOLD_MS = 250;
+const LANDMARK_SMOOTHING = 0.58;
 export const GESTURE_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent'];
+const SPECIFIC_GESTURE_IDS = GESTURE_IDS.filter((gestureId) => gestureId !== 'accent');
 
 // Landmark indices used in the main script
 const LM = {
@@ -55,9 +58,9 @@ export function extractGestures(landmarks, canvasWidth, canvasHeight) {
 export function smoothLandmarks(raw, cache) {
   return raw.map((lm, i) => {
     if (!cache[i]) { cache[i] = { x: lm.x, y: lm.y, z: lm.z }; }
-    cache[i].x = lerp(cache[i].x, lm.x, 0.4);
-    cache[i].y = lerp(cache[i].y, lm.y, 0.4);
-    cache[i].z = lerp(cache[i].z, lm.z, 0.4);
+    cache[i].x = lerp(cache[i].x, lm.x, LANDMARK_SMOOTHING);
+    cache[i].y = lerp(cache[i].y, lm.y, LANDMARK_SMOOTHING);
+    cache[i].z = lerp(cache[i].z, lm.z, LANDMARK_SMOOTHING);
     return cache[i];
   });
 }
@@ -76,13 +79,20 @@ export function getGestureTriggerProfile(gestureId) {
     noseY: { mode: 'bidirectional', activationRatio: 0.05, rearmRatio: 0.02, spanScale: 0.1, speedScale: 0.45, minRawDelta: 5 },
     // Accent is the existing seventh live channel. It uses the exact same
     // trigger state machine on whole-face motion instead of a held distance.
-    accent: { mode: 'ascending', activationRatio: 0.04, rearmRatio: 0.02, spanScale: 0.08, speedScale: 0.2, minRawDelta: 1 },
+    accent: { mode: 'ascending', activationRatio: 0.05, rearmRatio: 0.025, spanScale: 0.12, speedScale: 0.35, minRawDelta: 4 },
   };
   return profiles[gestureId] || profiles.mouthOpen;
 }
 
 export function createGestureTriggerState() {
-  return { lastValue: null, lastSampleTime: 0, lastTriggerTime: 0, restValue: null, armed: true };
+  return {
+    lastValue: null,
+    lastSampleTime: 0,
+    lastTriggerTime: 0,
+    restValue: null,
+    armed: true,
+    closedSince: null,
+  };
 }
 
 function mapValue(value, inMin, inMax, outMin, outMax) {
@@ -112,6 +122,31 @@ export function evaluateGestureTrigger(
     const effectiveSpan = Math.max(calibratedSpan * profile.spanScale, profile.minRawDelta * 2, 1);
     const activationDelta = Math.max(profile.minRawDelta, effectiveSpan * profile.activationRatio);
     const rearmDelta = Math.max(profile.minRawDelta * 0.5, effectiveSpan * profile.rearmRatio);
+
+    // Winks intentionally use inverse/dwell logic: the eye aperture must stay
+    // closed for 250 ms. A normal short blink therefore never becomes a hit.
+    if (gestureId === 'leftWink' || gestureId === 'rightWink') {
+      const isClosed = currentValue <= restValue - activationDelta;
+      const isOpenAgain = currentValue >= restValue - rearmDelta;
+
+      if (state.armed && isClosed) {
+        if (!Number.isFinite(state.closedSince)) state.closedSince = now;
+        if (now - state.closedSince >= WINK_HOLD_MS && now - state.lastTriggerTime > WINK_HOLD_MS) {
+          triggered = true;
+          state.lastTriggerTime = now;
+          state.armed = false;
+        }
+      } else if (isOpenAgain) {
+        state.closedSince = null;
+        if (!state.armed) state.armed = true;
+        state.restValue = lerp(restValue, currentValue, 0.18);
+      }
+
+      state.lastValue = currentValue;
+      state.lastSampleTime = now;
+      return triggered;
+    }
+
     const normalizedSpeed = absDelta / effectiveSpan / (elapsedMs / 1000);
     const triggerSpeed = mapValue(sensitivity, 1, 10, 3.2, 0.22) * profile.speedScale;
     const cooldownMs = 220;
@@ -234,7 +269,7 @@ export class ParticipantSession {
     if (typeof FaceMesh !== 'function') throw new Error('FaceMesh not available');
 
     this._faceMesh = new FaceMesh({ locateFile: (f) => `${MEDIAPIPE_CDN}/${f}` });
-    this._faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    this._faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
     this._faceMesh.onResults((results) => this._onFaceResults(results));
     await this._faceMesh.initialize();
   }
@@ -252,12 +287,26 @@ export class ParticipantSession {
     const H = this._video.videoHeight || 480;
     const gestures = extractGestures(smoothed, W, H);
     gestures.accent = this._computeAccent(smoothed, W, H);
-    for (const gestureId of GESTURE_IDS) {
+    let specificGestureTriggered = false;
+    for (const gestureId of SPECIFIC_GESTURE_IDS) {
       const range = gestureRange(gestureId, W, H);
       if (evaluateGestureTrigger(gestureId, gestures[gestureId], this._triggerStates[gestureId], range)) {
         this._triggerCounts[gestureId] += 1;
         this.onTrigger(gestureId);
+        specificGestureTriggered = true;
       }
+    }
+    const accentTriggered = evaluateGestureTrigger(
+      'accent',
+      gestures.accent,
+      this._triggerStates.accent,
+      gestureRange('accent', W, H),
+    );
+    // Accent means an otherwise-unclassified quick whole-face hit. Suppress it
+    // when a more specific gesture fired in the same frame to avoid doubles.
+    if (accentTriggered && !specificGestureTriggered) {
+      this._triggerCounts.accent += 1;
+      this.onTrigger('accent');
     }
     this._lastGestures = gestures;
     this._lastLandmarks = smoothed.map((landmark) => ({ x: landmark.x, y: landmark.y }));
@@ -287,12 +336,14 @@ export class ParticipantSession {
   _drawLandmarks(landmarks, W, H) {
     const ctx = this._canvas?.getContext('2d');
     if (!ctx) return;
-    this._canvas.width  = this._video.videoWidth  || W;
-    this._canvas.height = this._video.videoHeight || H;
+    const width = this._video.videoWidth || W;
+    const height = this._video.videoHeight || H;
+    if (this._canvas.width !== width) this._canvas.width = width;
+    if (this._canvas.height !== height) this._canvas.height = height;
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
     ctx.fillStyle = '#67ff9e';
-    const dotRadius = Math.max(1, Math.min(1.6, Math.min(this._canvas.width, this._canvas.height) * 0.003));
+    const dotRadius = Math.max(0.55, Math.min(0.9, Math.min(this._canvas.width, this._canvas.height) * 0.0017));
     for (const lm of landmarks) {
       ctx.beginPath();
       ctx.arc((1 - lm.x) * this._canvas.width, lm.y * this._canvas.height, dotRadius, 0, Math.PI * 2);

@@ -32,6 +32,7 @@
     }
     button:active, button:focus-visible { background: var(--green); color: #000; outline: none; }
     button:disabled { opacity: .45; cursor: not-allowed; }
+    a { color: inherit; }
     .hidden { display: none !important; }
 
     #header { width: min(94vw, 760px); padding: 22px 0 4px; text-align: center; }
@@ -78,10 +79,11 @@
       z-index: 20;
       display: grid;
       place-items: center;
+      overflow-y: auto;
       padding: clamp(14px, 4vw, 28px);
       background: radial-gradient(circle, rgba(0,38,10,.2), #000 72%);
     }
-    .intro-panel { width: min(100%, 540px); }
+    .intro-panel { width: min(100%, 540px); margin: auto; }
     .intro-panel h2 { font-size: clamp(22px, 6vw, 34px); line-height: 1.1; margin: 0 0 22px; text-align: center; }
     .identity-grid { display: grid; gap: 16px; }
     .field { display: grid; gap: 7px; color: #fff; font-size: 17px; }
@@ -90,6 +92,28 @@
     #startSessionBtn { width: 100%; min-height: 62px; margin-top: 20px; font-size: 19px; }
     #formMessage { min-height: 24px; margin-top: 13px; color: #c1c1c1; font-size: 15px; line-height: 1.35; text-align: center; }
     #formMessage.error { color: #ffb2b2; }
+    .support-links {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 14px;
+    }
+    .support-link {
+      min-height: 46px;
+      display: grid;
+      place-items: center;
+      padding: 9px 10px;
+      border: 1px solid rgba(99,255,133,.62);
+      color: var(--green);
+      background: rgba(0,0,0,.72);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.15;
+      text-align: center;
+      text-decoration: none;
+    }
+    .support-link.paypal { grid-column: 1 / -1; min-height: 52px; color: #000; background: var(--green); }
+    .support-link:focus-visible, .support-link:active { outline: 2px solid #fff; outline-offset: 2px; }
 
     .session-overlay-status {
       position: absolute;
@@ -146,9 +170,61 @@
       box-shadow: 0 0 22px rgba(99,255,133,.9);
     }
 
+    .youtube-live {
+      width: min(94vw, 760px);
+      margin: 0 auto 18px;
+      color: #fff;
+      background: #050505;
+      border: 1px solid rgba(99,255,133,.58);
+      overflow: hidden;
+    }
+    .youtube-live-header { min-height: 42px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .youtube-live-label { color: var(--green); font-size: 14px; font-weight: 700; }
+    #youtubeSoundBtn { min-height: 34px; padding: 5px 10px; font-size: 12px; }
+    .youtube-frame-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+    #youtubeLiveFrame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+    .donation-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(0,0,0,.88);
+    }
+    .donation-card { width: min(100%, 440px); padding: 24px; border: 2px solid var(--green); background: #000; text-align: center; }
+    .donation-card h2 { margin: 0 0 8px; font-size: clamp(25px, 7vw, 34px); }
+    .donation-card p { margin: 0 0 18px; color: #ddd; line-height: 1.4; }
+    .donation-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    .donation-amount {
+      min-height: 56px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--green);
+      color: #000;
+      background: var(--green);
+      font-size: 18px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    #dismissDonationBtn { width: 100%; margin-top: 12px; border-color: #777; color: #ccc; }
+
     #stopSessionBtn { width: min(94vw, 760px); margin: 0 auto max(18px, env(safe-area-inset-bottom)); border-color: var(--danger); color: var(--danger); font-size: 17px; }
     body.session-active #header, body.session-active .installation-status, body.session-active #stopSessionBtn { display: none; }
     body.session-active #videoContainer { width: 100vw; max-width: none; height: 100dvh; min-height: 0; border: 0; margin: 0; }
+    body.session-active .youtube-live {
+      position: fixed;
+      z-index: 40;
+      right: 10px;
+      bottom: calc(86px + env(safe-area-inset-bottom));
+      width: min(38vw, 280px);
+      margin: 0;
+      box-shadow: 0 8px 28px rgba(0,0,0,.8);
+    }
+    body.session-active .youtube-live-header { min-height: 32px; padding: 4px 7px; }
+    body.session-active .youtube-live-label { font-size: 10px; }
+    body.session-active #youtubeSoundBtn { min-height: 27px; padding: 2px 6px; font-size: 9px; }
 
     @media (max-width: 620px) {
       #header { padding-top: 18px; }
@@ -158,6 +234,9 @@
       .gesture-icon svg { width: 29px; height: 29px; }
       .gesture-icon span { font-size: 9px; }
       #stopSessionBtn { width: 100vw; margin: 0; border-width: 2px 0 0; }
+      .support-links { grid-template-columns: 1fr; }
+      .support-link.paypal { grid-column: auto; }
+      body.session-active .youtube-live { width: min(46vw, 220px); bottom: calc(82px + env(safe-area-inset-bottom)); }
     }
   </style>
 </head>
@@ -189,6 +268,12 @@
         </div>
         <button id="startSessionBtn" type="submit">Start camera</button>
         <div id="formMessage" aria-live="polite">No login required.</div>
+        <nav class="support-links" aria-label="Support and follow MIDImyFACE">
+          <a id="paypalDonateLink" class="support-link paypal" href="https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download" target="_blank" rel="noopener noreferrer">Donate with PayPal</a>
+          <a id="instagramProjectLink" class="support-link" href="https://www.instagram.com/midimyface/" target="_blank" rel="noopener noreferrer">Follow @midimyface</a>
+          <a class="support-link" href="https://www.instagram.com/ricardoarbiza.sound/" target="_blank" rel="noopener noreferrer">Creator @ricardoarbiza.sound</a>
+          <a class="support-link" href="https://midimyface.com/">Check MIDImyFACE</a>
+        </nav>
       </form>
     </section>
 
@@ -198,15 +283,29 @@
     <div id="gestureTriggers" class="gesture-dock hidden" aria-label="Percussion triggers">
       <div class="gesture-icon" data-gesture="mouthOpen"><svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="16" rx="9" ry="6"/></svg><span>Mouth</span></div>
       <div class="gesture-icon" data-gesture="smile"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 12h4M22 12h4M8 18c4 7 12 7 16 0"/></svg><span>Smile</span></div>
-      <div class="gesture-icon" data-gesture="leftWink"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 13h7M21 13h1M8 21c5 4 11 4 16 0"/></svg><span>L wink</span></div>
-      <div class="gesture-icon" data-gesture="rightWink"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 13h1M20 13h7M8 21c5 4 11 4 16 0"/></svg><span>R wink</span></div>
+      <div class="gesture-icon" data-gesture="leftWink" title="Hold the left eye closed for 0.25 seconds"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 13h7M21 13h1M8 21c5 4 11 4 16 0"/></svg><span>L wink</span></div>
+      <div class="gesture-icon" data-gesture="rightWink" title="Hold the right eye closed for 0.25 seconds"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 13h1M20 13h7M8 21c5 4 11 4 16 0"/></svg><span>R wink</span></div>
       <div class="gesture-icon" data-gesture="noseX"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 16h24M4 16l5-5M4 16l5 5M28 16l-5-5M28 16l-5 5"/></svg><span>Head X</span></div>
       <div class="gesture-icon" data-gesture="noseY"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v24M16 4l-5 5M16 4l5 5M16 28l-5-5M16 28l5-5"/></svg><span>Head Y</span></div>
-      <div class="gesture-icon" data-gesture="accent"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l2.5 8.5L27 8l-6.5 8 8.5 3-9.5.5L21 29l-5-8-5 8 1.5-9.5L3 19l8.5-3L5 8l8.5 3.5z"/></svg><span>Accent</span></div>
+      <div class="gesture-icon" data-gesture="accent" title="A quick whole-face movement"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l2.5 8.5L27 8l-6.5 8 8.5 3-9.5.5L21 29l-5-8-5 8 1.5-9.5L3 19l8.5-3L5 8l8.5 3.5z"/></svg><span>Face hit</span></div>
     </div>
   </main>
 
+  <section id="youtubeLivePanel" class="youtube-live hidden" aria-label="MIDImyFACE YouTube live stream">
+    <div class="youtube-live-header"><span class="youtube-live-label">● LIVE ON YOUTUBE</span><button id="youtubeSoundBtn" type="button">Sound on</button></div>
+    <div class="youtube-frame-wrap"><iframe id="youtubeLiveFrame" title="MIDImyFACE live stream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+  </section>
+
   <button id="stopSessionBtn" class="hidden" type="button">End session</button>
+
+  <div id="donationModal" class="donation-modal hidden" role="dialog" aria-modal="true" aria-labelledby="donationTitle">
+    <div class="donation-card">
+      <h2 id="donationTitle">Support MIDImyFACE</h2>
+      <p>Enjoyed your turn? Help keep the installation alive.</p>
+      <div id="donationAmounts" class="donation-amounts"></div>
+      <button id="dismissDonationBtn" type="button">Maybe later</button>
+    </div>
+  </div>
   <script type="module" src="./live.js"></script>
 </body>
 </html>

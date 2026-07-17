@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createGestureTriggerState, evaluateGestureTrigger, gestureRange } from './live_session.js';
+import { WINK_HOLD_MS, createGestureTriggerState, evaluateGestureTrigger, gestureRange } from './live_session.js';
 
 function feed(gestureId, samples, range) {
   const state = createGestureTriggerState();
@@ -29,13 +29,29 @@ assert.deepEqual(
   'a sudden movement should trigger once, rearm at rest, then trigger again',
 );
 
-assert.equal(
+assert.deepEqual(
   feed('leftWink', [
     { value: 20, now: 3_000 },
     { value: 8, now: 3_016 },
-  ], gestureRange('leftWink', 640, 480))[1],
-  true,
-  'a sudden wink closure should trigger',
+    { value: 20, now: 3_120 },
+  ], gestureRange('leftWink', 640, 480)),
+  [false, false, false],
+  'a regular short blink must not trigger',
+);
+
+assert.deepEqual(
+  feed('leftWink', [
+    { value: 20, now: 4_000 },
+    { value: 8, now: 4_016 },
+    { value: 8, now: 4_016 + WINK_HOLD_MS - 1 },
+    { value: 8, now: 4_016 + WINK_HOLD_MS },
+    { value: 8, now: 4_400 },
+    { value: 20, now: 4_500 },
+    { value: 8, now: 4_516 },
+    { value: 8, now: 4_516 + WINK_HOLD_MS },
+  ], gestureRange('leftWink', 640, 480)),
+  [false, false, false, true, false, false, false, true],
+  'a wink must stay closed for 250 ms and can fire only once per closure',
 );
 
 console.log('live percussion trigger logic passed');
