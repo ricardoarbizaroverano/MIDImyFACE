@@ -15,6 +15,7 @@ const GRID_COLS = 4;
 const GRID_ROWS = 2;
 const MOUTH_GATE_OPEN_PX = 10;
 const MOUTH_GATE_CLOSE_PX = 7;
+const MOUTH_LANDMARKS = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78, 191, 80, 81, 82, 13, 312, 311, 310, 415];
 
 // Landmark indices used in the main script
 const LM = {
@@ -224,6 +225,7 @@ export class ParticipantSession {
     this._activePad = -1;
     this._mouthGateOpen = false;
     this._padFlashUntil = 0;
+    this._hitEffects = [];
     this._postTimer    = null;
     this._video        = null;
     this._canvas       = null;
@@ -308,6 +310,7 @@ export class ParticipantSession {
       const triggerId = GRID_TRIGGER_IDS[this._activePad];
       this._triggerCounts[triggerId] += 1;
       this._padFlashUntil = performance.now() + 240;
+      this._hitEffects.push({ pad: this._activePad, startedAt: performance.now() });
       this.onTrigger(triggerId, this._activePad);
     }
     this._mouthGateOpen = shouldOpen;
@@ -364,48 +367,76 @@ export class ParticipantSession {
       const row = Math.floor(index / GRID_COLS);
       const selected = index === this._activePad;
       const firing = selected && performance.now() < this._padFlashUntil;
-      ctx.fillStyle = firing ? 'rgba(185,255,106,.58)' : selected ? 'rgba(54,246,178,.17)' : 'rgba(5,8,7,.13)';
-      ctx.strokeStyle = firing ? '#ffffff' : selected ? '#b9ff6a' : 'rgba(124,255,79,.5)';
-      ctx.lineWidth = firing ? 5 : selected ? 3 : 1.5;
+      ctx.fillStyle = firing ? 'rgba(185,255,106,.34)' : selected ? 'rgba(54,246,178,.09)' : 'rgba(5,8,7,.035)';
+      ctx.strokeStyle = firing ? '#ffffff' : selected ? 'rgba(185,255,106,.88)' : 'rgba(124,255,79,.27)';
+      ctx.lineWidth = firing ? 4 : selected ? 2.5 : 1;
       ctx.shadowColor = firing ? '#b9ff6a' : selected ? '#36f6b2' : 'transparent';
-      ctx.shadowBlur = firing ? 28 : selected ? 13 : 0;
+      ctx.shadowBlur = firing ? 22 : selected ? 8 : 0;
       ctx.fillRect(col * cellW + 4, row * cellH + 4, cellW - 8, cellH - 8);
       ctx.strokeRect(col * cellW + 4, row * cellH + 4, cellW - 8, cellH - 8);
-      ctx.fillStyle = firing ? '#050708' : selected ? '#ffffff' : 'rgba(185,255,106,.65)';
+      ctx.fillStyle = firing ? '#050708' : selected ? '#ffffff' : 'rgba(185,255,106,.42)';
       ctx.fillText(String(index + 1), col * cellW + cellW / 2, row * cellH + cellH / 2);
+    }
+
+    const now = performance.now();
+    this._hitEffects = this._hitEffects.filter((effect) => now - effect.startedAt < 620);
+    for (const effect of this._hitEffects) {
+      const progress = (now - effect.startedAt) / 620;
+      const col = effect.pad % GRID_COLS;
+      const row = Math.floor(effect.pad / GRID_COLS);
+      const cx = col * cellW + cellW / 2;
+      const cy = row * cellH + cellH / 2;
+      const radius = Math.min(cellW, cellH) * (0.12 + progress * 0.55);
+      ctx.globalAlpha = Math.max(0, 1 - progress);
+      ctx.strokeStyle = progress < 0.45 ? '#ffffff' : '#b9ff6a';
+      ctx.lineWidth = Math.max(1, 5 * (1 - progress));
+      ctx.shadowColor = '#7cff4f';
+      ctx.shadowBlur = 18 * (1 - progress);
+      ctx.strokeRect(cx - radius, cy - radius, radius * 2, radius * 2);
+      for (let ray = 0; ray < 8; ray += 1) {
+        const angle = (Math.PI * 2 * ray) / 8;
+        const inner = radius * 0.72;
+        const outer = radius * 1.12;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+        ctx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 ${Math.max(10, Math.min(cellW, cellH) * 0.09)}px "Courier New", monospace`;
+      ctx.fillText('HIT!', cx, cy + radius * 0.72);
+      ctx.globalAlpha = 1;
     }
 
     const nose = landmarks[LM.nose];
     if (nose) {
       const px = (1 - nose.x) * this._canvas.width;
       const py = nose.y * this._canvas.height;
-      const pulse = 1 + Math.sin(performance.now() / 95) * 0.16;
-      ctx.shadowColor = '#ff3131';
-      ctx.shadowBlur = 24;
-      ctx.fillStyle = '#ff3131';
+      const pulse = 1 + Math.sin(performance.now() / 125) * 0.1;
+      ctx.shadowColor = 'rgba(255,49,49,.72)';
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = 'rgba(255,70,70,.92)';
       ctx.beginPath();
-      ctx.arc(px, py, 7 * pulse, 0, Math.PI * 2);
+      ctx.arc(px, py, 4.5 * pulse, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.9)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,190,190,.55)';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(px, py, 13 * pulse, 0, Math.PI * 2);
+      ctx.arc(px, py, 9 * pulse, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    const mouthTop = landmarks[LM.topLip];
-    const mouthBottom = landmarks[LM.bottomLip];
-    if (mouthTop && mouthBottom) {
-      const mx = (1 - ((mouthTop.x + mouthBottom.x) / 2)) * this._canvas.width;
-      const my = ((mouthTop.y + mouthBottom.y) / 2) * this._canvas.height;
-      const invitation = Math.max(0, Math.min(1, mouthOpen / MOUTH_GATE_OPEN_PX));
-      ctx.shadowColor = '#8e6bff';
-      ctx.shadowBlur = 10 + invitation * 22;
-      ctx.strokeStyle = this._mouthGateOpen ? '#ffffff' : '#c8c3ff';
-      ctx.lineWidth = 2 + invitation * 3;
+    const invitation = Math.max(0, Math.min(1, mouthOpen / MOUTH_GATE_OPEN_PX));
+    ctx.fillStyle = this._mouthGateOpen ? '#ffffff' : 'rgba(200,195,255,.78)';
+    ctx.shadowColor = '#8e6bff';
+    ctx.shadowBlur = 4 + invitation * 14;
+    const mouthRadius = 1.25 + invitation * 1.45;
+    for (const index of MOUTH_LANDMARKS) {
+      const landmark = landmarks[index];
+      if (!landmark) continue;
       ctx.beginPath();
-      ctx.ellipse(mx, my, 19 + invitation * 8, 10 + invitation * 9, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.arc((1 - landmark.x) * this._canvas.width, landmark.y * this._canvas.height, mouthRadius, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.restore();
   }
