@@ -58,11 +58,29 @@ async function run() {
   result = await request('/api/live/session/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin },
-    body: JSON.stringify({ nickname: 'Test Player', countryCode: 'UY' }),
+    body: JSON.stringify({ nickname: 'Test Player', countryCode: 'UY', deviceId: 'test_device_0000000000000001' }),
   });
   assert.equal(result.response.status, 201);
   assert.ok(result.body.token);
   const participantToken = result.body.token;
+  result = await request('/api/live/session/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ nickname: 'Queued Player', countryCode: 'FI', deviceId: 'test_device_0000000000000002' }),
+  });
+  assert.equal(result.response.status, 202);
+  assert.equal(result.body.queued, true);
+  assert.equal(result.body.queue.position, 1);
+  const queueToken = result.body.queueToken;
+
+  result = await request('/api/live/queue/status', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${queueToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: '{}',
+  });
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.ready, false);
+  assert.equal(result.body.queue.position, 1);
   const fullFaceLandmarks = Array.from({ length: 468 }, (_, index) => ({
     x: (index % 26) / 25,
     y: Math.floor(index / 26) / 17,
@@ -107,6 +125,31 @@ async function run() {
     body: '{}',
   });
   assert.equal(result.response.status, 200);
+
+  result = await request('/api/live/queue/status', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${queueToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: '{}',
+  });
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.ready, true);
+  assert.equal(result.body.session.nickname, 'Queued Player');
+  const queuedParticipantToken = result.body.token;
+
+  result = await request('/api/live/session/stop', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${queuedParticipantToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: '{}',
+  });
+  assert.equal(result.response.status, 200);
+
+  result = await request('/api/live/session/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ nickname: 'Test Player', countryCode: 'UY', deviceId: 'test_device_0000000000000001' }),
+  });
+  assert.equal(result.response.status, 429);
+  assert.equal(result.body.error, 'participant_cooldown');
 
   result = await request('/api/live/session/gestures', {
     headers: { Authorization: `Bearer ${deviceToken}` },

@@ -1,7 +1,10 @@
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const STATUS_POLL_MS = 10_000;
 const DEFAULT_PAYPAL_URL = 'https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download';
+const DEFAULT_VENMO_URL = 'https://venmo.com/code?user_id=2982237150642176372&created=1784274093';
 const DEFAULT_YOUTUBE_EMBED_URL = 'https://www.youtube.com/embed/live_stream?channel=UCequCs51HuUdCYC-RQL-b9g&autoplay=1';
+const DEFAULT_YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g';
+const DEFAULT_YOUTUBE_VIDEOS_URL = `${DEFAULT_YOUTUBE_CHANNEL_URL}/videos`;
 const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/midimyface/';
 const COUNTRY_CODES = [
   'AR','AU','AT','BE','BO','BR','BG','CA','CL','CN','CO','CR','CU','CZ','DK','DO','EC','EG','SV','FI','FR','DE','GR','GT','HN','HK','HU','IS','IN','ID','IE','IL','IT','JP','KE','KR','LV','LT','LU','MY','MX','MA','NL','NZ','NI','NG','NO','PA','PY','PE','PH','PL','PT','PR','RO','SG','SK','SI','ZA','ES','SE','CH','TW','TH','TN','TR','UA','AE','GB','US','UY','VE','VN',
@@ -12,6 +15,8 @@ const elements = Object.fromEntries([
   'nicknameInput','countrySelect','startSessionBtn','formMessage','sessionVideo','sessionCanvas','sessionStatus',
   'closeSessionBtn','gestureTriggers','stopSessionBtn','paypalDonateLink','instagramProjectLink',
   'youtubeLivePanel','youtubeLiveFrame','youtubeSoundBtn','donationModal','donationAmounts','dismissDonationBtn',
+  'venmoDonateLink','modalPaypalLink','modalVenmoLink','youtubeChannelLink','lastJamLink','youtubeFallback',
+  'termsConsent','googleAuthBtn','googleAuthLabel','authMessage','queueCard','queuePosition','queueEstimate',
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = {
@@ -25,6 +30,12 @@ const state = {
   youtubePlayer: null,
   youtubeProbeTimer: null,
   youtubeLiveDetected: false,
+  queueToken: null,
+  queuePollTimer: null,
+  deviceId: null,
+  authUser: null,
+  authToken: null,
+  firebaseAuth: null,
 };
 
 function resolveRelayOrigin() {
@@ -67,9 +78,15 @@ function safeExternalUrl(value, allowedDomains, fallback) {
 function configurePublicLinks(bootstrap) {
   const links = bootstrap?.links || {};
   state.paypalUrl = safeExternalUrl(links.paypalDonationUrl, ['paypal.com'], DEFAULT_PAYPAL_URL);
+  const venmoUrl = safeExternalUrl(links.venmoDonationUrl, ['venmo.com'], DEFAULT_VENMO_URL);
   const instagramUrl = safeExternalUrl(links.instagramUrl, ['instagram.com'], DEFAULT_INSTAGRAM_URL);
   elements.paypalDonateLink.href = state.paypalUrl;
+  elements.modalPaypalLink.href = state.paypalUrl;
+  elements.venmoDonateLink.href = venmoUrl;
+  elements.modalVenmoLink.href = venmoUrl;
   elements.instagramProjectLink.href = instagramUrl;
+  elements.youtubeChannelLink.href = safeExternalUrl(links.youtubeChannelUrl, ['youtube.com'], DEFAULT_YOUTUBE_CHANNEL_URL);
+  elements.lastJamLink.href = safeExternalUrl(links.youtubeVideosUrl, ['youtube.com'], DEFAULT_YOUTUBE_VIDEOS_URL);
   renderDonationAmounts(state.status?.donations?.suggestedAmounts);
   setupYouTubeLiveProbe(safeExternalUrl(
     links.youtubeLiveEmbedUrl,
@@ -84,14 +101,14 @@ function renderDonationAmounts(rawAmounts) {
     : [1, 2, 5];
   const normalized = amounts.length ? amounts : [1, 2, 5];
   elements.donationAmounts.replaceChildren();
-  for (const amount of normalized) {
+  for (const amount of [...normalized, 'tip']) {
     const link = document.createElement('a');
     link.className = 'donation-amount';
     link.href = state.paypalUrl;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
-    link.textContent = String(amount);
-    link.setAttribute('aria-label', `Support MIDImyFACE with ${amount} through PayPal`);
+    link.textContent = amount === 'tip' ? 'TIP' : `$${amount}`;
+    link.setAttribute('aria-label', amount === 'tip' ? 'Choose a PayPal tip' : `Support MIDImyFACE with ${amount} dollars through PayPal`);
     elements.donationAmounts.appendChild(link);
   }
 }
@@ -134,6 +151,7 @@ function loadYouTubePlayerApi() {
 function setYouTubeLiveVisible(visible) {
   state.youtubeLiveDetected = Boolean(visible);
   setHidden(elements.youtubeLivePanel, !visible);
+  setHidden(elements.youtubeFallback, visible);
 }
 
 function inspectYouTubePlayer(attemptPlayback = true) {
@@ -210,24 +228,151 @@ function countryFlag(code) {
   return String(code || '').toUpperCase().replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
 }
 
+function resolveDeviceId() {
+  const saved = localStorage.getItem('mmf_live_device_id') || '';
+  if (/^[a-zA-Z0-9_-]{16,80}$/.test(saved)) return saved;
+  const generated = crypto.randomUUID?.().replaceAll('-', '') || `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  localStorage.setItem('mmf_live_device_id', generated);
+  return generated;
+}
+
+function formatWait(seconds) {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  if (safeSeconds < 60) return `about ${Math.max(1, Math.ceil(safeSeconds))} sec`;
+  return `about ${Math.ceil(safeSeconds / 60)} min`;
+}
+
+function renderQueue(queue) {
+  if (!queue || !state.queueToken) {
+    setHidden(elements.queueCard, true);
+    return;
+  }
+  setHidden(elements.queueCard, false);
+  elements.queuePosition.textContent = `Position ${queue.position} of ${queue.totalWaiting}`;
+  elements.queueEstimate.textContent = `Estimated wait ${formatWait(queue.estimatedWaitSeconds)}`;
+  setFormMessage('Keep this page open. Your camera starts when your turn is ready.');
+}
+
+function clearQueue() {
+  clearTimeout(state.queuePollTimer);
+  state.queuePollTimer = null;
+  state.queueToken = null;
+  setHidden(elements.queueCard, true);
+}
+
+async function setupGoogleRegistration(bootstrap) {
+  const authConfig = bootstrap?.auth || {};
+  if (!authConfig.enabled || !authConfig.firebaseConfigured || !authConfig.firebase?.apiKey) {
+    elements.authMessage.textContent = 'Google registration will open when Firebase is connected. Anonymous testing is still available.';
+    return;
+  }
+  try {
+    const [{ initializeApp }, authSdk] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
+    ]);
+    const app = initializeApp(authConfig.firebase);
+    state.firebaseAuth = { auth: authSdk.getAuth(app), authSdk };
+    authSdk.onAuthStateChanged(state.firebaseAuth.auth, async (user) => {
+      state.authUser = user || null;
+      state.authToken = user ? await user.getIdToken() : null;
+      elements.googleAuthLabel.textContent = user ? `SIGNED IN · ${user.displayName || user.email}` : 'REGISTER FREE';
+      elements.authMessage.textContent = user
+        ? 'Account recognized on this device.'
+        : 'Create an account to save your place and future sessions.';
+    });
+  } catch {
+    elements.authMessage.textContent = 'Google registration is temporarily unavailable. Anonymous testing is still available.';
+  }
+}
+
+async function registerWithGoogle() {
+  if (!elements.termsConsent.checked) return;
+  if (!state.firebaseAuth) {
+    elements.authMessage.textContent = 'Firebase is not connected yet. Ask the project owner to finish the free setup.';
+    return;
+  }
+  try {
+    elements.googleAuthBtn.disabled = true;
+    const provider = new state.firebaseAuth.authSdk.GoogleAuthProvider();
+    const result = await state.firebaseAuth.authSdk.signInWithPopup(state.firebaseAuth.auth, provider);
+    state.authUser = result.user;
+    state.authToken = await result.user.getIdToken();
+  } catch (error) {
+    if (error?.code !== 'auth/popup-closed-by-user') elements.authMessage.textContent = 'Google sign-in did not complete. Please try again.';
+  } finally {
+    elements.googleAuthBtn.disabled = !elements.termsConsent.checked;
+  }
+}
+
+async function activateReservation(reservation) {
+  clearQueue();
+  state.session = { ...reservation.session, token: reservation.token };
+  const { ParticipantSession } = await import('./live_session.js');
+  state.participantSession = new ParticipantSession({
+    relayOrigin: state.relayOrigin,
+    token: reservation.token,
+    session: reservation.session,
+    onStatus({ phase, message }) {
+      elements.sessionStatus.textContent = message;
+      if (phase === 'active') enterActiveUi(reservation.session);
+      if (phase === 'expired') resetUi('Your turn is complete. Thank you for playing.', true);
+      if (phase === 'error') resetUi(message || 'The camera session could not start.');
+    },
+    onTrigger: flashGestureTrigger,
+  });
+  await state.participantSession.start(elements.sessionVideo, elements.sessionCanvas);
+}
+
+async function pollQueue() {
+  if (!state.queueToken) return;
+  try {
+    const result = await api('/api/live/queue/status', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${state.queueToken}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (result.ready) {
+      await activateReservation(result);
+      return;
+    }
+    renderQueue(result.queue);
+  } catch (error) {
+    if (error.code === 'queue_ticket_expired') {
+      clearQueue();
+      elements.startSessionBtn.disabled = false;
+      setFormMessage('Your queue ticket expired. Press START to join again.', true);
+      return;
+    }
+    if (error.code === 'participant_cooldown') {
+      clearQueue();
+      setFormMessage(`Your next turn opens in ${formatWait((error.payload?.retryAfterMs || 0) / 1000)}.`, true);
+      return;
+    }
+  }
+  state.queuePollTimer = window.setTimeout(pollQueue, 3_000);
+}
+
 function renderStatus(payload) {
   state.status = payload.status || null;
   const machine = payload.status?.machine || {};
   const accepting = Boolean(machine.alive && machine.acceptingParticipants);
   elements.statusDot.classList.toggle('online', Boolean(machine.alive));
-  elements.machineStatus.textContent = machine.alive ? (accepting ? 'Installation ready' : 'Installation online') : 'Installation offline';
+  elements.machineStatus.textContent = machine.alive ? (accepting ? 'Installation ready' : 'Installation online') : 'Installation offline — come back later.';
   elements.machineMessage.textContent = machine.message ? `· ${machine.message}` : '';
   renderDonationAmounts(payload.status?.donations?.suggestedAmounts);
 
-  if (!state.session) {
+  if (!state.session && !state.queueToken) {
     if (payload.session) {
       elements.participantBadge.textContent = `${payload.session.nickname} ${countryFlag(payload.session.countryCode)} is playing`;
       elements.startSessionBtn.disabled = true;
-      setFormMessage('Another participant is playing. This page will reopen automatically.');
+      const waiting = Number(payload.queue?.waiting || 0);
+      setFormMessage(waiting ? `${waiting} participant${waiting === 1 ? '' : 's'} waiting. Press START to join the queue.` : 'Another participant is playing. Press START to join the queue.');
+      elements.startSessionBtn.disabled = !accepting;
     } else {
       elements.participantBadge.textContent = '';
       elements.startSessionBtn.disabled = !accepting;
-      setFormMessage(accepting ? 'No login required during testing.' : 'The installation is not accepting participants.', !accepting);
+      setFormMessage(accepting ? 'Ready for a 30-second turn.' : 'Come back later.', !accepting);
     }
   }
 }
@@ -260,7 +405,7 @@ function resetUi(message = 'Session ended. You can start another turn when the i
   setHidden(elements.gestureTriggers, true);
   setHidden(elements.stopSessionBtn, true);
   elements.startSessionBtn.disabled = false;
-  elements.startSessionBtn.textContent = '▶ Start camera session';
+  elements.startSessionBtn.textContent = 'START';
   elements.sessionCountdown.textContent = '';
   elements.participantBadge.textContent = '';
   clearInterval(state.countdownTimer);
@@ -289,9 +434,10 @@ function startCountdown() {
 }
 
 function friendlyStartError(error) {
-  if (error.code === 'installation_busy') return 'Another participant is playing. Try again in a moment.';
+  if (error.code === 'installation_busy') return 'Another participant is playing. Join the queue.';
   if (error.code === 'installation_not_accepting') return 'The installation is online but not accepting participants.';
   if (error.code === 'start_rate_limited') return 'Please wait a few seconds before trying again.';
+  if (error.code === 'participant_cooldown') return `Your next turn opens in ${formatWait((error.payload?.retryAfterMs || 0) / 1000)}.`;
   if (error.code === 'nickname_required') return 'Enter a nickname with at least two characters.';
   if (error.code === 'country_required') return 'Choose your country.';
   return 'Could not start the session. Check the connection and try again.';
@@ -309,7 +455,7 @@ async function startSession(event) {
   }
 
   elements.startSessionBtn.disabled = true;
-  elements.startSessionBtn.textContent = 'Starting…';
+  elements.startSessionBtn.textContent = 'WAIT…';
   setFormMessage('Reserving your turn…');
   localStorage.setItem('mmf_live_nickname', nickname);
   localStorage.setItem('mmf_live_country', countryCode);
@@ -318,23 +464,16 @@ async function startSession(event) {
     const reservation = await api('/api/live/session/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nickname, countryCode }),
+      body: JSON.stringify({ nickname, countryCode, deviceId: state.deviceId }),
     });
-    state.session = { ...reservation.session, token: reservation.token };
-    const { ParticipantSession } = await import('./live_session.js');
-    state.participantSession = new ParticipantSession({
-      relayOrigin: state.relayOrigin,
-      token: reservation.token,
-      session: reservation.session,
-      onStatus({ phase, message }) {
-        elements.sessionStatus.textContent = message;
-        if (phase === 'active') enterActiveUi(reservation.session);
-        if (phase === 'expired') resetUi('Your turn is complete. Thank you for playing.', true);
-        if (phase === 'error') resetUi(message || 'The camera session could not start.');
-      },
-      onTrigger: flashGestureTrigger,
-    });
-    await state.participantSession.start(elements.sessionVideo, elements.sessionCanvas);
+    if (reservation.queued) {
+      state.queueToken = reservation.queueToken;
+      elements.startSessionBtn.textContent = 'IN QUEUE';
+      renderQueue(reservation.queue);
+      state.queuePollTimer = window.setTimeout(pollQueue, 3_000);
+      return;
+    }
+    await activateReservation(reservation);
   } catch (error) {
     if (state.session?.token) {
       fetch(`${state.relayOrigin}/api/live/session/stop`, {
@@ -361,19 +500,24 @@ async function refreshStatus() {
     renderStatus(await api('/api/live/status'));
   } catch {
     elements.statusDot.classList.remove('online');
-    elements.machineStatus.textContent = 'Relay unavailable';
+    elements.machineStatus.textContent = 'Installation offline — come back later.';
     elements.machineMessage.textContent = '';
     if (!state.session) elements.startSessionBtn.disabled = true;
   }
 }
 
 async function initialize() {
+  state.deviceId = resolveDeviceId();
   buildCountryOptions();
   renderDonationAmounts([1, 2, 5]);
   elements.identityForm.addEventListener('submit', startSession);
   elements.stopSessionBtn.addEventListener('click', () => endSession(true, undefined, true));
   elements.closeSessionBtn.addEventListener('click', () => endSession(true, undefined, true));
   elements.dismissDonationBtn.addEventListener('click', hideDonationPrompt);
+  elements.termsConsent.addEventListener('change', () => {
+    elements.googleAuthBtn.disabled = !elements.termsConsent.checked;
+  });
+  elements.googleAuthBtn.addEventListener('click', registerWithGoogle);
   elements.donationModal.addEventListener('click', (event) => {
     if (event.target === elements.donationModal) hideDonationPrompt();
   });
@@ -391,8 +535,10 @@ async function initialize() {
   try {
     state.bootstrap = await api('/api/live/bootstrap');
     configurePublicLinks(state.bootstrap);
+    await setupGoogleRegistration(state.bootstrap);
   } catch {
     configurePublicLinks({});
+    await setupGoogleRegistration({});
   }
   await refreshStatus();
   window.setInterval(refreshStatus, STATUS_POLL_MS);

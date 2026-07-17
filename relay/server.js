@@ -53,6 +53,7 @@ const LIVE_ROUTE_PATH                = process.env.LIVE_ROUTE_PATH              
 const LIVE_YOUTUBE_CHANNEL_ID        = process.env.LIVE_YOUTUBE_CHANNEL_ID         || 'UCequCs51HuUdCYC-RQL-b9g';
 const LIVE_INSTAGRAM_HANDLE_RAW      = process.env.LIVE_INSTAGRAM_HANDLE           || '@midimyface';
 const LIVE_PAYPAL_DONATION_URL       = process.env.LIVE_PAYPAL_DONATION_URL        || 'https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download';
+const LIVE_VENMO_DONATION_URL        = process.env.LIVE_VENMO_DONATION_URL         || 'https://venmo.com/code?user_id=2982237150642176372&created=1784274093';
 const LIVE_OWNER_EMAIL               = process.env.LIVE_OWNER_EMAIL                || 'midimyface@gmail.com';
 const RPI_DEVICE_TOKEN               = process.env.RPI_DEVICE_TOKEN                || '';
 const LIVE_STATE_FILE                = process.env.LIVE_STATE_FILE                 || path.join(__dirname, 'data', 'live-state.json');
@@ -63,8 +64,10 @@ const LIVE_FIREBASE_STORAGE_BUCKET   = process.env.LIVE_FIREBASE_STORAGE_BUCKET 
 const LIVE_FIREBASE_MESSAGING_ID     = process.env.LIVE_FIREBASE_MESSAGING_ID      || '';
 const LIVE_FIREBASE_APP_ID           = process.env.LIVE_FIREBASE_APP_ID            || '';
 const LIVE_FIREBASE_MEASUREMENT_ID   = process.env.LIVE_FIREBASE_MEASUREMENT_ID    || '';
-const LIVE_PRIORITY_EMAILS_RAW       = process.env.LIVE_PRIORITY_EMAILS            || 'ricardoarbizaroverano@gmail.com';
+const LIVE_PRIORITY_EMAILS_RAW       = process.env.LIVE_PRIORITY_EMAILS            || 'midimyface@gmail.com,ricardoarbizaroverano@gmail.com';
 const LIVE_SESSION_DURATION_SECONDS  = Math.max(15, Math.min(Number(process.env.LIVE_SESSION_DURATION_SECONDS || 30), 300));
+const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.LIVE_COOLDOWN_MINUTES || 30), 240));
+const LIVE_QUEUE_TICKET_TTL_MS       = Math.max(15_000, Math.min(Number(process.env.LIVE_QUEUE_TICKET_TTL_MS || 45_000), 300_000));
 const LIVE_SNAPSHOT_TTL_MS           = Math.max(500, Math.min(Number(process.env.LIVE_SNAPSHOT_TTL_MS || 2500), 10_000));
 const LIVE_MAX_LANDMARKS             = 478;
 
@@ -255,6 +258,7 @@ function createDefaultLiveState() {
     },
     donations: {
       paypalUrl: LIVE_PAYPAL_DONATION_URL,
+      venmoUrl: LIVE_VENMO_DONATION_URL,
       suggestedAmounts: [1, 2, 5],
     },
     queue: {
@@ -262,7 +266,7 @@ function createDefaultLiveState() {
       open: false,
       busy: false,
       turnDurationSeconds: 30,
-      cooldownMinutes: 15,
+      cooldownMinutes: LIVE_COOLDOWN_MINUTES,
       oneFreeTurn: true,
       message: 'Queue opens only when the installation is live and accepting participants.',
       estimatedWaitMinutes: null,
@@ -329,6 +333,7 @@ function sanitizeLiveStatePatch(input) {
     },
     donations: {
       paypalUrl: cleanString(patch.donations?.paypalUrl || LIVE_PAYPAL_DONATION_URL, 400) || LIVE_PAYPAL_DONATION_URL,
+      venmoUrl: cleanString(patch.donations?.venmoUrl || LIVE_VENMO_DONATION_URL, 400) || LIVE_VENMO_DONATION_URL,
       suggestedAmounts: Array.isArray(patch.donations?.suggestedAmounts)
         ? patch.donations.suggestedAmounts.map((amount) => Number(amount)).filter((amount) => Number.isFinite(amount) && amount > 0).slice(0, 6)
         : [1, 2, 5],
@@ -338,7 +343,7 @@ function sanitizeLiveStatePatch(input) {
       open: asBoolean(patch.queue?.open, false),
       busy: asBoolean(patch.queue?.busy, false),
       turnDurationSeconds: Math.max(10, Math.min(Number(patch.queue?.turnDurationSeconds || 30), 180)),
-      cooldownMinutes: Math.max(1, Math.min(Number(patch.queue?.cooldownMinutes || 15), 240)),
+      cooldownMinutes: Math.max(1, Math.min(Number(patch.queue?.cooldownMinutes || LIVE_COOLDOWN_MINUTES), 240)),
       oneFreeTurn: asBoolean(patch.queue?.oneFreeTurn, true),
       message: cleanString(patch.queue?.message || '', 240),
       estimatedWaitMinutes: patch.queue?.estimatedWaitMinutes === null || patch.queue?.estimatedWaitMinutes === undefined || patch.queue?.estimatedWaitMinutes === ''
@@ -398,6 +403,8 @@ let liveState = loadLiveState();
 let liveGestureSnapshot = null;
 let activeLiveSession = null;
 const liveSessionStartByIp = new Map();
+const liveCooldownByIdentity = new Map();
+const liveQueue = [];
 
 function liveRequestIp(req) {
   return cleanString(String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0], 80);
@@ -410,6 +417,61 @@ function liveSessionExpired(session = activeLiveSession) {
 function clearLiveSession() {
   activeLiveSession = null;
   liveGestureSnapshot = null;
+}
+
+function liveIdentityKey(req, body = {}) {
+  const deviceId = cleanString(body?.deviceId || '', 80);
+  const stableDeviceId = /^[a-zA-Z0-9_-]{16,80}$/.test(deviceId) ? deviceId : '';
+  return sha256(`${stableDeviceId || 'anonymous'}:${liveRequestIp(req)}`);
+}
+
+function purgeLiveQueue() {
+  const staleBefore = Date.now() - LIVE_QUEUE_TICKET_TTL_MS;
+  for (let index = liveQueue.length - 1; index >= 0; index -= 1) {
+    if (liveQueue[index].lastSeenAtMs < staleBefore) liveQueue.splice(index, 1);
+  }
+}
+
+function cooldownRemainingMs(identityKey) {
+  const startedAtMs = liveCooldownByIdentity.get(identityKey) || 0;
+  return Math.max(0, startedAtMs + LIVE_COOLDOWN_MINUTES * 60_000 - Date.now());
+}
+
+function queueEstimateSeconds(position) {
+  const activeRemainingMs = activeLiveSession
+    ? Math.max(0, activeLiveSession.expiresAtMs - Date.now())
+    : 0;
+  return Math.ceil((activeRemainingMs + Math.max(0, position - 1) * LIVE_SESSION_DURATION_SECONDS * 1000) / 1000);
+}
+
+function publicQueueTicket(entry) {
+  const position = liveQueue.indexOf(entry) + 1;
+  return {
+    position,
+    totalWaiting: liveQueue.length,
+    estimatedWaitSeconds: queueEstimateSeconds(position),
+    turnDurationSeconds: LIVE_SESSION_DURATION_SECONDS,
+  };
+}
+
+function createLiveParticipantSession({ nickname, countryCode, identityKey }) {
+  const token = crypto.randomBytes(32).toString('base64url');
+  const startedAtMs = Date.now();
+  const expiresAtMs = startedAtMs + LIVE_SESSION_DURATION_SECONDS * 1000;
+  activeLiveSession = {
+    sessionId: genId(),
+    tokenHash: sha256(token),
+    identityKey,
+    nickname,
+    countryCode,
+    startedAt: new Date(startedAtMs).toISOString(),
+    expiresAt: new Date(expiresAtMs).toISOString(),
+    expiresAtMs,
+    lastSeenAtMs: startedAtMs,
+  };
+  liveCooldownByIdentity.set(identityKey, startedAtMs);
+  liveGestureSnapshot = null;
+  return { token, session: publicLiveSession(activeLiveSession) };
 }
 
 function expireLiveSessionIfNeeded() {
@@ -473,6 +535,7 @@ function buildLiveBootstrapPayload() {
       instagramHandle: LIVE_INSTAGRAM_HANDLE,
       instagramUrl: LIVE_INSTAGRAM_URL,
       paypalDonationUrl: LIVE_PAYPAL_DONATION_URL,
+      venmoDonationUrl: LIVE_VENMO_DONATION_URL,
     },
     auth: {
       provider: 'google',
@@ -488,7 +551,7 @@ function buildLiveBootstrapPayload() {
     },
     queuePolicy: {
       turnDurationSeconds: LIVE_SESSION_DURATION_SECONDS,
-      cooldownMinutes: 15,
+      cooldownMinutes: LIVE_COOLDOWN_MINUTES,
       freeTurnsPerCooldownWindow: 1,
       paidExtraTurnsEnabled: false,
     },
@@ -813,10 +876,16 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
 
     if (req.method === 'GET' && parsed.pathname === '/api/live/status') {
       expireLiveSessionIfNeeded();
+      purgeLiveQueue();
       return sendJson(res, 200, {
         ok: true,
         status: liveState,
         session: publicLiveSession(),
+        queue: {
+          waiting: liveQueue.length,
+          turnDurationSeconds: LIVE_SESSION_DURATION_SECONDS,
+          cooldownMinutes: LIVE_COOLDOWN_MINUTES,
+        },
         serverTime: new Date().toISOString(),
       }, {
         ...c,
@@ -857,50 +926,104 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           return sendJson(res, 409, { ok: false, error: 'installation_not_accepting' }, c);
         }
 
-        const ip = liveRequestIp(req);
-        if (liveSessionStartByIp.size > 1000) liveSessionStartByIp.clear();
-        const lastStart = liveSessionStartByIp.get(ip) || 0;
-        if (Date.now() - lastStart < 3000) {
-          return sendJson(res, 429, { ok: false, error: 'start_rate_limited', retryAfterMs: 3000 - (Date.now() - lastStart) }, c);
-        }
-        liveSessionStartByIp.set(ip, Date.now());
-
-        if (activeLiveSession) {
-          return sendJson(res, 409, {
-            ok: false,
-            error: 'installation_busy',
-            retryAfterMs: Math.max(0, activeLiveSession.expiresAtMs - Date.now()),
-          }, c);
-        }
-
         const body = await readBody(req, 8_192);
         const nickname = cleanString(body?.nickname || '', 40);
         const countryCode = cleanString(body?.countryCode || '', 2).toUpperCase();
         if (nickname.length < 2) return sendJson(res, 400, { ok: false, error: 'nickname_required' }, c);
         if (!/^[A-Z]{2}$/.test(countryCode)) return sendJson(res, 400, { ok: false, error: 'country_required' }, c);
 
-        const token = crypto.randomBytes(32).toString('base64url');
-        const startedAtMs = Date.now();
-        const expiresAtMs = startedAtMs + LIVE_SESSION_DURATION_SECONDS * 1000;
-        activeLiveSession = {
-          sessionId: genId(),
-          tokenHash: sha256(token),
-          nickname,
-          countryCode,
-          startedAt: new Date(startedAtMs).toISOString(),
-          expiresAt: new Date(expiresAtMs).toISOString(),
-          expiresAtMs,
-          lastSeenAtMs: startedAtMs,
-        };
-        liveGestureSnapshot = null;
+        const identityKey = liveIdentityKey(req, body);
+        const remainingCooldownMs = cooldownRemainingMs(identityKey);
+        if (remainingCooldownMs > 0) {
+          return sendJson(res, 429, {
+            ok: false,
+            error: 'participant_cooldown',
+            retryAfterMs: remainingCooldownMs,
+            cooldownMinutes: LIVE_COOLDOWN_MINUTES,
+          }, c);
+        }
+
+        if (liveSessionStartByIp.size > 1000) liveSessionStartByIp.clear();
+        const lastStart = liveSessionStartByIp.get(identityKey) || 0;
+        if (Date.now() - lastStart < 3000) {
+          return sendJson(res, 429, { ok: false, error: 'start_rate_limited', retryAfterMs: 3000 - (Date.now() - lastStart) }, c);
+        }
+        liveSessionStartByIp.set(identityKey, Date.now());
+
+        purgeLiveQueue();
+        if (activeLiveSession || liveQueue.length > 0) {
+          const duplicateIndex = liveQueue.findIndex((entry) => entry.identityKey === identityKey);
+          if (duplicateIndex >= 0) liveQueue.splice(duplicateIndex, 1);
+          const queueToken = crypto.randomBytes(32).toString('base64url');
+          const queuedAtMs = Date.now();
+          const entry = {
+            ticketHash: sha256(queueToken),
+            identityKey,
+            nickname,
+            countryCode,
+            queuedAtMs,
+            lastSeenAtMs: queuedAtMs,
+          };
+          liveQueue.push(entry);
+          return sendJson(res, 202, {
+            ok: true,
+            queued: true,
+            queueToken,
+            queue: publicQueueTicket(entry),
+            serverTime: new Date().toISOString(),
+          }, { ...c, 'Cache-Control': 'no-store' });
+        }
+
+        const reservation = createLiveParticipantSession({ nickname, countryCode, identityKey });
         return sendJson(res, 201, {
           ok: true,
-          token,
-          session: publicLiveSession(activeLiveSession),
+          ...reservation,
           serverTime: new Date().toISOString(),
         }, { ...c, 'Cache-Control': 'no-store' });
       } catch {
         return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
+    }
+
+    if (req.method === 'POST' && parsed.pathname === '/api/live/queue/status') {
+      try {
+        expireLiveSessionIfNeeded();
+        purgeLiveQueue();
+        const queueToken = parseBearerToken(req);
+        if (!queueToken) return sendJson(res, 401, { ok: false, error: 'queue_token_required' }, c);
+        const ticketHash = sha256(queueToken);
+        const entryIndex = liveQueue.findIndex((entry) => entry.ticketHash === ticketHash);
+        if (entryIndex < 0) return sendJson(res, 410, { ok: false, error: 'queue_ticket_expired' }, c);
+        const entry = liveQueue[entryIndex];
+        entry.lastSeenAtMs = Date.now();
+
+        if (!activeLiveSession && entryIndex === 0) {
+          const remainingCooldownMs = cooldownRemainingMs(entry.identityKey);
+          liveQueue.shift();
+          if (remainingCooldownMs > 0) {
+            return sendJson(res, 429, {
+              ok: false,
+              error: 'participant_cooldown',
+              retryAfterMs: remainingCooldownMs,
+            }, c);
+          }
+          const reservation = createLiveParticipantSession(entry);
+          return sendJson(res, 200, {
+            ok: true,
+            ready: true,
+            ...reservation,
+            serverTime: new Date().toISOString(),
+          }, { ...c, 'Cache-Control': 'no-store' });
+        }
+
+        return sendJson(res, 200, {
+          ok: true,
+          ready: false,
+          queue: publicQueueTicket(entry),
+          serverTime: new Date().toISOString(),
+        }, { ...c, 'Cache-Control': 'no-store' });
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'invalid_queue_request' }, c);
       }
     }
 

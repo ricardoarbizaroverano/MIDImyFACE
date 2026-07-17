@@ -226,16 +226,71 @@
     body.session-active .youtube-live-label { font-size: 10px; }
     body.session-active #youtubeSoundBtn { min-height: 27px; padding: 2px 6px; font-size: 9px; }
 
+    /* SNES skin shared with the main MIDImyFACE page. */
+    :root { --green: #7cff4f; --green-bright: #b9ff6a; --cyan: #36f6b2; --purple: #8e6bff; --amber: #ffb44c; --panel: #10131d; --danger: #ff5a5a; }
+    html, body { background: #050708; }
+    body {
+      background: radial-gradient(circle at 12% 12%,rgba(142,107,255,.15),transparent 28%), radial-gradient(circle at 88% 18%,rgba(54,246,178,.1),transparent 26%), linear-gradient(180deg,#07070c 0%,#050708 42%,#020302 100%);
+      padding-bottom: max(24px,env(safe-area-inset-bottom));
+      text-shadow: 0 0 7px rgba(124,255,79,.1);
+    }
+    body::before { content:""; position:fixed; inset:0; z-index:200; pointer-events:none; opacity:.25; background:repeating-linear-gradient(to bottom,rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 1px,transparent 1px,transparent 4px); }
+    button { border:3px solid #fff; border-right-color:#555566; border-bottom-color:#555566; color:#111116; background:#d8d8d8; box-shadow:4px 4px 0 #000; text-transform:uppercase; transition:transform 80ms linear,filter 120ms ease; }
+    button:focus-visible { background:#d8d8d8; color:#111116; outline:3px solid var(--amber); outline-offset:3px; }
+    button:active { background:#d8d8d8; color:#111116; transform:translate(4px,4px); box-shadow:none; border-color:#555566 #fff #fff #555566; }
+    select, input { background:#030403; color:var(--green-bright); border:3px solid var(--cyan); box-shadow:inset 3px 3px 0 rgba(0,0,0,.65); }
+    #header { padding:24px 0 8px; }
+    #title { color:var(--green-bright); letter-spacing:.04em; text-shadow:4px 4px 0 #112211,0 0 18px rgba(185,255,106,.25); }
+    #videoContainer { border:4px solid var(--green); background:linear-gradient(90deg,rgba(124,255,79,.06) 1px,transparent 1px),linear-gradient(rgba(124,255,79,.06) 1px,transparent 1px),#050705; background-size:32px 32px; box-shadow:0 0 0 3px #000,inset 0 0 40px rgba(124,255,79,.1),0 10px 0 rgba(0,0,0,.48); }
+    .intro-panel { width:min(100%,540px); margin:auto; padding:clamp(14px,4vw,24px); border:3px solid var(--green); background:linear-gradient(180deg,rgba(23,27,43,.96),rgba(6,9,6,.98)); box-shadow:0 0 0 3px #000,0 9px 0 rgba(0,0,0,.5); }
+    .intro-panel h2 { color:var(--green-bright); font-size:clamp(28px,8vw,42px); margin:20px 0 18px; letter-spacing:.12em; }
+    #startSessionBtn { min-height:64px; font-size:22px; letter-spacing:.08em; }
+    #startSessionBtn.primary { color:#fff; background:#5548c8; border-color:#c8c3ff #27205f #27205f #c8c3ff; box-shadow:4px 4px 0 #000,0 0 18px rgba(85,72,200,.34); }
+    .below-stage { width:min(94vw,760px); margin:4px auto 18px; }
+    .support-links,.community-links { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:0; }
+    .community-links { margin-top:12px; }
+    .support-link { min-height:58px; display:flex; align-items:center; justify-content:center; gap:10px; padding:10px 12px; border:3px solid #fff; border-right-color:#555566; border-bottom-color:#555566; color:#111116; background:#d8d8d8; box-shadow:4px 4px 0 #000; font-size:14px; text-transform:uppercase; transition:transform 80ms linear,filter 120ms ease; }
+    .support-link:hover { filter:brightness(1.12); transform:translate(-1px,-1px); }
+    .support-link:active { outline:0; transform:translate(4px,4px); box-shadow:none; border-color:#555566 #fff #fff #555566; }
+    .support-link:focus-visible { outline:3px solid var(--amber); outline-offset:3px; }
+    .support-link.support-primary { color:#fff; background:#173f9f; border-color:#a9c7ff #071b56 #071b56 #a9c7ff; }
+    .support-link.venmo { background:#008cff; border-color:#bde6ff #00518f #00518f #bde6ff; }
+    .support-link small { font-size:10px; opacity:.9; }
+    .pixel-icon,.social-icon { display:grid; flex:0 0 auto; place-items:center; width:34px; height:34px; border:3px solid currentColor; font-size:19px; line-height:1; }
+    .youtube-icon { color:#fff; background:#e12626; padding:4px 7px; }
+    .auth-panel { display:grid; gap:10px; padding-bottom:18px; border-bottom:2px dashed rgba(54,246,178,.5); }
+    .terms-check { display:grid; grid-template-columns:28px 1fr; align-items:start; gap:10px; color:#d5d8d6; font-size:13px; line-height:1.35; }
+    .terms-check input { width:26px; height:26px; margin:0; accent-color:var(--purple); }
+    .google-button { width:100%; display:flex; align-items:center; justify-content:center; gap:12px; }
+    .google-button svg { width:24px; height:24px; background:#fff; }
+    #authMessage { margin:0; color:var(--muted); font-size:12px; line-height:1.35; text-align:center; }
+    .queue-card { display:grid; gap:7px; margin-top:14px; padding:14px; border:3px solid var(--amber); background:#17120a; color:#fff; text-align:center; box-shadow:4px 4px 0 #000; }
+    .queue-card strong { color:var(--amber); }
+    .youtube-live,.youtube-fallback { width:min(94vw,760px); margin:0 auto 18px; color:#fff; background:#050505; border:3px solid rgba(124,255,79,.7); overflow:hidden; box-shadow:4px 4px 0 #000; }
+    .youtube-fallback { display:grid; gap:8px; justify-items:center; padding:18px; text-align:center; }
+    .youtube-fallback strong { color:var(--amber); font-size:18px; }
+    .youtube-fallback span { color:#d5d5d5; }
+    .youtube-fallback .support-link { width:min(100%,360px); margin-top:6px; }
+    .donation-card { width:min(100%,480px); padding:24px; border:4px solid var(--green); background:linear-gradient(180deg,var(--panel),#050705); box-shadow:0 0 0 4px #000,8px 8px 0 rgba(0,0,0,.7); }
+    .donation-pixel-heart { color:var(--danger); font-size:48px; line-height:1; text-shadow:4px 4px 0 #5e1515; }
+    .donation-amounts { grid-template-columns:repeat(4,1fr); }
+    .donation-amount { border:3px solid #d9cdff; border-right-color:#33296d; border-bottom-color:#33296d; color:#fff; background:#6957d8; box-shadow:3px 3px 0 #000; }
+    .donation-providers { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+    body.session-active #belowStage, body.session-active #youtubeFallback { display:none; }
+
     @media (max-width: 620px) {
       #header { padding-top: 18px; }
-      #videoContainer { width: 100vw; min-height: calc(100dvh - 150px); margin-bottom: 0; border-left: 0; border-right: 0; }
+      #title { font-size:clamp(22px,7.2vw,30px); letter-spacing:0; }
+      #videoContainer { width:100vw; height:620px; min-height:620px; margin-bottom:0; border-left:0; border-right:0; }
       .gesture-dock { grid-template-columns: repeat(4, minmax(0, 1fr)); }
       .gesture-icon { min-height: 62px; }
       .gesture-icon svg { width: 29px; height: 29px; }
       .gesture-icon span { font-size: 9px; }
       #stopSessionBtn { width: 100vw; margin: 0; border-width: 2px 0 0; }
-      .support-links { grid-template-columns: 1fr; }
-      .support-link.paypal { grid-column: auto; }
+      .support-links,.community-links { grid-template-columns:1fr; }
+      .session-intro { place-items:start center; padding:12px 10px; }
+      .intro-panel { margin:0 auto; padding:16px 13px 20px; }
+      .donation-amounts { grid-template-columns:repeat(2,1fr); }
       body.session-active .youtube-live { width: min(46vw, 220px); bottom: calc(82px + env(safe-area-inset-bottom)); }
     }
   </style>
@@ -243,7 +298,6 @@
 <body>
   <header id="header">
     <h1 id="title">MIDImyFACE Live</h1>
-    <p id="subtitle">Play percussion with your face</p>
   </header>
 
   <div class="installation-status" aria-live="polite">
@@ -257,7 +311,18 @@
 
     <section id="sessionIntro" class="session-intro">
       <form id="identityForm" class="intro-panel">
-        <h2>Join the instrument</h2>
+        <div id="authPanel" class="auth-panel">
+          <label class="terms-check">
+            <input id="termsConsent" type="checkbox">
+            <span>I accept the terms and privacy policy.</span>
+          </label>
+          <button id="googleAuthBtn" class="snes-button google-button" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285f4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.4z"/><path fill="#34a853" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1a5.8 5.8 0 0 1-5.5-4H3.2v2.6A10 10 0 0 0 12 22z"/><path fill="#fbbc05" d="M6.5 14.1a6 6 0 0 1 0-4.2V7.3H3.2a10 10 0 0 0 0 9.4l3.3-2.6z"/><path fill="#ea4335" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.9-2.8A9.7 9.7 0 0 0 3.2 7.3l3.3 2.6a5.8 5.8 0 0 1 5.5-4z"/></svg>
+            <span id="googleAuthLabel">REGISTER FREE</span>
+          </button>
+          <p id="authMessage">Create an account to save your place and future sessions.</p>
+        </div>
+        <h2>JOIN</h2>
         <div class="identity-grid">
           <label class="field">Nickname
             <input id="nicknameInput" name="nickname" type="text" maxlength="40" minlength="2" autocomplete="nickname" required placeholder="Your stage name">
@@ -266,14 +331,13 @@
             <select id="countrySelect" name="country" required><option value="">Choose country</option></select>
           </label>
         </div>
-        <button id="startSessionBtn" type="submit">Start camera</button>
-        <div id="formMessage" aria-live="polite">No login required.</div>
-        <nav class="support-links" aria-label="Support and follow MIDImyFACE">
-          <a id="paypalDonateLink" class="support-link paypal" href="https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download" target="_blank" rel="noopener noreferrer">Donate with PayPal</a>
-          <a id="instagramProjectLink" class="support-link" href="https://www.instagram.com/midimyface/" target="_blank" rel="noopener noreferrer">Follow @midimyface</a>
-          <a class="support-link" href="https://www.instagram.com/ricardoarbiza.sound/" target="_blank" rel="noopener noreferrer">Creator @ricardoarbiza.sound</a>
-          <a class="support-link" href="https://midimyface.com/">Check MIDImyFACE</a>
-        </nav>
+        <button id="startSessionBtn" class="snes-button primary" type="submit">START</button>
+        <div id="formMessage" aria-live="polite">Checking the installation…</div>
+        <div id="queueCard" class="queue-card hidden" aria-live="polite">
+          <strong>YOU ARE IN THE QUEUE</strong>
+          <span id="queuePosition">Position —</span>
+          <span id="queueEstimate">Estimated wait —</span>
+        </div>
       </form>
     </section>
 
@@ -291,19 +355,43 @@
     </div>
   </main>
 
+  <section id="belowStage" class="below-stage">
+    <nav class="support-links" aria-label="Support MIDImyFACE">
+      <a id="paypalDonateLink" class="support-link support-primary" href="https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download" target="_blank" rel="noopener noreferrer"><span class="pixel-icon">P</span><span>SUPPORT THE PROJECT<br><small>PAYPAL</small></span></a>
+      <a id="venmoDonateLink" class="support-link support-primary venmo" href="https://venmo.com/code?user_id=2982237150642176372&amp;created=1784274093" target="_blank" rel="noopener noreferrer"><span class="pixel-icon">V</span><span>VENMO ME<br><small>@ricardo-arbiza</small></span></a>
+    </nav>
+    <nav class="community-links" aria-label="Follow MIDImyFACE">
+      <a id="youtubeChannelLink" class="support-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noopener noreferrer"><span class="social-icon youtube-icon">▶</span><span>YOUTUBE CHANNEL</span></a>
+      <a id="instagramProjectLink" class="support-link" href="https://www.instagram.com/midimyface/" target="_blank" rel="noopener noreferrer"><span class="social-icon">＋</span><span>FOLLOW @midimyface</span></a>
+      <a class="support-link" href="https://www.instagram.com/ricardoarbiza.sound/" target="_blank" rel="noopener noreferrer"><span class="social-icon">＋</span><span>FOLLOW CREATOR<br><small>@ricardoarbiza.sound</small></span></a>
+      <a class="support-link" href="https://midimyface.com/"><span class="social-icon">↗</span><span>MIDIMYFACE.COM</span></a>
+    </nav>
+  </section>
+
   <section id="youtubeLivePanel" class="youtube-live hidden" aria-label="MIDImyFACE YouTube live stream">
     <div class="youtube-live-header"><span class="youtube-live-label">● LIVE ON YOUTUBE</span><button id="youtubeSoundBtn" type="button">Sound on</button></div>
     <div class="youtube-frame-wrap"><iframe id="youtubeLiveFrame" title="MIDImyFACE live stream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+  </section>
+
+  <section id="youtubeFallback" class="youtube-fallback">
+    <strong>NO LIVE JAM RIGHT NOW</strong>
+    <span>Come back later or check our last jam.</span>
+    <a id="lastJamLink" class="support-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g/videos" target="_blank" rel="noopener noreferrer"><span class="youtube-icon">▶</span> CHECK OUR LAST JAM</a>
   </section>
 
   <button id="stopSessionBtn" class="hidden" type="button">End session</button>
 
   <div id="donationModal" class="donation-modal hidden" role="dialog" aria-modal="true" aria-labelledby="donationTitle">
     <div class="donation-card">
-      <h2 id="donationTitle">Support MIDImyFACE</h2>
-      <p>Enjoyed your turn? Help keep the installation alive.</p>
+      <div class="donation-pixel-heart" aria-hidden="true">♥</div>
+      <h2 id="donationTitle">WOULD YOU LIKE TO SUPPORT THIS PROJECT?</h2>
+      <p>Your tip keeps MIDImyFACE playing.</p>
       <div id="donationAmounts" class="donation-amounts"></div>
-      <button id="dismissDonationBtn" type="button">Maybe later</button>
+      <div class="donation-providers">
+        <a id="modalPaypalLink" class="support-link support-primary" href="https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download" target="_blank" rel="noopener noreferrer">PAYPAL</a>
+        <a id="modalVenmoLink" class="support-link support-primary venmo" href="https://venmo.com/code?user_id=2982237150642176372&amp;created=1784274093" target="_blank" rel="noopener noreferrer">VENMO</a>
+      </div>
+      <button id="dismissDonationBtn" class="snes-button" type="button">MAYBE LATER</button>
     </div>
   </div>
   <script type="module" src="./live.js"></script>
