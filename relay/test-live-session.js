@@ -25,6 +25,7 @@ const child = spawn(process.execPath, ['server.js'], {
     LIVE_STATE_FILE: stateFile,
     LIVE_SESSION_DURATION_SECONDS: '15',
     LIVE_SNAPSHOT_TTL_MS: '1000',
+    LIVE_REQUIRE_FIREBASE_AUTH: 'false',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });

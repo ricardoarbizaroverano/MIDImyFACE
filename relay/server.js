@@ -86,6 +86,7 @@ const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.L
 const LIVE_QUEUE_TICKET_TTL_MS       = Math.max(15_000, Math.min(Number(process.env.LIVE_QUEUE_TICKET_TTL_MS || 45_000), 300_000));
 const LIVE_SNAPSHOT_TTL_MS           = Math.max(500, Math.min(Number(process.env.LIVE_SNAPSHOT_TTL_MS || 2500), 10_000));
 const LIVE_MAX_LANDMARKS             = 478;
+const LIVE_REQUIRE_FIREBASE_AUTH     = asBoolean(process.env.LIVE_REQUIRE_FIREBASE_AUTH, true);
 
 // Comma-separated list like:
 // "https://midimyface.com,https://www.midimyface.com,http://127.0.0.1:5500"
@@ -330,6 +331,7 @@ function buildLivePublicConfigPayload() {
     ok: true,
     auth: {
       provider: 'google',
+      required: LIVE_REQUIRE_FIREBASE_AUTH,
       enabled: firebaseConfigured() && firebaseVerificationAvailable(),
       firebaseConfigured: firebaseConfigured(),
       backendVerificationConfigured: firebaseVerificationAvailable(),
@@ -1037,8 +1039,8 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       }
     }
 
-    // Anonymous testing sessions still use a short-lived capability token. This
-    // prevents arbitrary public POSTs from being translated into GPIO activity.
+    // Participant control requires a verified Firebase account by default.
+    // Explicit test/bench deployments may opt back into anonymous sessions.
     if (req.method === 'POST' && parsed.pathname === '/api/live/session/start') {
       try {
         expireLiveSessionIfNeeded();
@@ -1052,7 +1054,13 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         if (nickname.length < 2) return sendJson(res, 400, { ok: false, error: 'nickname_required' }, c);
         if (!/^[A-Z]{2}$/.test(countryCode)) return sendJson(res, 400, { ok: false, error: 'country_required' }, c);
 
+        if (LIVE_REQUIRE_FIREBASE_AUTH && !firebaseVerificationAvailable()) {
+          throw liveAuthError('firebase_admin_unconfigured', 503);
+        }
         const firebaseIdentity = await verifiedFirebaseIdentity(req);
+        if (LIVE_REQUIRE_FIREBASE_AUTH && !firebaseIdentity.authenticated) {
+          throw liveAuthError('registration_required', 401);
+        }
         const identityKey = liveIdentityKey(req, body, firebaseIdentity);
         const remainingCooldownMs = firebaseIdentity.master ? 0 : cooldownRemainingMs(identityKey);
         if (!firebaseIdentity.master && remainingCooldownMs > 0) {
@@ -1110,7 +1118,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           serverTime: new Date().toISOString(),
         }, { ...c, 'Cache-Control': 'no-store' });
       } catch (error) {
-        if (error?.code === 'firebase_admin_unconfigured' || error?.code === 'invalid_firebase_token') {
+        if (error?.code === 'firebase_admin_unconfigured' || error?.code === 'invalid_firebase_token' || error?.code === 'registration_required') {
           return sendJson(res, error.statusCode || 401, { ok: false, error: error.code }, c);
         }
         return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);

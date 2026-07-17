@@ -18,6 +18,7 @@ const elements = Object.fromEntries([
   'youtubeLivePanel','youtubeLiveFrame','youtubeSoundBtn','donationModal','donationAmounts','dismissDonationBtn',
   'venmoDonateLink','modalPaypalLink','modalVenmoLink','youtubeChannelLink','lastJamLink','youtubeFallback',
   'termsConsent','googleAuthBtn','googleAuthLabel','authMessage','queueCard','queuePosition','queueEstimate',
+  'authPanel',
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = {
@@ -37,6 +38,7 @@ const state = {
   authUser: null,
   authToken: null,
   firebaseAuth: null,
+  authReady: false,
 };
 
 function resolveRelayOrigin() {
@@ -261,13 +263,23 @@ function clearQueue() {
   setHidden(elements.queueCard, true);
 }
 
+function setRegistrationGate(user = null) {
+  const registered = Boolean(user);
+  document.body.classList.toggle('auth-required', !registered);
+  setHidden(elements.authPanel, registered);
+  if (!registered) elements.startSessionBtn.disabled = true;
+}
+
 async function setupGoogleRegistration(publicConfig) {
   const authConfig = publicConfig?.auth || {};
   const firebaseConfig = publicConfig?.firebase || {};
   const requiredConfig = ['apiKey', 'authDomain', 'projectId', 'appId'];
   const validConfig = requiredConfig.every((key) => typeof firebaseConfig[key] === 'string' && firebaseConfig[key].trim());
   if (!authConfig.enabled || !authConfig.firebaseConfigured || !validConfig) {
-    elements.authMessage.textContent = 'Google registration will open when Firebase is connected. Anonymous testing is still available.';
+    state.authReady = false;
+    elements.googleAuthBtn.disabled = true;
+    elements.authMessage.textContent = 'Registration is required, but Firebase is not configured on Render yet.';
+    setRegistrationGate(null);
     return;
   }
   try {
@@ -277,22 +289,28 @@ async function setupGoogleRegistration(publicConfig) {
     ]);
     const app = initializeApp(firebaseConfig);
     state.firebaseAuth = { auth: authSdk.getAuth(app), authSdk };
+    state.authReady = true;
     authSdk.onAuthStateChanged(state.firebaseAuth.auth, async (user) => {
       if (user && localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) !== 'true') {
         await authSdk.signOut(state.firebaseAuth.auth);
         elements.authMessage.textContent = 'Accept the terms and privacy policy before signing in.';
+        setRegistrationGate(null);
         return;
       }
       state.authUser = user || null;
       state.authToken = user ? await user.getIdToken() : null;
       elements.googleAuthLabel.textContent = user ? `SIGN OUT · ${user.displayName || user.email}` : 'REGISTER FREE';
-      elements.googleAuthBtn.disabled = user ? false : !elements.termsConsent.checked;
+      elements.googleAuthBtn.disabled = user ? false : !state.authReady || !elements.termsConsent.checked;
       elements.authMessage.textContent = user
         ? 'Account recognized on this device.'
         : 'Create an account to save your place and future sessions.';
+      setRegistrationGate(user);
     });
   } catch {
-    elements.authMessage.textContent = 'Google registration is temporarily unavailable. Anonymous testing is still available.';
+    state.authReady = false;
+    elements.googleAuthBtn.disabled = true;
+    elements.authMessage.textContent = 'Secure registration is temporarily unavailable. Please try again later.';
+    setRegistrationGate(null);
   }
 }
 
@@ -314,10 +332,11 @@ async function registerWithGoogle() {
     const result = await state.firebaseAuth.authSdk.signInWithPopup(state.firebaseAuth.auth, provider);
     state.authUser = result.user;
     state.authToken = await result.user.getIdToken();
+    setRegistrationGate(result.user);
   } catch (error) {
     if (error?.code !== 'auth/popup-closed-by-user') elements.authMessage.textContent = 'Google sign-in did not complete. Please try again.';
   } finally {
-    elements.googleAuthBtn.disabled = !elements.termsConsent.checked;
+    elements.googleAuthBtn.disabled = !state.authReady || !elements.termsConsent.checked;
   }
 }
 
@@ -384,10 +403,10 @@ function renderStatus(payload) {
       elements.startSessionBtn.disabled = true;
       const waiting = Number(payload.queue?.waiting || 0);
       setFormMessage(waiting ? `${waiting} participant${waiting === 1 ? '' : 's'} waiting. Press START to join the queue.` : 'Another participant is playing. Press START to join the queue.');
-      elements.startSessionBtn.disabled = !accepting;
+      elements.startSessionBtn.disabled = !accepting || !state.authUser;
     } else {
       elements.participantBadge.textContent = '';
-      elements.startSessionBtn.disabled = !accepting;
+      elements.startSessionBtn.disabled = !accepting || !state.authUser;
       setFormMessage(accepting ? 'Ready for a 30-second turn.' : 'Come back later.', !accepting);
     }
   }
@@ -454,7 +473,8 @@ function friendlyStartError(error) {
   if (error.code === 'installation_not_accepting') return 'The installation is online but not accepting participants.';
   if (error.code === 'start_rate_limited') return 'Please wait a few seconds before trying again.';
   if (error.code === 'invalid_firebase_token') return 'Your Google session could not be verified. Sign out, sign in, and try again.';
-  if (error.code === 'firebase_admin_unconfigured') return 'Google registration is temporarily unavailable. You can continue anonymously after signing out.';
+  if (error.code === 'firebase_admin_unconfigured') return 'Google registration is temporarily unavailable. Please try again later.';
+  if (error.code === 'registration_required') return 'Register with Google before joining the instrument.';
   if (error.code === 'participant_cooldown') return `Your next turn opens in ${formatWait((error.payload?.retryAfterMs || 0) / 1000)}.`;
   if (error.code === 'nickname_required') return 'Enter a nickname with at least two characters.';
   if (error.code === 'country_required') return 'Choose your country.';
@@ -464,6 +484,11 @@ function friendlyStartError(error) {
 async function startSession(event) {
   event.preventDefault();
   if (state.participantSession) return;
+  if (!state.authUser || !state.authToken) {
+    setRegistrationGate(null);
+    elements.authMessage.textContent = 'Register with Google before joining the instrument.';
+    return;
+  }
   hideDonationPrompt();
   const nickname = elements.nicknameInput.value.trim().slice(0, 40);
   const countryCode = elements.countrySelect.value.trim().toUpperCase();
@@ -529,6 +554,7 @@ async function refreshStatus() {
 
 async function initialize() {
   state.deviceId = resolveDeviceId();
+  setRegistrationGate(null);
   elements.termsConsent.checked = localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) === 'true';
   buildCountryOptions();
   renderDonationAmounts([1, 2, 5]);
@@ -542,7 +568,7 @@ async function initialize() {
       localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
       if (state.authUser && state.firebaseAuth) await state.firebaseAuth.authSdk.signOut(state.firebaseAuth.auth);
     }
-    elements.googleAuthBtn.disabled = state.authUser ? false : !elements.termsConsent.checked;
+    elements.googleAuthBtn.disabled = state.authUser ? false : !state.authReady || !elements.termsConsent.checked;
   });
   elements.googleAuthBtn.addEventListener('click', registerWithGoogle);
   elements.donationModal.addEventListener('click', (event) => {

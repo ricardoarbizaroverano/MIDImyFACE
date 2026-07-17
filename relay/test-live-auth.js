@@ -7,6 +7,7 @@ const originFor = (port) => `http://127.0.0.1:${port}`;
 const deviceToken = 'auth-test-device-token-000000000000000000';
 const masterEmail = 'verified-master@example.test';
 const tokenClaims = {
+  'token-active': { uid: 'uid-active', email: 'active@example.test', email_verified: true },
   'token-no-email': { uid: 'uid-no-email', email_verified: true },
   'token-unverified-master': { uid: 'uid-unverified', email: masterEmail, email_verified: false },
   'token-ordinary': { uid: 'uid-ordinary', email: 'ordinary@example.test', email_verified: true },
@@ -44,6 +45,7 @@ function serverEnvironment(port, stateFile, overrides = {}) {
     FIREBASE_ADMIN_PRIVATE_KEY: '',
     LIVE_MASTER_EMAILS: '',
     LIVE_FIREBASE_TEST_TOKENS_JSON: '',
+    LIVE_REQUIRE_FIREBASE_AUTH: 'true',
     ...overrides,
   };
 }
@@ -137,6 +139,7 @@ async function configuredAuthTests() {
       'apiKey', 'appId', 'authDomain', 'measurementId', 'messagingSenderId', 'projectId', 'storageBucket',
     ]);
     assert.equal(configResult.body.auth.enabled, true);
+    assert.equal(configResult.body.auth.required, true);
     const serializedConfig = JSON.stringify(configResult.body);
     for (const sentinel of privateSentinels) assert.equal(serializedConfig.includes(sentinel), false);
 
@@ -149,6 +152,7 @@ async function configuredAuthTests() {
 
     await setInstallationReady(port);
     let result = await startParticipant(port, {
+      token: 'token-active',
       deviceId: 'auth_active_device_0000001',
       nickname: 'Active Player',
     });
@@ -177,8 +181,8 @@ async function configuredAuthTests() {
       nickname: 'Forged Browser Master',
       extraBody: { email: masterEmail, master: true, masterPriority: true },
     });
-    assert.equal(result.response.status, 202);
-    assert.equal(result.body.queue.priority, 'standard');
+    assert.equal(result.response.status, 401);
+    assert.equal(result.body.error, 'registration_required');
 
     result = await startParticipant(port, {
       token: 'token-no-email',
@@ -250,10 +254,11 @@ async function missingConfigurationTests() {
     assert.equal(result.body.error, 'firebase_admin_unconfigured');
 
     result = await startParticipant(port, {
-      deviceId: 'anonymous_still_works_001',
+      deviceId: 'anonymous_blocked_00000001',
       nickname: 'Anonymous Player',
     });
-    assert.equal(result.response.status, 201);
+    assert.equal(result.response.status, 503);
+    assert.equal(result.body.error, 'firebase_admin_unconfigured');
   } finally {
     processInfo.child.kill('SIGTERM');
     await fs.rm(stateFile, { force: true });
