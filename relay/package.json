@@ -7,9 +7,12 @@
   "scripts": {
     "start": "node server.js",
     "dev": "NODE_ENV=development nodemon server.js",
-    "test:live": "node test-live-session.js"
+    "test:live": "node test-live-session.js",
+    "test:live-auth": "node test-live-auth.js",
+    "test": "npm run test:live && npm run test:live-auth"
   },
   "dependencies": {
+    "firebase-admin": "^13.10.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {

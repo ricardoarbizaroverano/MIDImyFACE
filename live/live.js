@@ -6,6 +6,7 @@ const DEFAULT_YOUTUBE_EMBED_URL = 'https://www.youtube.com/embed/live_stream?cha
 const DEFAULT_YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g';
 const DEFAULT_YOUTUBE_VIDEOS_URL = `${DEFAULT_YOUTUBE_CHANNEL_URL}/videos`;
 const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/midimyface/';
+const TERMS_ACCEPTED_STORAGE_KEY = 'mmf_live_terms_accepted_v1';
 const COUNTRY_CODES = [
   'AR','AU','AT','BE','BO','BR','BG','CA','CL','CN','CO','CR','CU','CZ','DK','DO','EC','EG','SV','FI','FR','DE','GR','GT','HN','HK','HU','IS','IN','ID','IE','IL','IT','JP','KE','KR','LV','LT','LU','MY','MX','MA','NL','NZ','NI','NG','NO','PA','PY','PE','PH','PL','PT','PR','RO','SG','SK','SI','ZA','ES','SE','CH','TW','TH','TN','TR','UA','AE','GB','US','UY','VE','VN',
 ];
@@ -260,9 +261,12 @@ function clearQueue() {
   setHidden(elements.queueCard, true);
 }
 
-async function setupGoogleRegistration(bootstrap) {
-  const authConfig = bootstrap?.auth || {};
-  if (!authConfig.enabled || !authConfig.firebaseConfigured || !authConfig.firebase?.apiKey) {
+async function setupGoogleRegistration(publicConfig) {
+  const authConfig = publicConfig?.auth || {};
+  const firebaseConfig = publicConfig?.firebase || {};
+  const requiredConfig = ['apiKey', 'authDomain', 'projectId', 'appId'];
+  const validConfig = requiredConfig.every((key) => typeof firebaseConfig[key] === 'string' && firebaseConfig[key].trim());
+  if (!authConfig.enabled || !authConfig.firebaseConfigured || !validConfig) {
     elements.authMessage.textContent = 'Google registration will open when Firebase is connected. Anonymous testing is still available.';
     return;
   }
@@ -271,12 +275,18 @@ async function setupGoogleRegistration(bootstrap) {
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
     ]);
-    const app = initializeApp(authConfig.firebase);
+    const app = initializeApp(firebaseConfig);
     state.firebaseAuth = { auth: authSdk.getAuth(app), authSdk };
     authSdk.onAuthStateChanged(state.firebaseAuth.auth, async (user) => {
+      if (user && localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) !== 'true') {
+        await authSdk.signOut(state.firebaseAuth.auth);
+        elements.authMessage.textContent = 'Accept the terms and privacy policy before signing in.';
+        return;
+      }
       state.authUser = user || null;
       state.authToken = user ? await user.getIdToken() : null;
-      elements.googleAuthLabel.textContent = user ? `SIGNED IN · ${user.displayName || user.email}` : 'REGISTER FREE';
+      elements.googleAuthLabel.textContent = user ? `SIGN OUT · ${user.displayName || user.email}` : 'REGISTER FREE';
+      elements.googleAuthBtn.disabled = user ? false : !elements.termsConsent.checked;
       elements.authMessage.textContent = user
         ? 'Account recognized on this device.'
         : 'Create an account to save your place and future sessions.';
@@ -287,6 +297,12 @@ async function setupGoogleRegistration(bootstrap) {
 }
 
 async function registerWithGoogle() {
+  if (state.authUser && state.firebaseAuth) {
+    await state.firebaseAuth.authSdk.signOut(state.firebaseAuth.auth);
+    state.authUser = null;
+    state.authToken = null;
+    return;
+  }
   if (!elements.termsConsent.checked) return;
   if (!state.firebaseAuth) {
     elements.authMessage.textContent = 'Firebase is not connected yet. Ask the project owner to finish the free setup.';
@@ -437,6 +453,8 @@ function friendlyStartError(error) {
   if (error.code === 'installation_busy') return 'Another participant is playing. Join the queue.';
   if (error.code === 'installation_not_accepting') return 'The installation is online but not accepting participants.';
   if (error.code === 'start_rate_limited') return 'Please wait a few seconds before trying again.';
+  if (error.code === 'invalid_firebase_token') return 'Your Google session could not be verified. Sign out, sign in, and try again.';
+  if (error.code === 'firebase_admin_unconfigured') return 'Google registration is temporarily unavailable. You can continue anonymously after signing out.';
   if (error.code === 'participant_cooldown') return `Your next turn opens in ${formatWait((error.payload?.retryAfterMs || 0) / 1000)}.`;
   if (error.code === 'nickname_required') return 'Enter a nickname with at least two characters.';
   if (error.code === 'country_required') return 'Choose your country.';
@@ -461,9 +479,12 @@ async function startSession(event) {
   localStorage.setItem('mmf_live_country', countryCode);
 
   try {
+    if (state.authUser) state.authToken = await state.authUser.getIdToken();
+    const requestHeaders = { 'Content-Type': 'application/json' };
+    if (state.authToken) requestHeaders.Authorization = `Bearer ${state.authToken}`;
     const reservation = await api('/api/live/session/start', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: requestHeaders,
       body: JSON.stringify({ nickname, countryCode, deviceId: state.deviceId }),
     });
     if (reservation.queued) {
@@ -508,14 +529,20 @@ async function refreshStatus() {
 
 async function initialize() {
   state.deviceId = resolveDeviceId();
+  elements.termsConsent.checked = localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) === 'true';
   buildCountryOptions();
   renderDonationAmounts([1, 2, 5]);
   elements.identityForm.addEventListener('submit', startSession);
   elements.stopSessionBtn.addEventListener('click', () => endSession(true, undefined, true));
   elements.closeSessionBtn.addEventListener('click', () => endSession(true, undefined, true));
   elements.dismissDonationBtn.addEventListener('click', hideDonationPrompt);
-  elements.termsConsent.addEventListener('change', () => {
-    elements.googleAuthBtn.disabled = !elements.termsConsent.checked;
+  elements.termsConsent.addEventListener('change', async () => {
+    if (elements.termsConsent.checked) localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+    else {
+      localStorage.removeItem(TERMS_ACCEPTED_STORAGE_KEY);
+      if (state.authUser && state.firebaseAuth) await state.firebaseAuth.authSdk.signOut(state.firebaseAuth.auth);
+    }
+    elements.googleAuthBtn.disabled = state.authUser ? false : !elements.termsConsent.checked;
   });
   elements.googleAuthBtn.addEventListener('click', registerWithGoogle);
   elements.donationModal.addEventListener('click', (event) => {
@@ -535,9 +562,12 @@ async function initialize() {
   try {
     state.bootstrap = await api('/api/live/bootstrap');
     configurePublicLinks(state.bootstrap);
-    await setupGoogleRegistration(state.bootstrap);
   } catch {
     configurePublicLinks({});
+  }
+  try {
+    await setupGoogleRegistration(await api('/api/live/config'));
+  } catch {
     await setupGoogleRegistration({});
   }
   await refreshStatus();

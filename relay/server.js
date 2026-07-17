@@ -8,6 +8,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
+const { cert, getApps, initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 
 function loadLocalEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -30,6 +32,13 @@ function loadLocalEnvFile(filePath) {
 
 loadLocalEnvFile(path.join(__dirname, '.env.local'));
 loadLocalEnvFile(path.join(__dirname, '.env'));
+loadLocalEnvFile(path.join(__dirname, '..', '.env'));
+
+function configuredEnv(name) {
+  const value = String(process.env[name] || '').trim();
+  if (!value || /(PASTE_|REPLACE_|YOUR_)/i.test(value)) return '';
+  return value;
+}
 
 /* ========================
    Config (env-overridable)
@@ -38,15 +47,20 @@ const PORT         = process.env.PORT || 3000;
 const WS_PATH      = process.env.WS_PATH || '/ws';
 const MAX_CHANNELS = Number(process.env.MAX_CHANNELS || 16);
 const REQUIRE_JOIN_TOKEN = String(process.env.REQUIRE_JOIN_TOKEN || 'true').toLowerCase() !== 'false';
-const RELAY_JOIN_TOKEN_SECRET = process.env.RELAY_JOIN_TOKEN_SECRET || '';
+const RELAY_JOIN_TOKEN_SECRET = configuredEnv('RELAY_JOIN_TOKEN_SECRET');
 
 // Console API (served from this same process)
 const CONSOLE_API_ENABLED            = String(process.env.CONSOLE_API_ENABLED || 'true').toLowerCase() !== 'false';
-const INVITE_TOKEN_SECRET            = process.env.INVITE_TOKEN_SECRET            || '';
-const AUTH_TOKEN_SECRET              = process.env.AUTH_TOKEN_SECRET              || '';
-const DEFAULT_ADMIN_USERNAME         = process.env.TEST_ADMIN_USERNAME             || '';
-const DEFAULT_ADMIN_PASSWORD         = process.env.TEST_ADMIN_PASSWORD             || '';
-const DEFAULT_ADMIN_MAX_PARTICIPANTS = Number(process.env.TEST_ADMIN_MAX_PARTICIPANTS || 50);
+const INVITE_TOKEN_SECRET            = configuredEnv('INVITE_TOKEN_SECRET');
+const AUTH_TOKEN_SECRET              = configuredEnv('AUTH_TOKEN_SECRET');
+// TEST_ADMIN_* used to be the only names for the real console administrator.
+// Prefer the accurately named CONSOLE_ADMIN_* variables in deployed services,
+// while retaining the old names as a compatibility fallback and for tests.
+const DEFAULT_ADMIN_USERNAME         = configuredEnv('CONSOLE_ADMIN_USERNAME') || configuredEnv('TEST_ADMIN_USERNAME');
+const DEFAULT_ADMIN_PASSWORD         = configuredEnv('CONSOLE_ADMIN_PASSWORD') || configuredEnv('TEST_ADMIN_PASSWORD');
+const DEFAULT_ADMIN_MAX_PARTICIPANTS = Number(
+  process.env.CONSOLE_ADMIN_MAX_PARTICIPANTS || process.env.TEST_ADMIN_MAX_PARTICIPANTS || 50
+);
 const MIDIMYFACE_JOIN_URL            = process.env.MIDIMYFACE_JOIN_URL             || 'https://midimyface.com';
 const PUBLIC_BASE_URL                = process.env.PUBLIC_BASE_URL                 || 'https://midimyface-relay.onrender.com';
 const LIVE_ROUTE_PATH                = process.env.LIVE_ROUTE_PATH                 || '/live';
@@ -54,17 +68,19 @@ const LIVE_YOUTUBE_CHANNEL_ID        = process.env.LIVE_YOUTUBE_CHANNEL_ID      
 const LIVE_INSTAGRAM_HANDLE_RAW      = process.env.LIVE_INSTAGRAM_HANDLE           || '@midimyface';
 const LIVE_PAYPAL_DONATION_URL       = process.env.LIVE_PAYPAL_DONATION_URL        || 'https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download';
 const LIVE_VENMO_DONATION_URL        = process.env.LIVE_VENMO_DONATION_URL         || 'https://venmo.com/code?user_id=2982237150642176372&created=1784274093';
-const LIVE_OWNER_EMAIL               = process.env.LIVE_OWNER_EMAIL                || 'midimyface@gmail.com';
-const RPI_DEVICE_TOKEN               = process.env.RPI_DEVICE_TOKEN                || '';
+const RPI_DEVICE_TOKEN               = configuredEnv('RPI_DEVICE_TOKEN');
 const LIVE_STATE_FILE                = process.env.LIVE_STATE_FILE                 || path.join(__dirname, 'data', 'live-state.json');
-const LIVE_FIREBASE_API_KEY          = process.env.LIVE_FIREBASE_API_KEY           || '';
-const LIVE_FIREBASE_AUTH_DOMAIN      = process.env.LIVE_FIREBASE_AUTH_DOMAIN       || '';
-const LIVE_FIREBASE_PROJECT_ID       = process.env.LIVE_FIREBASE_PROJECT_ID        || '';
-const LIVE_FIREBASE_STORAGE_BUCKET   = process.env.LIVE_FIREBASE_STORAGE_BUCKET    || '';
-const LIVE_FIREBASE_MESSAGING_ID     = process.env.LIVE_FIREBASE_MESSAGING_ID      || '';
-const LIVE_FIREBASE_APP_ID           = process.env.LIVE_FIREBASE_APP_ID            || '';
-const LIVE_FIREBASE_MEASUREMENT_ID   = process.env.LIVE_FIREBASE_MEASUREMENT_ID    || '';
-const LIVE_PRIORITY_EMAILS_RAW       = process.env.LIVE_PRIORITY_EMAILS            || 'midimyface@gmail.com,ricardoarbizaroverano@gmail.com';
+const LIVE_FIREBASE_API_KEY          = configuredEnv('LIVE_FIREBASE_API_KEY');
+const LIVE_FIREBASE_AUTH_DOMAIN      = configuredEnv('LIVE_FIREBASE_AUTH_DOMAIN');
+const LIVE_FIREBASE_PROJECT_ID       = configuredEnv('LIVE_FIREBASE_PROJECT_ID');
+const LIVE_FIREBASE_STORAGE_BUCKET   = configuredEnv('LIVE_FIREBASE_STORAGE_BUCKET');
+const LIVE_FIREBASE_MESSAGING_SENDER_ID = configuredEnv('LIVE_FIREBASE_MESSAGING_SENDER_ID');
+const LIVE_FIREBASE_APP_ID           = configuredEnv('LIVE_FIREBASE_APP_ID');
+const LIVE_FIREBASE_MEASUREMENT_ID   = configuredEnv('LIVE_FIREBASE_MEASUREMENT_ID');
+const FIREBASE_ADMIN_PROJECT_ID      = configuredEnv('FIREBASE_ADMIN_PROJECT_ID');
+const FIREBASE_ADMIN_CLIENT_EMAIL    = configuredEnv('FIREBASE_ADMIN_CLIENT_EMAIL');
+const FIREBASE_ADMIN_PRIVATE_KEY_RAW = configuredEnv('FIREBASE_ADMIN_PRIVATE_KEY');
+const LIVE_MASTER_EMAILS_RAW         = configuredEnv('LIVE_MASTER_EMAILS');
 const LIVE_SESSION_DURATION_SECONDS  = Math.max(15, Math.min(Number(process.env.LIVE_SESSION_DURATION_SECONDS || 30), 300));
 const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.LIVE_COOLDOWN_MINUTES || 30), 240));
 const LIVE_QUEUE_TICKET_TTL_MS       = Math.max(15_000, Math.min(Number(process.env.LIVE_QUEUE_TICKET_TTL_MS || 45_000), 300_000));
@@ -86,10 +102,11 @@ const LIVE_INSTAGRAM_URL = `https://www.instagram.com/${LIVE_INSTAGRAM_HANDLE.re
 const LIVE_YOUTUBE_CHANNEL_URL = `https://www.youtube.com/channel/${LIVE_YOUTUBE_CHANNEL_ID}`;
 const LIVE_YOUTUBE_VIDEOS_URL = `${LIVE_YOUTUBE_CHANNEL_URL}/videos`;
 const LIVE_YOUTUBE_LIVE_EMBED_URL = `https://www.youtube.com/embed/live_stream?channel=${encodeURIComponent(LIVE_YOUTUBE_CHANNEL_ID)}&autoplay=1`;
-const LIVE_PRIORITY_EMAILS = LIVE_PRIORITY_EMAILS_RAW
+const LIVE_MASTER_EMAILS = LIVE_MASTER_EMAILS_RAW
   .split(',')
   .map((email) => String(email || '').trim().toLowerCase())
   .filter(Boolean);
+const LIVE_MASTER_EMAIL_SET = new Set(LIVE_MASTER_EMAILS);
 
 function ensureSecureConfig() {
   const missing = [];
@@ -97,8 +114,8 @@ function ensureSecureConfig() {
   if (CONSOLE_API_ENABLED) {
     if (!INVITE_TOKEN_SECRET) missing.push('INVITE_TOKEN_SECRET');
     if (!AUTH_TOKEN_SECRET) missing.push('AUTH_TOKEN_SECRET');
-    if (!DEFAULT_ADMIN_USERNAME) missing.push('TEST_ADMIN_USERNAME');
-    if (!DEFAULT_ADMIN_PASSWORD) missing.push('TEST_ADMIN_PASSWORD');
+    if (!DEFAULT_ADMIN_USERNAME) missing.push('CONSOLE_ADMIN_USERNAME');
+    if (!DEFAULT_ADMIN_PASSWORD) missing.push('CONSOLE_ADMIN_PASSWORD');
   }
   if (missing.length > 0) {
     throw new Error(`[security] missing required env vars: ${missing.join(', ')}`);
@@ -114,10 +131,14 @@ function ensureSecureConfig() {
     ]);
 
     const weak = [];
-    if (insecureDefaults.has(RELAY_JOIN_TOKEN_SECRET) || RELAY_JOIN_TOKEN_SECRET.length < 24) weak.push('RELAY_JOIN_TOKEN_SECRET');
-    if (insecureDefaults.has(INVITE_TOKEN_SECRET) || INVITE_TOKEN_SECRET.length < 24) weak.push('INVITE_TOKEN_SECRET');
-    if (insecureDefaults.has(AUTH_TOKEN_SECRET) || AUTH_TOKEN_SECRET.length < 24) weak.push('AUTH_TOKEN_SECRET');
-    if (insecureDefaults.has(DEFAULT_ADMIN_PASSWORD) || DEFAULT_ADMIN_PASSWORD.length < 12) weak.push('TEST_ADMIN_PASSWORD');
+    if (REQUIRE_JOIN_TOKEN && (insecureDefaults.has(RELAY_JOIN_TOKEN_SECRET) || RELAY_JOIN_TOKEN_SECRET.length < 24)) {
+      weak.push('RELAY_JOIN_TOKEN_SECRET');
+    }
+    if (CONSOLE_API_ENABLED) {
+      if (insecureDefaults.has(INVITE_TOKEN_SECRET) || INVITE_TOKEN_SECRET.length < 24) weak.push('INVITE_TOKEN_SECRET');
+      if (insecureDefaults.has(AUTH_TOKEN_SECRET) || AUTH_TOKEN_SECRET.length < 24) weak.push('AUTH_TOKEN_SECRET');
+      if (insecureDefaults.has(DEFAULT_ADMIN_PASSWORD) || DEFAULT_ADMIN_PASSWORD.length < 12) weak.push('CONSOLE_ADMIN_PASSWORD');
+    }
     if (ALLOWED_ORIGINS.includes('*')) weak.push('ALLOWED_ORIGINS (wildcard not allowed in production)');
 
     if (weak.length > 0) {
@@ -205,7 +226,7 @@ function firebasePublicConfig() {
     authDomain: LIVE_FIREBASE_AUTH_DOMAIN,
     projectId: LIVE_FIREBASE_PROJECT_ID,
     storageBucket: LIVE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: LIVE_FIREBASE_MESSAGING_ID,
+    messagingSenderId: LIVE_FIREBASE_MESSAGING_SENDER_ID,
     appId: LIVE_FIREBASE_APP_ID,
     measurementId: LIVE_FIREBASE_MEASUREMENT_ID,
   };
@@ -214,6 +235,107 @@ function firebasePublicConfig() {
 function firebaseConfigured() {
   const cfg = firebasePublicConfig();
   return Boolean(cfg.apiKey && cfg.authDomain && cfg.projectId && cfg.appId);
+}
+
+function firebaseAdminConfigured() {
+  return Boolean(FIREBASE_ADMIN_PROJECT_ID && FIREBASE_ADMIN_CLIENT_EMAIL && FIREBASE_ADMIN_PRIVATE_KEY_RAW);
+}
+
+let firebaseAuthVerifierInitialized = false;
+let firebaseAuthVerifier = null;
+
+function testFirebaseAuthVerifier() {
+  if (NODE_ENV !== 'test' || !process.env.LIVE_FIREBASE_TEST_TOKENS_JSON) return null;
+  try {
+    const tokenClaims = JSON.parse(process.env.LIVE_FIREBASE_TEST_TOKENS_JSON);
+    return {
+      async verifyIdToken(token) {
+        const result = tokenClaims?.[token];
+        if (!isPlainObject(result) || result.error) throw new Error('invalid_test_firebase_token');
+        return result;
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getFirebaseAuthVerifier() {
+  if (firebaseAuthVerifierInitialized) return firebaseAuthVerifier;
+  firebaseAuthVerifierInitialized = true;
+
+  const testVerifier = testFirebaseAuthVerifier();
+  if (testVerifier) {
+    firebaseAuthVerifier = testVerifier;
+    return firebaseAuthVerifier;
+  }
+  if (!firebaseAdminConfigured()) return null;
+
+  try {
+    const appName = 'midimyface-live-relay';
+    const privateKey = FIREBASE_ADMIN_PRIVATE_KEY_RAW.replace(/\\n/g, '\n');
+    const app = getApps().find((candidate) => candidate.name === appName) || initializeApp({
+      credential: cert({
+        projectId: FIREBASE_ADMIN_PROJECT_ID,
+        clientEmail: FIREBASE_ADMIN_CLIENT_EMAIL,
+        privateKey,
+      }),
+    }, appName);
+    firebaseAuthVerifier = getAuth(app);
+  } catch {
+    console.warn('[live-auth] Firebase Admin initialization failed; check the backend environment variables.');
+    firebaseAuthVerifier = null;
+  }
+  return firebaseAuthVerifier;
+}
+
+function firebaseVerificationAvailable() {
+  if (!firebaseAdminConfigured() && !(NODE_ENV === 'test' && process.env.LIVE_FIREBASE_TEST_TOKENS_JSON)) return false;
+  return Boolean(getFirebaseAuthVerifier());
+}
+
+function liveAuthError(code, statusCode) {
+  const error = new Error(code);
+  error.code = code;
+  error.statusCode = statusCode;
+  return error;
+}
+
+async function verifiedFirebaseIdentity(req) {
+  const idToken = parseBearerToken(req);
+  if (!idToken) return { authenticated: false, master: false, uid: '' };
+  const verifier = getFirebaseAuthVerifier();
+  if (!verifier) throw liveAuthError('firebase_admin_unconfigured', 503);
+
+  let claims;
+  try {
+    claims = await verifier.verifyIdToken(idToken);
+  } catch {
+    throw liveAuthError('invalid_firebase_token', 401);
+  }
+  const uid = cleanString(claims?.uid || claims?.sub || '', 128);
+  if (!uid) throw liveAuthError('invalid_firebase_token', 401);
+  const email = typeof claims?.email === 'string' ? claims.email.trim().toLowerCase() : '';
+  const emailVerified = claims?.email_verified === true;
+  return {
+    authenticated: true,
+    master: Boolean(emailVerified && email && LIVE_MASTER_EMAIL_SET.has(email)),
+    uid,
+  };
+}
+
+function buildLivePublicConfigPayload() {
+  const firebase = firebasePublicConfig();
+  return {
+    ok: true,
+    auth: {
+      provider: 'google',
+      enabled: firebaseConfigured() && firebaseVerificationAvailable(),
+      firebaseConfigured: firebaseConfigured(),
+      backendVerificationConfigured: firebaseVerificationAvailable(),
+    },
+    firebase,
+  };
 }
 
 function createDefaultLiveState() {
@@ -270,17 +392,6 @@ function createDefaultLiveState() {
       oneFreeTurn: true,
       message: 'Queue opens only when the installation is live and accepting participants.',
       estimatedWaitMinutes: null,
-    },
-    auth: {
-      provider: 'google',
-      enabled: firebaseConfigured(),
-      firebaseConfigured: firebaseConfigured(),
-      ownerEmail: LIVE_OWNER_EMAIL,
-      priorityEmails: LIVE_PRIORITY_EMAILS,
-      collectionNames: {
-        participants: 'liveParticipants',
-        notifications: 'liveNotifications',
-      },
     },
     content: {
       heroTitle: 'MIDImyFACE Live',
@@ -350,17 +461,6 @@ function sanitizeLiveStatePatch(input) {
         ? null
         : Math.max(0, Math.min(Number(patch.queue.estimatedWaitMinutes), 1440)),
     },
-    auth: {
-      provider: 'google',
-      enabled: firebaseConfigured(),
-      firebaseConfigured: firebaseConfigured(),
-      ownerEmail: LIVE_OWNER_EMAIL,
-      priorityEmails: LIVE_PRIORITY_EMAILS,
-      collectionNames: {
-        participants: 'liveParticipants',
-        notifications: 'liveNotifications',
-      },
-    },
     content: {
       heroTitle: cleanString(patch.content?.heroTitle || 'MIDImyFACE Live', 120) || 'MIDImyFACE Live',
       heroSubtitle: cleanString(patch.content?.heroSubtitle || 'A public installation you can watch online or visit in person.', 240),
@@ -419,7 +519,10 @@ function clearLiveSession() {
   liveGestureSnapshot = null;
 }
 
-function liveIdentityKey(req, body = {}) {
+function liveIdentityKey(req, body = {}, firebaseIdentity = null) {
+  if (firebaseIdentity?.authenticated && firebaseIdentity.uid) {
+    return sha256(`firebase:${firebaseIdentity.uid}`);
+  }
   const deviceId = cleanString(body?.deviceId || '', 80);
   const stableDeviceId = /^[a-zA-Z0-9_-]{16,80}$/.test(deviceId) ? deviceId : '';
   return sha256(`${stableDeviceId || 'anonymous'}:${liveRequestIp(req)}`);
@@ -451,10 +554,21 @@ function publicQueueTicket(entry) {
     totalWaiting: liveQueue.length,
     estimatedWaitSeconds: queueEstimateSeconds(position),
     turnDurationSeconds: LIVE_SESSION_DURATION_SECONDS,
+    priority: entry.master === true ? 'master' : 'standard',
   };
 }
 
-function createLiveParticipantSession({ nickname, countryCode, identityKey }) {
+function insertLiveQueueEntry(entry) {
+  if (!entry.master) {
+    liveQueue.push(entry);
+    return;
+  }
+  const firstStandardIndex = liveQueue.findIndex((queued) => !queued.master);
+  if (firstStandardIndex < 0) liveQueue.push(entry);
+  else liveQueue.splice(firstStandardIndex, 0, entry);
+}
+
+function createLiveParticipantSession({ nickname, countryCode, identityKey, master = false }) {
   const token = crypto.randomBytes(32).toString('base64url');
   const startedAtMs = Date.now();
   const expiresAtMs = startedAtMs + LIVE_SESSION_DURATION_SECONDS * 1000;
@@ -462,6 +576,7 @@ function createLiveParticipantSession({ nickname, countryCode, identityKey }) {
     sessionId: genId(),
     tokenHash: sha256(token),
     identityKey,
+    master: master === true,
     nickname,
     countryCode,
     startedAt: new Date(startedAtMs).toISOString(),
@@ -469,9 +584,13 @@ function createLiveParticipantSession({ nickname, countryCode, identityKey }) {
     expiresAtMs,
     lastSeenAtMs: startedAtMs,
   };
-  liveCooldownByIdentity.set(identityKey, startedAtMs);
+  if (!master) liveCooldownByIdentity.set(identityKey, startedAtMs);
   liveGestureSnapshot = null;
-  return { token, session: publicLiveSession(activeLiveSession) };
+  return {
+    token,
+    session: publicLiveSession(activeLiveSession),
+    privileges: { masterPriority: master === true },
+  };
 }
 
 function expireLiveSessionIfNeeded() {
@@ -522,12 +641,16 @@ function updateLiveState(rawPatch, updatedBy = 'raspberry-pi') {
   return liveState;
 }
 
+function publicLiveState(state = liveState) {
+  const { auth: _legacyPrivateAuth, ...publicState } = state || {};
+  return publicState;
+}
+
 function buildLiveBootstrapPayload() {
   return {
     ok: true,
     route: LIVE_ROUTE_PATH,
     relayOrigin: PUBLIC_BASE_URL,
-    ownerEmail: LIVE_OWNER_EMAIL,
     links: {
       youtubeChannelUrl: LIVE_YOUTUBE_CHANNEL_URL,
       youtubeVideosUrl: LIVE_YOUTUBE_VIDEOS_URL,
@@ -536,18 +659,6 @@ function buildLiveBootstrapPayload() {
       instagramUrl: LIVE_INSTAGRAM_URL,
       paypalDonationUrl: LIVE_PAYPAL_DONATION_URL,
       venmoDonationUrl: LIVE_VENMO_DONATION_URL,
-    },
-    auth: {
-      provider: 'google',
-      enabled: firebaseConfigured(),
-      firebaseConfigured: firebaseConfigured(),
-      firebase: firebasePublicConfig(),
-      ownerEmail: LIVE_OWNER_EMAIL,
-      priorityEmails: LIVE_PRIORITY_EMAILS,
-      collectionNames: {
-        participants: 'liveParticipants',
-        notifications: 'liveNotifications',
-      },
     },
     queuePolicy: {
       turnDurationSeconds: LIVE_SESSION_DURATION_SECONDS,
@@ -592,6 +703,7 @@ const consoleUsers    = new Map();
 const consoleSessions = new Map();
 
 function ensureDefaultAdmin() {
+  if (!CONSOLE_API_ENABLED) return;
   if (!consoleUsers.has(DEFAULT_ADMIN_USERNAME)) {
     consoleUsers.set(DEFAULT_ADMIN_USERNAME, {
       username: DEFAULT_ADMIN_USERNAME,
@@ -866,6 +978,14 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
   if (isLiveApiRequest) {
     const c = apiCors(origin);
 
+    if (req.method === 'GET' && parsed.pathname === '/api/live/config') {
+      return sendJson(res, 200, buildLivePublicConfigPayload(), {
+        ...c,
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+      });
+    }
+
     if (req.method === 'GET' && parsed.pathname === '/api/live/bootstrap') {
       return sendJson(res, 200, buildLiveBootstrapPayload(), {
         ...c,
@@ -879,7 +999,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       purgeLiveQueue();
       return sendJson(res, 200, {
         ok: true,
-        status: liveState,
+        status: publicLiveState(),
         session: publicLiveSession(),
         queue: {
           waiting: liveQueue.length,
@@ -909,7 +1029,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         const nextState = updateLiveState(body, cleanString(body?.updatedBy || 'raspberry-pi', 80) || 'raspberry-pi');
         return sendJson(res, 200, {
           ok: true,
-          status: nextState,
+          status: publicLiveState(nextState),
           serverTime: new Date().toISOString(),
         }, c);
       } catch {
@@ -932,9 +1052,10 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         if (nickname.length < 2) return sendJson(res, 400, { ok: false, error: 'nickname_required' }, c);
         if (!/^[A-Z]{2}$/.test(countryCode)) return sendJson(res, 400, { ok: false, error: 'country_required' }, c);
 
-        const identityKey = liveIdentityKey(req, body);
-        const remainingCooldownMs = cooldownRemainingMs(identityKey);
-        if (remainingCooldownMs > 0) {
+        const firebaseIdentity = await verifiedFirebaseIdentity(req);
+        const identityKey = liveIdentityKey(req, body, firebaseIdentity);
+        const remainingCooldownMs = firebaseIdentity.master ? 0 : cooldownRemainingMs(identityKey);
+        if (!firebaseIdentity.master && remainingCooldownMs > 0) {
           return sendJson(res, 429, {
             ok: false,
             error: 'participant_cooldown',
@@ -943,12 +1064,14 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           }, c);
         }
 
-        if (liveSessionStartByIp.size > 1000) liveSessionStartByIp.clear();
-        const lastStart = liveSessionStartByIp.get(identityKey) || 0;
-        if (Date.now() - lastStart < 3000) {
-          return sendJson(res, 429, { ok: false, error: 'start_rate_limited', retryAfterMs: 3000 - (Date.now() - lastStart) }, c);
+        if (!firebaseIdentity.master) {
+          if (liveSessionStartByIp.size > 1000) liveSessionStartByIp.clear();
+          const lastStart = liveSessionStartByIp.get(identityKey) || 0;
+          if (Date.now() - lastStart < 3000) {
+            return sendJson(res, 429, { ok: false, error: 'start_rate_limited', retryAfterMs: 3000 - (Date.now() - lastStart) }, c);
+          }
+          liveSessionStartByIp.set(identityKey, Date.now());
         }
-        liveSessionStartByIp.set(identityKey, Date.now());
 
         purgeLiveQueue();
         if (activeLiveSession || liveQueue.length > 0) {
@@ -959,12 +1082,13 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           const entry = {
             ticketHash: sha256(queueToken),
             identityKey,
+            master: firebaseIdentity.master,
             nickname,
             countryCode,
             queuedAtMs,
             lastSeenAtMs: queuedAtMs,
           };
-          liveQueue.push(entry);
+          insertLiveQueueEntry(entry);
           return sendJson(res, 202, {
             ok: true,
             queued: true,
@@ -974,13 +1098,21 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           }, { ...c, 'Cache-Control': 'no-store' });
         }
 
-        const reservation = createLiveParticipantSession({ nickname, countryCode, identityKey });
+        const reservation = createLiveParticipantSession({
+          nickname,
+          countryCode,
+          identityKey,
+          master: firebaseIdentity.master,
+        });
         return sendJson(res, 201, {
           ok: true,
           ...reservation,
           serverTime: new Date().toISOString(),
         }, { ...c, 'Cache-Control': 'no-store' });
-      } catch {
+      } catch (error) {
+        if (error?.code === 'firebase_admin_unconfigured' || error?.code === 'invalid_firebase_token') {
+          return sendJson(res, error.statusCode || 401, { ok: false, error: error.code }, c);
+        }
         return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
       }
     }
@@ -998,9 +1130,9 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         entry.lastSeenAtMs = Date.now();
 
         if (!activeLiveSession && entryIndex === 0) {
-          const remainingCooldownMs = cooldownRemainingMs(entry.identityKey);
+          const remainingCooldownMs = entry.master ? 0 : cooldownRemainingMs(entry.identityKey);
           liveQueue.shift();
-          if (remainingCooldownMs > 0) {
+          if (!entry.master && remainingCooldownMs > 0) {
             return sendJson(res, 429, {
               ok: false,
               error: 'participant_cooldown',
@@ -1156,7 +1288,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         return sendJson(res, 200, {
           ok: true,
           message,
-          status: nextState,
+          status: publicLiveState(nextState),
           serverTime: new Date().toISOString(),
         }, c);
       } catch {
