@@ -86,7 +86,17 @@ const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.L
 const LIVE_QUEUE_TICKET_TTL_MS       = Math.max(15_000, Math.min(Number(process.env.LIVE_QUEUE_TICKET_TTL_MS || 45_000), 300_000));
 const LIVE_SNAPSHOT_TTL_MS           = Math.max(500, Math.min(Number(process.env.LIVE_SNAPSHOT_TTL_MS || 2500), 10_000));
 const LIVE_MAX_LANDMARKS             = 478;
+const LIVE_MAX_PARTICIPANTS          = 3;
+const LIVE_NICKNAME_MIN_LENGTH       = 2;
+const LIVE_NICKNAME_MAX_LENGTH       = 10;
+const LIVE_PARTICIPANT_COLORS        = ['#67ff9e', '#8e6bff', '#ffb44c'];
 const LIVE_REQUIRE_FIREBASE_AUTH     = asBoolean(process.env.LIVE_REQUIRE_FIREBASE_AUTH, true);
+const LIVE_BLOCKED_NICKNAME_TERMS    = [
+  'asshole','bastard','beaner','bitch','chink','coon','cunt','dick','faggot',
+  'fuck','gook','hitler','jerkoff','kike','kkk','nazi','nigga','nigger',
+  'penis','pussy','raghead','rape','rapist','shit','slut','vagina','wetback','whore',
+];
+const LIVE_BLOCKED_NICKNAME_TERM_SET = new Set(LIVE_BLOCKED_NICKNAME_TERMS);
 
 // Comma-separated list like:
 // "https://midimyface.com,https://www.midimyface.com,http://127.0.0.1:5500"
@@ -204,6 +214,38 @@ function deepMerge(baseValue, overrideValue) {
 function cleanString(value, maxLength = 240) {
   if (value === null || value === undefined) return '';
   return String(value).trim().slice(0, maxLength);
+}
+
+function normalizeLiveNickname(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function liveNicknameModerationForms(value) {
+  const leetMap = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '@': 'a', '$': 's', '!': 'i' };
+  const spaced = normalizeLiveNickname(value)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[0134578@$!]/g, (char) => leetMap[char] || char)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+  const compact = spaced.replace(/\s+/g, '');
+  return { compact, tokens: spaced ? spaced.split(' ') : [] };
+}
+
+function liveNicknameContainsBlockedTerm(value) {
+  const { compact, tokens } = liveNicknameModerationForms(value);
+  return tokens.some((token) => LIVE_BLOCKED_NICKNAME_TERM_SET.has(token))
+    || LIVE_BLOCKED_NICKNAME_TERMS.some((term) => compact.includes(term));
+}
+
+function validateLiveNickname(value) {
+  const nickname = normalizeLiveNickname(value);
+  if (nickname.length < LIVE_NICKNAME_MIN_LENGTH) return { ok: false, error: 'nickname_required' };
+  if (nickname.length > LIVE_NICKNAME_MAX_LENGTH) return { ok: false, error: 'nickname_too_long' };
+  if (liveNicknameContainsBlockedTerm(nickname)) return { ok: false, error: 'nickname_inappropriate' };
+  return { ok: true, nickname };
 }
 
 function asBoolean(value, fallback = false) {
@@ -502,8 +544,8 @@ function persistLiveState(state) {
 }
 
 let liveState = loadLiveState();
-let liveGestureSnapshot = null;
-let activeLiveSession = null;
+const liveGestureSnapshots = new Map();
+const activeLiveSessions = new Map();
 const liveSessionStartByIp = new Map();
 const liveCooldownByIdentity = new Map();
 const liveQueue = [];
@@ -512,13 +554,25 @@ function liveRequestIp(req) {
   return cleanString(String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0], 80);
 }
 
-function liveSessionExpired(session = activeLiveSession) {
+function liveSessionExpired(session) {
   return !session || Date.now() >= session.expiresAtMs;
 }
 
-function clearLiveSession() {
-  activeLiveSession = null;
-  liveGestureSnapshot = null;
+function clearLiveSession(sessionId) {
+  if (!sessionId) return;
+  activeLiveSessions.delete(sessionId);
+  liveGestureSnapshots.delete(sessionId);
+}
+
+function expireLiveSessionsIfNeeded() {
+  for (const session of activeLiveSessions.values()) {
+    if (liveSessionExpired(session)) clearLiveSession(session.sessionId);
+  }
+}
+
+function publicLiveSessions() {
+  expireLiveSessionsIfNeeded();
+  return Array.from(activeLiveSessions.values()).map(publicLiveSession);
 }
 
 function liveIdentityKey(req, body = {}, firebaseIdentity = null) {
@@ -543,10 +597,16 @@ function cooldownRemainingMs(identityKey) {
 }
 
 function queueEstimateSeconds(position) {
-  const activeRemainingMs = activeLiveSession
-    ? Math.max(0, activeLiveSession.expiresAtMs - Date.now())
-    : 0;
-  return Math.ceil((activeRemainingMs + Math.max(0, position - 1) * LIVE_SESSION_DURATION_SECONDS * 1000) / 1000);
+  const remaining = Array.from(activeLiveSessions.values())
+    .map((session) => Math.max(0, session.expiresAtMs - Date.now()))
+    .sort((a, b) => a - b);
+  const freeSlots = Math.max(0, LIVE_MAX_PARTICIPANTS - activeLiveSessions.size);
+  if (position <= freeSlots) return 0;
+  const occupiedPosition = Math.max(0, position - freeSlots - 1);
+  const slotIndex = occupiedPosition % LIVE_MAX_PARTICIPANTS;
+  const cyclesAhead = Math.floor(occupiedPosition / LIVE_MAX_PARTICIPANTS);
+  const baseSlotMs = remaining[slotIndex] ?? remaining[remaining.length - 1] ?? 0;
+  return Math.ceil((baseSlotMs + cyclesAhead * LIVE_SESSION_DURATION_SECONDS * 1000) / 1000);
 }
 
 function publicQueueTicket(entry) {
@@ -574,20 +634,24 @@ function createLiveParticipantSession({ nickname, countryCode, identityKey, mast
   const token = crypto.randomBytes(32).toString('base64url');
   const startedAtMs = Date.now();
   const expiresAtMs = startedAtMs + LIVE_SESSION_DURATION_SECONDS * 1000;
-  activeLiveSession = {
+  const usedColorIndexes = new Set(Array.from(activeLiveSessions.values()).map((session) => session.colorIndex));
+  const colorIndex = [0, 1, 2].find((index) => !usedColorIndexes.has(index)) ?? 0;
+  const activeLiveSession = {
     sessionId: genId(),
     tokenHash: sha256(token),
     identityKey,
     master: master === true,
     nickname,
     countryCode,
+    colorIndex,
+    color: LIVE_PARTICIPANT_COLORS[colorIndex],
     startedAt: new Date(startedAtMs).toISOString(),
     expiresAt: new Date(expiresAtMs).toISOString(),
     expiresAtMs,
     lastSeenAtMs: startedAtMs,
   };
+  activeLiveSessions.set(activeLiveSession.sessionId, activeLiveSession);
   if (!master) liveCooldownByIdentity.set(identityKey, startedAtMs);
-  liveGestureSnapshot = null;
   return {
     token,
     session: publicLiveSession(activeLiveSession),
@@ -595,19 +659,16 @@ function createLiveParticipantSession({ nickname, countryCode, identityKey, mast
   };
 }
 
-function expireLiveSessionIfNeeded() {
-  if (activeLiveSession && liveSessionExpired(activeLiveSession)) clearLiveSession();
-}
-
 function liveParticipantAuth(req) {
-  expireLiveSessionIfNeeded();
-  if (!activeLiveSession) return null;
+  expireLiveSessionsIfNeeded();
   const bearerToken = parseBearerToken(req);
   if (!bearerToken) return null;
   const providedHash = Buffer.from(sha256(bearerToken), 'hex');
-  const expectedHash = Buffer.from(activeLiveSession.tokenHash, 'hex');
-  if (providedHash.length !== expectedHash.length || !crypto.timingSafeEqual(providedHash, expectedHash)) return null;
-  return activeLiveSession;
+  for (const session of activeLiveSessions.values()) {
+    const expectedHash = Buffer.from(session.tokenHash, 'hex');
+    if (providedHash.length === expectedHash.length && crypto.timingSafeEqual(providedHash, expectedHash)) return session;
+  }
+  return null;
 }
 
 function sanitizeLiveLandmarks(value) {
@@ -625,12 +686,36 @@ function sanitizeLiveLandmarks(value) {
   return landmarks;
 }
 
-function publicLiveSession(session = activeLiveSession) {
+function publicLiveParticipantSnapshots({ excludeSessionId = '', includeStale = true } = {}) {
+  expireLiveSessionsIfNeeded();
+  return Array.from(activeLiveSessions.values())
+    .filter((session) => session.sessionId !== excludeSessionId)
+    .map((session) => {
+      const snapshot = liveGestureSnapshots.get(session.sessionId) || null;
+      const snapshotAgeMs = snapshot?.updatedAt ? Date.now() - Date.parse(snapshot.updatedAt) : null;
+      const fresh = snapshotAgeMs !== null && Number.isFinite(snapshotAgeMs) && snapshotAgeMs <= LIVE_SNAPSHOT_TTL_MS;
+      if (!includeStale && !fresh) return null;
+      return {
+        ...publicLiveSession(session),
+        fresh,
+        gestures: fresh ? snapshot.gestures : {},
+        triggerCounts: fresh ? snapshot.triggerCounts : {},
+        landmarks: fresh ? snapshot.landmarks : [],
+        frameAspect: fresh ? snapshot.frameAspect : 4 / 3,
+        updatedAt: snapshot?.updatedAt || null,
+      };
+    })
+    .filter(Boolean);
+}
+
+function publicLiveSession(session) {
   if (!session) return null;
   return {
     sessionId: session.sessionId,
     nickname: session.nickname,
     countryCode: session.countryCode,
+    colorIndex: session.colorIndex,
+    color: session.color,
     startedAt: session.startedAt,
     expiresAt: session.expiresAt,
   };
@@ -997,12 +1082,15 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
     }
 
     if (req.method === 'GET' && parsed.pathname === '/api/live/status') {
-      expireLiveSessionIfNeeded();
+      expireLiveSessionsIfNeeded();
       purgeLiveQueue();
+      const sessions = publicLiveSessions();
       return sendJson(res, 200, {
         ok: true,
         status: publicLiveState(),
-        session: publicLiveSession(),
+        session: sessions[0] || null,
+        sessions,
+        capacity: { active: sessions.length, maximum: LIVE_MAX_PARTICIPANTS, available: Math.max(0, LIVE_MAX_PARTICIPANTS - sessions.length) },
         queue: {
           waiting: liveQueue.length,
           turnDurationSeconds: LIVE_SESSION_DURATION_SECONDS,
@@ -1043,16 +1131,17 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
     // Explicit test/bench deployments may opt back into anonymous sessions.
     if (req.method === 'POST' && parsed.pathname === '/api/live/session/start') {
       try {
-        expireLiveSessionIfNeeded();
+        expireLiveSessionsIfNeeded();
         if (!liveState.machine?.alive || !liveState.machine?.acceptingParticipants) {
           return sendJson(res, 409, { ok: false, error: 'installation_not_accepting' }, c);
         }
 
         const body = await readBody(req, 8_192);
-        const nickname = cleanString(body?.nickname || '', 40);
+        const nicknameValidation = validateLiveNickname(body?.nickname || '');
         const countryCode = cleanString(body?.countryCode || '', 2).toUpperCase();
-        if (nickname.length < 2) return sendJson(res, 400, { ok: false, error: 'nickname_required' }, c);
+        if (!nicknameValidation.ok) return sendJson(res, 400, { ok: false, error: nicknameValidation.error }, c);
         if (!/^[A-Z]{2}$/.test(countryCode)) return sendJson(res, 400, { ok: false, error: 'country_required' }, c);
+        const nickname = nicknameValidation.nickname;
 
         if (LIVE_REQUIRE_FIREBASE_AUTH && !firebaseVerificationAvailable()) {
           throw liveAuthError('firebase_admin_unconfigured', 503);
@@ -1082,7 +1171,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         }
 
         purgeLiveQueue();
-        if (activeLiveSession || liveQueue.length > 0) {
+        if (activeLiveSessions.size >= LIVE_MAX_PARTICIPANTS || liveQueue.length > 0) {
           const duplicateIndex = liveQueue.findIndex((entry) => entry.identityKey === identityKey);
           if (duplicateIndex >= 0) liveQueue.splice(duplicateIndex, 1);
           const queueToken = crypto.randomBytes(32).toString('base64url');
@@ -1127,7 +1216,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
 
     if (req.method === 'POST' && parsed.pathname === '/api/live/queue/status') {
       try {
-        expireLiveSessionIfNeeded();
+        expireLiveSessionsIfNeeded();
         purgeLiveQueue();
         const queueToken = parseBearerToken(req);
         if (!queueToken) return sendJson(res, 401, { ok: false, error: 'queue_token_required' }, c);
@@ -1137,7 +1226,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         const entry = liveQueue[entryIndex];
         entry.lastSeenAtMs = Date.now();
 
-        if (!activeLiveSession && entryIndex === 0) {
+        if (activeLiveSessions.size < LIVE_MAX_PARTICIPANTS && entryIndex === 0) {
           const remainingCooldownMs = entry.master ? 0 : cooldownRemainingMs(entry.identityKey);
           liveQueue.shift();
           if (!entry.master && remainingCooldownMs > 0) {
@@ -1193,7 +1282,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         const frameAspect = Number.isFinite(requestedFrameAspect)
           ? Math.max(0.4, Math.min(2.5, Math.round(requestedFrameAspect * 10_000) / 10_000))
           : 4 / 3;
-        liveGestureSnapshot = {
+        const liveGestureSnapshot = {
           gestures: sanitized,
           triggerCounts: sanitizedTriggerCounts,
           landmarks: sanitizeLiveLandmarks(body?.landmarks),
@@ -1202,6 +1291,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           participant: { nickname: session.nickname, countryCode: session.countryCode },
           sessionId: session.sessionId,
         };
+        liveGestureSnapshots.set(session.sessionId, liveGestureSnapshot);
         session.lastSeenAtMs = Date.now();
         return sendJson(res, 200, {
           ok: true,
@@ -1209,6 +1299,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           triggerCounts: sanitizedTriggerCounts,
           expiresAt: session.expiresAt,
           remainingMs: Math.max(0, session.expiresAtMs - Date.now()),
+          participants: publicLiveParticipantSnapshots({ excludeSessionId: session.sessionId, includeStale: false }),
           serverTime: new Date().toISOString(),
         }, {
           ...c,
@@ -1226,24 +1317,37 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       if (!bearerToken || bearerToken !== RPI_DEVICE_TOKEN) {
         return sendJson(res, 401, { ok: false, error: 'unauthorized_device' }, c);
       }
-      expireLiveSessionIfNeeded();
-      const snapshotAgeMs = liveGestureSnapshot?.updatedAt ? Date.now() - Date.parse(liveGestureSnapshot.updatedAt) : null;
-      const fresh = snapshotAgeMs !== null && Number.isFinite(snapshotAgeMs) && snapshotAgeMs <= LIVE_SNAPSHOT_TTL_MS;
+      expireLiveSessionsIfNeeded();
+      const participants = publicLiveParticipantSnapshots({ includeStale: true });
+      const primary = participants.find((participant) => participant.fresh) || participants[0] || null;
+      const fresh = participants.some((participant) => participant.fresh);
       return sendJson(res, 200, {
         ok: true,
-        active: Boolean(activeLiveSession),
+        active: activeLiveSessions.size > 0,
         fresh,
-        stale: Boolean(activeLiveSession && !fresh),
-        session: publicLiveSession(),
-        ...(fresh ? liveGestureSnapshot : {
+        stale: Boolean(activeLiveSessions.size > 0 && !fresh),
+        session: primary ? publicLiveSession(primary) : null,
+        sessions: publicLiveSessions(),
+        participants,
+        ...(primary?.fresh ? {
+          gestures: primary.gestures,
+          triggerCounts: primary.triggerCounts,
+          landmarks: primary.landmarks,
+          frameAspect: primary.frameAspect,
+          updatedAt: primary.updatedAt,
+          participant: { nickname: primary.nickname, countryCode: primary.countryCode, color: primary.color, colorIndex: primary.colorIndex },
+          sessionId: primary.sessionId,
+        } : {
           gestures: {},
           triggerCounts: {},
           landmarks: [],
           frameAspect: 4 / 3,
-          updatedAt: liveGestureSnapshot?.updatedAt || null,
-          participant: activeLiveSession ? {
-            nickname: activeLiveSession.nickname,
-            countryCode: activeLiveSession.countryCode,
+          updatedAt: primary?.updatedAt || null,
+          participant: primary ? {
+            nickname: primary.nickname,
+            countryCode: primary.countryCode,
+            color: primary.color,
+            colorIndex: primary.colorIndex,
           } : null,
         }),
         serverTime: new Date().toISOString(),
@@ -1256,7 +1360,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
     if (req.method === 'POST' && parsed.pathname === '/api/live/session/stop') {
       const session = liveParticipantAuth(req);
       if (!session) return sendJson(res, 401, { ok: false, error: 'invalid_or_expired_session' }, c);
-      clearLiveSession();
+      clearLiveSession(session.sessionId);
       return sendJson(res, 200, { ok: true, stopped: true, serverTime: new Date().toISOString() }, {
         ...c,
         'Cache-Control': 'no-store',

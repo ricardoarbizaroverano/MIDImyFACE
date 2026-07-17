@@ -226,6 +226,7 @@ export class ParticipantSession {
     this._mouthGateOpen = false;
     this._padFlashUntil = 0;
     this._hitEffects = [];
+    this._peerParticipants = [];
     this._postTimer    = null;
     this._video        = null;
     this._canvas       = null;
@@ -348,13 +349,41 @@ export class ParticipantSession {
     if (this._canvas.height !== height) this._canvas.height = height;
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
-    ctx.fillStyle = '#67ff9e';
+    for (const peer of this._peerParticipants) {
+      if (!peer?.fresh || !Array.isArray(peer.landmarks)) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.32;
+      ctx.fillStyle = /^#[0-9a-f]{6}$/i.test(peer.color || '') ? peer.color : '#8e6bff';
+      ctx.shadowColor = ctx.fillStyle;
+      ctx.shadowBlur = 5;
+      for (const landmark of peer.landmarks) {
+        if (!Number.isFinite(landmark?.x) || !Number.isFinite(landmark?.y)) continue;
+        ctx.beginPath();
+        ctx.arc((1 - landmark.x) * this._canvas.width, landmark.y * this._canvas.height, 0.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const anchor = peer.landmarks[10] || peer.landmarks[1];
+      if (anchor) {
+        ctx.globalAlpha = 0.72;
+        ctx.shadowBlur = 8;
+        ctx.font = `700 ${Math.max(10, this._canvas.width * 0.018)}px "Courier New", monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(String(peer.nickname || 'Guest').slice(0, 18), (1 - anchor.x) * this._canvas.width, anchor.y * this._canvas.height - 12);
+      }
+      ctx.restore();
+    }
+
+    const ownColor = /^#[0-9a-f]{6}$/i.test(this.session?.color || '') ? this.session.color : '#67ff9e';
+    ctx.fillStyle = ownColor;
+    ctx.shadowColor = ownColor;
+    ctx.shadowBlur = 2;
     const dotRadius = Math.max(0.55, Math.min(0.9, Math.min(this._canvas.width, this._canvas.height) * 0.0017));
     for (const lm of landmarks) {
       ctx.beginPath();
       ctx.arc((1 - lm.x) * this._canvas.width, lm.y * this._canvas.height, dotRadius, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.shadowBlur = 0;
 
     const cellW = this._canvas.width / GRID_COLS;
     const cellH = this._canvas.height / GRID_ROWS;
@@ -495,6 +524,8 @@ export class ParticipantSession {
       error.status = response.status;
       throw error;
     }
+    const payload = await response.json().catch(() => ({}));
+    this._peerParticipants = Array.isArray(payload.participants) ? payload.participants.slice(0, 2) : [];
   }
 
   async _stopRemote() {

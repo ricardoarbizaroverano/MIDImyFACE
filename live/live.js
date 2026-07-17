@@ -7,6 +7,14 @@ const DEFAULT_YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/channel/UCequCs51Hu
 const DEFAULT_YOUTUBE_VIDEOS_URL = `${DEFAULT_YOUTUBE_CHANNEL_URL}/videos`;
 const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/midimyface/';
 const TERMS_ACCEPTED_STORAGE_KEY = 'mmf_live_terms_accepted_v1';
+const NICKNAME_MIN_LENGTH = 2;
+const NICKNAME_MAX_LENGTH = 10;
+const BLOCKED_NICKNAME_TERMS = [
+  'asshole','bastard','beaner','bitch','chink','coon','cunt','dick','faggot',
+  'fuck','gook','hitler','jerkoff','kike','kkk','nazi','nigga','nigger',
+  'penis','pussy','raghead','rape','rapist','shit','slut','vagina','wetback','whore',
+];
+const BLOCKED_NICKNAME_TERM_SET = new Set(BLOCKED_NICKNAME_TERMS);
 const COUNTRY_CODES = [
   'AR','AU','AT','BE','BO','BR','BG','CA','CL','CN','CO','CR','CU','CZ','DK','DO','EC','EG','SV','FI','FR','DE','GR','GT','HN','HK','HU','IS','IN','ID','IE','IL','IT','JP','KE','KR','LV','LT','LU','MY','MX','MA','NL','NZ','NI','NG','NO','PA','PY','PE','PH','PL','PT','PR','RO','SG','SK','SI','ZA','ES','SE','CH','TW','TH','TN','TR','UA','AE','GB','US','UY','VE','VN',
 ];
@@ -60,6 +68,51 @@ async function api(pathname, options = {}) {
     throw error;
   }
   return payload;
+}
+
+function normalizeNickname(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function nicknameModerationForms(value) {
+  const leetMap = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '@': 'a', '$': 's', '!': 'i' };
+  const spaced = normalizeNickname(value)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[0134578@$!]/g, (char) => leetMap[char] || char)
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+  const compact = spaced.replace(/\s+/g, '');
+  return { compact, tokens: spaced ? spaced.split(' ') : [] };
+}
+
+function nicknameContainsBlockedTerm(value) {
+  const { compact, tokens } = nicknameModerationForms(value);
+  return tokens.some((token) => BLOCKED_NICKNAME_TERM_SET.has(token))
+    || BLOCKED_NICKNAME_TERMS.some((term) => compact.includes(term));
+}
+
+function validateNickname(value) {
+  const nickname = normalizeNickname(value);
+  if (nickname.length < NICKNAME_MIN_LENGTH) return { ok: false, errorCode: 'nickname_required' };
+  if (nickname.length > NICKNAME_MAX_LENGTH) return { ok: false, errorCode: 'nickname_too_long' };
+  if (nicknameContainsBlockedTerm(nickname)) return { ok: false, errorCode: 'nickname_inappropriate' };
+  return { ok: true, nickname };
+}
+
+function friendlyNicknameError(errorCode) {
+  if (errorCode === 'nickname_required') return 'Enter a nickname with at least two characters.';
+  if (errorCode === 'nickname_too_long') return 'Nicknames can be up to 10 characters.';
+  if (errorCode === 'nickname_inappropriate') return 'Choose a respectful nickname to join the live session.';
+  return 'Enter a valid nickname.';
+}
+
+function updateNicknameFieldState() {
+  const value = elements.nicknameInput?.value || '';
+  const validation = value.trim() ? validateNickname(value) : { ok: true };
+  elements.nicknameInput?.setCustomValidity(validation.ok ? '' : friendlyNicknameError(validation.errorCode));
 }
 
 function setHidden(node, hidden) {
@@ -222,7 +275,8 @@ function buildCountryOptions() {
     option.textContent = `${countryFlag(code)} ${label}`;
     elements.countrySelect.appendChild(option);
   }
-  elements.nicknameInput.value = (localStorage.getItem('mmf_live_nickname') || '').slice(0, 40);
+  elements.nicknameInput.value = normalizeNickname(localStorage.getItem('mmf_live_nickname') || '').slice(0, NICKNAME_MAX_LENGTH);
+  updateNicknameFieldState();
   const savedCountry = localStorage.getItem('mmf_live_country') || '';
   if (COUNTRY_CODES.includes(savedCountry)) elements.countrySelect.value = savedCountry;
 }
@@ -293,7 +347,7 @@ async function setupGoogleRegistration(publicConfig) {
     authSdk.onAuthStateChanged(state.firebaseAuth.auth, async (user) => {
       if (user && localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) !== 'true') {
         await authSdk.signOut(state.firebaseAuth.auth);
-        elements.authMessage.textContent = 'Accept the terms and privacy policy before signing in.';
+        elements.authMessage.textContent = 'Accept the Participation Terms and Privacy Notice before signing in.';
         setRegistrationGate(null);
         return;
       }
@@ -398,11 +452,14 @@ function renderStatus(payload) {
   renderDonationAmounts(payload.status?.donations?.suggestedAmounts);
 
   if (!state.session && !state.queueToken) {
-    if (payload.session) {
-      elements.participantBadge.textContent = `${payload.session.nickname} ${countryFlag(payload.session.countryCode)} is playing`;
-      elements.startSessionBtn.disabled = true;
+    const activeSessions = Array.isArray(payload.sessions) ? payload.sessions : (payload.session ? [payload.session] : []);
+    const available = Number.isFinite(payload.capacity?.available) ? payload.capacity.available : Math.max(0, 3 - activeSessions.length);
+    if (activeSessions.length) {
+      elements.participantBadge.textContent = `${activeSessions.length}/3 playing`;
       const waiting = Number(payload.queue?.waiting || 0);
-      setFormMessage(waiting ? `${waiting} participant${waiting === 1 ? '' : 's'} waiting. Press START to join the queue.` : 'Another participant is playing. Press START to join the queue.');
+      setFormMessage(waiting
+        ? `${waiting} participant${waiting === 1 ? '' : 's'} waiting. Press START to join the queue.`
+        : available > 0 ? `${available} live place${available === 1 ? '' : 's'} available.` : 'All three live places are active. Press START to join the queue.');
       elements.startSessionBtn.disabled = !accepting || !state.authUser;
     } else {
       elements.participantBadge.textContent = '';
@@ -471,7 +528,7 @@ function friendlyStartError(error) {
   if (error.code === 'firebase_admin_unconfigured') return 'Google registration is temporarily unavailable. Please try again later.';
   if (error.code === 'registration_required') return 'Register with Google before joining the instrument.';
   if (error.code === 'participant_cooldown') return `Your next turn opens in ${formatWait((error.payload?.retryAfterMs || 0) / 1000)}.`;
-  if (error.code === 'nickname_required') return 'Enter a nickname with at least two characters.';
+  if (error.code === 'nickname_required' || error.code === 'nickname_too_long' || error.code === 'nickname_inappropriate') return friendlyNicknameError(error.code);
   if (error.code === 'country_required') return 'Choose your country.';
   return 'Could not start the session. Check the connection and try again.';
 }
@@ -485,12 +542,22 @@ async function startSession(event) {
     return;
   }
   hideDonationPrompt();
-  const nickname = elements.nicknameInput.value.trim().slice(0, 40);
+  const nicknameValidation = validateNickname(elements.nicknameInput.value);
   const countryCode = elements.countrySelect.value.trim().toUpperCase();
-  if (nickname.length < 2 || !COUNTRY_CODES.includes(countryCode)) {
-    setFormMessage('Enter a nickname and choose your country.', true);
+  if (!nicknameValidation.ok) {
+    const message = friendlyNicknameError(nicknameValidation.errorCode);
+    elements.nicknameInput.setCustomValidity(message);
+    elements.nicknameInput.reportValidity();
+    setFormMessage(message, true);
     return;
   }
+  if (!COUNTRY_CODES.includes(countryCode)) {
+    setFormMessage('Choose your country.', true);
+    return;
+  }
+  const nickname = nicknameValidation.nickname;
+  elements.nicknameInput.value = nickname;
+  elements.nicknameInput.setCustomValidity('');
 
   elements.startSessionBtn.disabled = true;
   elements.startSessionBtn.textContent = 'WAIT…';
@@ -554,6 +621,8 @@ async function initialize() {
   buildCountryOptions();
   renderDonationAmounts([1, 2, 5]);
   elements.identityForm.addEventListener('submit', startSession);
+  elements.nicknameInput.addEventListener('input', updateNicknameFieldState);
+  elements.nicknameInput.addEventListener('blur', updateNicknameFieldState);
   elements.stopSessionBtn.addEventListener('click', () => endSession(true, undefined, true));
   elements.closeSessionBtn.addEventListener('click', () => endSession(true, undefined, true));
   elements.dismissDonationBtn.addEventListener('click', hideDonationPrompt);

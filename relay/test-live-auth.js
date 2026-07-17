@@ -154,14 +154,14 @@ async function configuredAuthTests() {
     let result = await startParticipant(port, {
       token: 'token-active',
       deviceId: 'auth_active_device_0000001',
-      nickname: 'Active Player',
+      nickname: 'ActivePlay',
     });
     assert.equal(result.response.status, 201);
 
     result = await startParticipant(port, {
       token: 'malformed-token-not-in-verifier',
       deviceId: 'auth_invalid_device_000001',
-      nickname: 'Malformed Token',
+      nickname: 'BadToken',
     });
     assert.equal(result.response.status, 401);
     assert.equal(result.body.error, 'invalid_firebase_token');
@@ -170,7 +170,7 @@ async function configuredAuthTests() {
       result = await startParticipant(port, {
         token,
         deviceId: `auth_${token.replaceAll('-', '_')}_device`,
-        nickname: token,
+        nickname: 'TokenBad',
       });
       assert.equal(result.response.status, 401);
       assert.equal(result.body.error, 'invalid_firebase_token');
@@ -178,7 +178,7 @@ async function configuredAuthTests() {
 
     result = await startParticipant(port, {
       deviceId: 'forged_master_device_00001',
-      nickname: 'Forged Browser Master',
+      nickname: 'FakeMaster',
       extraBody: { email: masterEmail, master: true, masterPriority: true },
     });
     assert.equal(result.response.status, 401);
@@ -187,23 +187,23 @@ async function configuredAuthTests() {
     result = await startParticipant(port, {
       token: 'token-no-email',
       deviceId: 'no_email_device_000000001',
-      nickname: 'No Email',
+      nickname: 'NoEmail',
     });
-    assert.equal(result.response.status, 202);
-    assert.equal(result.body.queue.priority, 'standard');
+    assert.equal(result.response.status, 201);
+    assert.equal(result.body.privileges.masterPriority, false);
 
     result = await startParticipant(port, {
       token: 'token-unverified-master',
       deviceId: 'unverified_device_0000001',
-      nickname: 'Unverified Email',
+      nickname: 'Unverified',
     });
-    assert.equal(result.response.status, 202);
-    assert.equal(result.body.queue.priority, 'standard');
+    assert.equal(result.response.status, 201);
+    assert.equal(result.body.privileges.masterPriority, false);
 
     result = await startParticipant(port, {
       token: 'token-ordinary',
       deviceId: 'ordinary_device_000000001',
-      nickname: 'Ordinary Account',
+      nickname: 'Ordinary',
     });
     assert.equal(result.response.status, 202);
     assert.equal(result.body.queue.priority, 'standard');
@@ -211,7 +211,7 @@ async function configuredAuthTests() {
     result = await startParticipant(port, {
       token: 'token-master',
       deviceId: 'master_device_0000000001',
-      nickname: 'Verified Master',
+      nickname: 'MasterUser',
       extraBody: { email: 'forged-other@example.test', master: false },
     });
     assert.equal(result.response.status, 202);
@@ -248,14 +248,14 @@ async function missingConfigurationTests() {
     result = await startParticipant(port, {
       token: 'any-bearer-token',
       deviceId: 'missing_config_device_0001',
-      nickname: 'Missing Config',
+      nickname: 'MissingCfg',
     });
     assert.equal(result.response.status, 503);
     assert.equal(result.body.error, 'firebase_admin_unconfigured');
 
     result = await startParticipant(port, {
       deviceId: 'anonymous_blocked_00000001',
-      nickname: 'Anonymous Player',
+      nickname: 'Anonymous',
     });
     assert.equal(result.response.status, 503);
     assert.equal(result.body.error, 'firebase_admin_unconfigured');

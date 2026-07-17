@@ -59,15 +59,46 @@ async function run() {
   result = await request('/api/live/session/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin },
-    body: JSON.stringify({ nickname: 'Test Player', countryCode: 'UY', deviceId: 'test_device_0000000000000001' }),
+    body: JSON.stringify({ nickname: 'LongNickname11', countryCode: 'UY', deviceId: 'test_device_validation_long' }),
+  });
+  assert.equal(result.response.status, 400);
+  assert.equal(result.body.error, 'nickname_too_long');
+
+  result = await request('/api/live/session/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ nickname: 'NaziBeat', countryCode: 'UY', deviceId: 'test_device_validation_block' }),
+  });
+  assert.equal(result.response.status, 400);
+  assert.equal(result.body.error, 'nickname_inappropriate');
+
+  result = await request('/api/live/session/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ nickname: 'TestPlayr', countryCode: 'UY', deviceId: 'test_device_0000000000000001' }),
   });
   assert.equal(result.response.status, 201);
   assert.ok(result.body.token);
   const participantToken = result.body.token;
+  const concurrentTokens = [];
+  for (const [index, nickname] of ['Second', 'Third'].entries()) {
+    result = await request('/api/live/session/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: origin },
+      body: JSON.stringify({ nickname, countryCode: 'FI', deviceId: `test_device_000000000000000${index + 2}` }),
+    });
+    assert.equal(result.response.status, 201);
+    concurrentTokens.push(result.body.token);
+  }
+  result = await request('/api/live/status');
+  assert.equal(result.body.sessions.length, 3);
+  assert.equal(result.body.capacity.available, 0);
+  assert.deepEqual(result.body.sessions.map((session) => session.colorIndex), [0, 1, 2]);
+
   result = await request('/api/live/session/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin },
-    body: JSON.stringify({ nickname: 'Queued Player', countryCode: 'FI', deviceId: 'test_device_0000000000000002' }),
+    body: JSON.stringify({ nickname: 'QueuedUp', countryCode: 'FI', deviceId: 'test_device_0000000000000004' }),
   });
   assert.equal(result.response.status, 202);
   assert.equal(result.body.queued, true);
@@ -106,6 +137,31 @@ async function run() {
   });
   assert.equal(result.response.status, 200);
 
+  result = await request('/api/live/session/gestures', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${concurrentTokens[0]}`, 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({
+      gestures: { smile: 12 },
+      triggerCounts: { smile: 1 },
+      landmarks: fullFaceLandmarks.slice(0, 100),
+      frameAspect: 4 / 3,
+    }),
+  });
+  assert.equal(result.response.status, 200);
+
+  result = await request('/api/live/session/gestures', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${participantToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({
+      gestures: { mouthOpen: 20.123, accent: 8.5 },
+      triggerCounts: { mouthOpen: 2, accent: 1 },
+      landmarks: fullFaceLandmarks,
+      frameAspect: 9 / 16,
+    }),
+  });
+  assert.equal(result.body.participants.length, 1);
+  assert.equal(result.body.participants[0].nickname, 'Second');
+
   result = await request('/api/live/session/gestures');
   assert.equal(result.response.status, 401);
 
@@ -114,7 +170,9 @@ async function run() {
   });
   assert.equal(result.response.status, 200);
   assert.equal(result.body.fresh, true);
-  assert.equal(result.body.participant.nickname, 'Test Player');
+  assert.equal(result.body.participants.length, 3);
+  assert.equal(result.body.participants.filter((participant) => participant.fresh).length, 2);
+  assert.equal(result.body.participant.nickname, 'TestPlayr');
   assert.equal(result.body.landmarks.length, 468);
   assert.deepEqual(result.body.landmarks[0], { x: 0, y: 0 });
   assert.deepEqual(result.body.triggerCounts, { mouthOpen: 2, accent: 1 });
@@ -134,8 +192,17 @@ async function run() {
   });
   assert.equal(result.response.status, 200);
   assert.equal(result.body.ready, true);
-  assert.equal(result.body.session.nickname, 'Queued Player');
+  assert.equal(result.body.session.nickname, 'QueuedUp');
   const queuedParticipantToken = result.body.token;
+
+  for (const token of concurrentTokens) {
+    result = await request('/api/live/session/stop', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Origin: origin },
+      body: '{}',
+    });
+    assert.equal(result.response.status, 200);
+  }
 
   result = await request('/api/live/session/stop', {
     method: 'POST',
@@ -147,7 +214,7 @@ async function run() {
   result = await request('/api/live/session/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin },
-    body: JSON.stringify({ nickname: 'Test Player', countryCode: 'UY', deviceId: 'test_device_0000000000000001' }),
+    body: JSON.stringify({ nickname: 'TestPlayr', countryCode: 'UY', deviceId: 'test_device_0000000000000001' }),
   });
   assert.equal(result.response.status, 429);
   assert.equal(result.body.error, 'participant_cooldown');

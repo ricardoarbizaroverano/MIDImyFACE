@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Participation Terms and Privacy Notice · MIDImyFACE</title>
+  <meta name="description" content="MIDImyFACE participation terms and privacy information.">
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    :root{color-scheme:dark;--green:#7cff4f;--bright:#b9ff6a;--cyan:#36f6b2;--purple:#8e6bff;--amber:#ffb44c;--panel:#10131d;--muted:#c5cbc7}
+    html{background:#050708;color:#f3f5f3;font-family:"Courier New",Courier,monospace}
+    body{min-height:100vh;margin:0;padding:max(24px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(40px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:radial-gradient(circle at 12% 8%,rgba(142,107,255,.15),transparent 25%),radial-gradient(circle at 88% 14%,rgba(54,246,178,.1),transparent 24%),#050708}
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.22;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 1px,transparent 1px,transparent 4px)}
+    main{position:relative;width:min(100%,820px);margin:auto;padding:clamp(20px,5vw,44px);border:4px solid var(--green);background:linear-gradient(180deg,rgba(16,19,29,.97),rgba(5,7,6,.98));box-shadow:0 0 0 4px #000,8px 8px 0 #000}
+    .eyebrow{margin:0 0 8px;color:var(--cyan);font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+    h1{margin:0;color:var(--bright);font-size:clamp(30px,8vw,54px);line-height:1;text-shadow:4px 4px 0 #152315}
+    .updated{margin:12px 0 28px;color:var(--muted);font-size:13px}
+    .notice{margin:0 0 28px;padding:16px;border:2px solid var(--cyan);background:rgba(54,246,178,.06);line-height:1.55}
+    h2{margin:32px 0 10px;color:var(--bright);font-size:clamp(20px,5vw,27px);line-height:1.15}
+    p,li{color:#e0e4e1;font-size:15px;line-height:1.62}
+    ul{padding-left:22px}
+    li+li{margin-top:7px}
+    strong{color:#fff}
+    a{color:var(--cyan);text-underline-offset:3px}
+    a:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+    .contact{padding:16px;border:2px dashed rgba(124,255,79,.66);background:#080b08}
+    .back{display:inline-block;margin-top:34px;padding:13px 17px;border:3px solid #fff;border-right-color:#555566;border-bottom-color:#555566;color:#111116;background:#d8d8d8;box-shadow:4px 4px 0 #000;font-weight:700;text-decoration:none;text-transform:uppercase}
+    .back:active{transform:translate(4px,4px);box-shadow:none}
+    @media(max-width:520px){body{padding-left:8px;padding-right:8px}main{padding:20px 15px;border-left-width:3px;border-right-width:3px}p,li{font-size:14px}}
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">MIDImyFACE · Legal</p>
+    <h1>Participation Terms and Privacy Notice</h1>
+    <p class="updated">Last updated: 17 July 2026</p>
+
+    <p class="notice">MIDImyFACE turns facial movement into live musical control. Camera images are processed in your browser and are not recorded or uploaded. Temporary facial landmark coordinates are transmitted to operate the installation.</p>
+
+    <h2>1. Who operates MIDImyFACE</h2>
+    <p>MIDImyFACE is an interactive artistic and technological project operated by <strong>Ricardo Arbiza</strong>, Finland. Ricardo Arbiza is the data controller for personal information processed specifically for MIDImyFACE participation.</p>
+    <div class="contact"><strong>Privacy contact</strong><br><a href="mailto:midimyface@gmail.com">midimyface@gmail.com</a><br>Finland</div>
+
+    <h2>2. Information processed</h2>
+    <p>Depending on how you use the live installation, the following information is processed:</p>
+    <ul>
+      <li>your Google account name, email address, account identifier and verification status through Firebase Authentication;</li>
+      <li>your chosen nickname and country;</li>
+      <li>a pseudonymous identity key used to enforce the 30-minute participation cooldown;</li>
+      <li>temporary session information, queue position, gesture trigger counts and normalized facial landmark coordinates;</li>
+      <li>technical information ordinarily generated when using an online service, such as IP address, request time, browser information and server logs.</li>
+    </ul>
+    <p>MIDImyFACE does <strong>not</strong> record, store or upload photographs or video from your camera. It does not use facial recognition to identify you and does not create a biometric identity profile.</p>
+
+    <h2>3. Camera and landmark processing</h2>
+    <p>MediaPipe processes the camera image locally in your browser. The image is used only to calculate face landmarks and gestures for the immediate interaction. Normalized landmark coordinates—not the camera image—are sent temporarily through the Render relay to the Raspberry Pi so the installation display and solenoids can respond. A live session may include up to three participants; their nicknames, countries and translucent landmark layers are shared among the active participants for the collaborative display. The current live snapshots are replaced as new data arrives and cleared when each participant session ends or expires.</p>
+
+    <h2>4. Purposes and legal basis</h2>
+    <p>Registration and session information is processed to provide the participation you request, manage the queue, prevent misuse, apply the cooldown and operate the installation. This processing is necessary to provide the requested interactive service and for the legitimate interests of operating it safely and fairly.</p>
+    <p>MIDImyFACE does not currently use registration email addresses for marketing. If optional news or event emails are introduced, they will require a separate, unselected consent choice. Marketing consent will be withdrawable at any time without affecting participation.</p>
+
+    <h2>5. Storage and retention</h2>
+    <ul>
+      <li><strong>Camera images:</strong> not uploaded or retained by MIDImyFACE.</li>
+      <li><strong>Landmarks and live session data:</strong> held temporarily for the active interaction and cleared when it ends or expires.</li>
+      <li><strong>Cooldown identity:</strong> held in relay memory for the configured cooldown period, currently 30 minutes.</li>
+      <li><strong>Firebase account:</strong> retained until the account is deleted or no longer needed for registration.</li>
+      <li><strong>Security and hosting logs:</strong> retained according to the relevant provider’s operational and security settings.</li>
+    </ul>
+
+    <h2>6. Providers and international transfers</h2>
+    <p>MIDImyFACE uses <strong>Google Firebase</strong> for account authentication and <strong>Render</strong> for the live relay and server hosting. The site may also connect to Google/YouTube when a live video is available and to jsDelivr to load MediaPipe browser software. These providers process technical data needed to deliver their services and may process information outside the European Economic Area under their applicable data-protection and transfer safeguards.</p>
+    <p>Personal information is not sold to advertisers. It is shared only when needed to operate the service, when you request or authorize sharing, or when disclosure is required by law.</p>
+
+    <h2>7. Your rights</h2>
+    <p>Subject to applicable law, you may request access to, correction of, deletion of, restriction of, or objection to processing of your personal data. You may request data portability where applicable and withdraw any consent without affecting earlier lawful processing.</p>
+    <p>Send requests to <a href="mailto:midimyface@gmail.com">midimyface@gmail.com</a>. You may also lodge a complaint with Finland’s <a href="https://tietosuoja.fi/en/home" target="_blank" rel="noopener noreferrer">Office of the Data Protection Ombudsman</a>.</p>
+
+    <h2>8. Participant responsibilities</h2>
+    <p>Participants must use MIDImyFACE lawfully and respectfully, follow reasonable operator or venue instructions, avoid damaging or disrupting the installation, and not use another person’s identity without permission. Access may be stopped for safety, maintenance, misuse prevention or technical reasons.</p>
+
+    <h2>9. Availability and safety</h2>
+    <p>MIDImyFACE is an experimental artistic system. A session may be delayed, modified, interrupted or cancelled because of technical problems, network or power interruption, maintenance, venue requirements, or safety and operational concerns. Participation does not guarantee uninterrupted availability.</p>
+
+    <h2>10. Changes</h2>
+    <p>This notice may be updated when the project or its data practices change. Material changes will be presented on the registration page or communicated by another appropriate method.</p>
+
+    <h2>11. Further information</h2>
+    <p>For general information about data-protection rights and consent, see the <a href="https://commission.europa.eu/law/law-topic/data-protection/information-individuals_en" target="_blank" rel="noopener noreferrer">European Commission’s GDPR guidance</a> and the <a href="https://www.edpb.europa.eu/sites/default/files/files/file1/edpb_guidelines_202005_consent_en.pdf" target="_blank" rel="noopener noreferrer">European Data Protection Board’s consent guidelines</a>.</p>
+
+    <a class="back" href="./">Return to MIDImyFACE Live</a>
+  </main>
+</body>
+</html>
