@@ -145,30 +145,27 @@
       left: 10px;
       right: 10px;
       bottom: max(10px, env(safe-area-inset-bottom));
-      display: grid;
-      grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 7px;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
     }
-    .gesture-icon {
-      min-width: 0;
-      min-height: 66px;
-      padding: 6px 3px 5px;
-      display: grid;
-      place-items: center;
-      gap: 2px;
-      color: #a3b4a7;
+    .grid-instruction {
+      min-height: 48px;
+      padding: 9px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
       background: rgba(0,0,0,.86);
-      border: 1px solid rgba(99,255,133,.42);
-      transition: color 90ms linear, background 90ms linear, transform 90ms linear, box-shadow 90ms linear;
+      border: 2px solid rgba(185,255,106,.75);
+      box-shadow: 3px 3px 0 #000, 0 0 18px rgba(54,246,178,.2);
+      font-size: clamp(11px, 3vw, 14px);
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-align: center;
     }
-    .gesture-icon svg { width: 31px; height: 31px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-    .gesture-icon span { font-size: 10px; line-height: 1; white-space: nowrap; }
-    .gesture-icon.triggered {
-      color: #000;
-      background: var(--green);
-      transform: scale(1.08);
-      box-shadow: 0 0 22px rgba(99,255,133,.9);
-    }
+    .nose-key { color:#ff4b4b; text-shadow:0 0 12px #ff3131; }
+    .mouth-key { color:#c8c3ff; text-shadow:0 0 12px #8e6bff; }
 
     .youtube-live {
       width: min(94vw, 760px);
@@ -297,10 +294,8 @@
       #header { padding-top: 18px; }
       #title { font-size:clamp(22px,7.2vw,30px); letter-spacing:0; }
       #videoContainer { width:100vw; height:620px; min-height:620px; margin-bottom:0; border-left:0; border-right:0; }
-      .gesture-dock { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-      .gesture-icon { min-height: 62px; }
-      .gesture-icon svg { width: 29px; height: 29px; }
-      .gesture-icon span { font-size: 9px; }
+      .gesture-dock { left:6px; right:6px; }
+      .grid-instruction { min-height:42px; padding:7px 10px; }
       #stopSessionBtn { width: 100vw; margin: 0; border-width: 2px 0 0; }
       .support-links,.community-links { grid-template-columns:1fr; }
       .session-intro { place-items:start center; padding:12px 10px; }
@@ -363,14 +358,8 @@
     <div id="sessionStatus" class="session-overlay-status hidden" aria-live="polite">Ready</div>
     <button id="closeSessionBtn" class="hidden" type="button" aria-label="End session">×</button>
 
-    <div id="gestureTriggers" class="gesture-dock hidden" aria-label="Percussion triggers">
-      <div class="gesture-icon" data-gesture="mouthOpen"><svg viewBox="0 0 32 32" aria-hidden="true"><ellipse cx="16" cy="16" rx="9" ry="6"/></svg><span>Mouth</span></div>
-      <div class="gesture-icon" data-gesture="smile"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 12h4M22 12h4M8 18c4 7 12 7 16 0"/></svg><span>Smile</span></div>
-      <div class="gesture-icon" data-gesture="leftWink" title="Hold the left eye closed for 0.25 seconds"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 13h7M21 13h1M8 21c5 4 11 4 16 0"/></svg><span>L wink</span></div>
-      <div class="gesture-icon" data-gesture="rightWink" title="Hold the right eye closed for 0.25 seconds"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 13h1M20 13h7M8 21c5 4 11 4 16 0"/></svg><span>R wink</span></div>
-      <div class="gesture-icon" data-gesture="noseX"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 16h24M4 16l5-5M4 16l5 5M28 16l-5-5M28 16l-5 5"/></svg><span>Head X</span></div>
-      <div class="gesture-icon" data-gesture="noseY"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v24M16 4l-5 5M16 4l5 5M16 28l-5-5M16 28l5-5"/></svg><span>Head Y</span></div>
-      <div class="gesture-icon" data-gesture="accent" title="A quick whole-face movement"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l2.5 8.5L27 8l-6.5 8 8.5 3-9.5.5L21 29l-5-8-5 8 1.5-9.5L3 19l8.5-3L5 8l8.5 3.5z"/></svg><span>Face hit</span></div>
+    <div id="gestureTriggers" class="gesture-dock hidden" aria-label="Nose grid pads. Point with your nose and open your mouth.">
+      <div class="grid-instruction"><span class="nose-key">● NOSE</span><span>POINT TO A NUMBER</span><span class="mouth-key">◯ OPEN MOUTH</span></div>
     </div>
   </main>
 

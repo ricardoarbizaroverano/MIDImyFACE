@@ -10,7 +10,11 @@ const PERCUSSION_SENSITIVITY = 5;
 export const WINK_HOLD_MS = 250;
 const LANDMARK_SMOOTHING = 0.58;
 export const GESTURE_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent'];
-const SPECIFIC_GESTURE_IDS = GESTURE_IDS.filter((gestureId) => gestureId !== 'accent');
+export const GRID_TRIGGER_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent', 'mouthOpen'];
+const GRID_COLS = 4;
+const GRID_ROWS = 2;
+const MOUTH_GATE_OPEN_PX = 10;
+const MOUTH_GATE_CLOSE_PX = 7;
 
 // Landmark indices used in the main script
 const LM = {
@@ -195,6 +199,13 @@ export function gestureRange(gestureId, width, height) {
   return ranges[gestureId] || { min: 0, max: 200 };
 }
 
+export function resolveGridPad(nose, { mirrored = true } = {}) {
+  if (!nose || !Number.isFinite(nose.x) || !Number.isFinite(nose.y)) return -1;
+  const x = Math.max(0, Math.min(0.999999, mirrored ? 1 - nose.x : nose.x));
+  const y = Math.max(0, Math.min(0.999999, nose.y));
+  return Math.floor(y * GRID_ROWS) * GRID_COLS + Math.floor(x * GRID_COLS);
+}
+
 // ------- session class -------
 export class ParticipantSession {
   constructor({ relayOrigin, token, session, onStatus, onGestures, onTrigger }) {
@@ -209,8 +220,10 @@ export class ParticipantSession {
     this._lastGestures = null;
     this._lastLandmarks = null;
     this._accentLandmarks = null;
-    this._triggerStates = Object.fromEntries(GESTURE_IDS.map((gestureId) => [gestureId, createGestureTriggerState()]));
     this._triggerCounts = Object.fromEntries(GESTURE_IDS.map((gestureId) => [gestureId, 0]));
+    this._activePad = -1;
+    this._mouthGateOpen = false;
+    this._padFlashUntil = 0;
     this._postTimer    = null;
     this._video        = null;
     this._canvas       = null;
@@ -247,7 +260,7 @@ export class ParticipantSession {
       return;
     }
 
-    this.onStatus({ phase: 'active', message: 'Active — make faces!' });
+    this.onStatus({ phase: 'active', message: 'Point with your nose. Open your mouth to play.' });
     this._schedulePost();
     this._processLoop();
   }
@@ -287,33 +300,23 @@ export class ParticipantSession {
     const H = this._video.videoHeight || 480;
     const gestures = extractGestures(smoothed, W, H);
     gestures.accent = this._computeAccent(smoothed, W, H);
-    let specificGestureTriggered = false;
-    for (const gestureId of SPECIFIC_GESTURE_IDS) {
-      const range = gestureRange(gestureId, W, H);
-      if (evaluateGestureTrigger(gestureId, gestures[gestureId], this._triggerStates[gestureId], range)) {
-        this._triggerCounts[gestureId] += 1;
-        this.onTrigger(gestureId);
-        specificGestureTriggered = true;
-      }
+    this._activePad = resolveGridPad(smoothed[LM.nose]);
+    const shouldOpen = this._mouthGateOpen
+      ? gestures.mouthOpen > MOUTH_GATE_CLOSE_PX
+      : gestures.mouthOpen > MOUTH_GATE_OPEN_PX;
+    if (shouldOpen && !this._mouthGateOpen && this._activePad >= 0) {
+      const triggerId = GRID_TRIGGER_IDS[this._activePad];
+      this._triggerCounts[triggerId] += 1;
+      this._padFlashUntil = performance.now() + 240;
+      this.onTrigger(triggerId, this._activePad);
     }
-    const accentTriggered = evaluateGestureTrigger(
-      'accent',
-      gestures.accent,
-      this._triggerStates.accent,
-      gestureRange('accent', W, H),
-    );
-    // Accent means an otherwise-unclassified quick whole-face hit. Suppress it
-    // when a more specific gesture fired in the same frame to avoid doubles.
-    if (accentTriggered && !specificGestureTriggered) {
-      this._triggerCounts.accent += 1;
-      this.onTrigger('accent');
-    }
+    this._mouthGateOpen = shouldOpen;
     this._lastGestures = gestures;
     this._lastLandmarks = smoothed.map((landmark) => ({ x: landmark.x, y: landmark.y }));
     this.onGestures(gestures, smoothed);
 
     // Draw landmark overlay on canvas
-    this._drawLandmarks(smoothed, W, H);
+    this._drawLandmarks(smoothed, W, H, gestures.mouthOpen);
   }
 
   _computeAccent(landmarks, W, H) {
@@ -333,7 +336,7 @@ export class ParticipantSession {
     return Math.min(100, totalPixels / Math.max(1, current.length) * 4);
   }
 
-  _drawLandmarks(landmarks, W, H) {
+  _drawLandmarks(landmarks, W, H, mouthOpen) {
     const ctx = this._canvas?.getContext('2d');
     if (!ctx) return;
     const width = this._video.videoWidth || W;
@@ -349,6 +352,62 @@ export class ParticipantSession {
       ctx.arc((1 - lm.x) * this._canvas.width, lm.y * this._canvas.height, dotRadius, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    const cellW = this._canvas.width / GRID_COLS;
+    const cellH = this._canvas.height / GRID_ROWS;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `700 ${Math.max(22, Math.min(cellW, cellH) * 0.22)}px "Courier New", monospace`;
+    for (let index = 0; index < GRID_COLS * GRID_ROWS; index += 1) {
+      const col = index % GRID_COLS;
+      const row = Math.floor(index / GRID_COLS);
+      const selected = index === this._activePad;
+      const firing = selected && performance.now() < this._padFlashUntil;
+      ctx.fillStyle = firing ? 'rgba(185,255,106,.58)' : selected ? 'rgba(54,246,178,.17)' : 'rgba(5,8,7,.13)';
+      ctx.strokeStyle = firing ? '#ffffff' : selected ? '#b9ff6a' : 'rgba(124,255,79,.5)';
+      ctx.lineWidth = firing ? 5 : selected ? 3 : 1.5;
+      ctx.shadowColor = firing ? '#b9ff6a' : selected ? '#36f6b2' : 'transparent';
+      ctx.shadowBlur = firing ? 28 : selected ? 13 : 0;
+      ctx.fillRect(col * cellW + 4, row * cellH + 4, cellW - 8, cellH - 8);
+      ctx.strokeRect(col * cellW + 4, row * cellH + 4, cellW - 8, cellH - 8);
+      ctx.fillStyle = firing ? '#050708' : selected ? '#ffffff' : 'rgba(185,255,106,.65)';
+      ctx.fillText(String(index + 1), col * cellW + cellW / 2, row * cellH + cellH / 2);
+    }
+
+    const nose = landmarks[LM.nose];
+    if (nose) {
+      const px = (1 - nose.x) * this._canvas.width;
+      const py = nose.y * this._canvas.height;
+      const pulse = 1 + Math.sin(performance.now() / 95) * 0.16;
+      ctx.shadowColor = '#ff3131';
+      ctx.shadowBlur = 24;
+      ctx.fillStyle = '#ff3131';
+      ctx.beginPath();
+      ctx.arc(px, py, 7 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px, py, 13 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    const mouthTop = landmarks[LM.topLip];
+    const mouthBottom = landmarks[LM.bottomLip];
+    if (mouthTop && mouthBottom) {
+      const mx = (1 - ((mouthTop.x + mouthBottom.x) / 2)) * this._canvas.width;
+      const my = ((mouthTop.y + mouthBottom.y) / 2) * this._canvas.height;
+      const invitation = Math.max(0, Math.min(1, mouthOpen / MOUTH_GATE_OPEN_PX));
+      ctx.shadowColor = '#8e6bff';
+      ctx.shadowBlur = 10 + invitation * 22;
+      ctx.strokeStyle = this._mouthGateOpen ? '#ffffff' : '#c8c3ff';
+      ctx.lineWidth = 2 + invitation * 3;
+      ctx.beginPath();
+      ctx.ellipse(mx, my, 19 + invitation * 8, 10 + invitation * 9, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   _clearCanvas(W, H) {

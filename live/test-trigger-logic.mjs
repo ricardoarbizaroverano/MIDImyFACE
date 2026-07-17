@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { WINK_HOLD_MS, createGestureTriggerState, evaluateGestureTrigger, gestureRange } from './live_session.js';
+import { WINK_HOLD_MS, createGestureTriggerState, evaluateGestureTrigger, gestureRange, resolveGridPad, GRID_TRIGGER_IDS } from './live_session.js';
+
+assert.equal(GRID_TRIGGER_IDS.length, 8, 'the live grid exposes eight playable pads');
+assert.equal(resolveGridPad({ x: 0.99, y: 0.01 }), 0, 'mirrored top-left nose position selects pad 1');
+assert.equal(resolveGridPad({ x: 0.01, y: 0.01 }), 3, 'mirrored top-right nose position selects pad 4');
+assert.equal(resolveGridPad({ x: 0.99, y: 0.99 }), 4, 'mirrored bottom-left nose position selects pad 5');
+assert.equal(resolveGridPad({ x: 0.01, y: 0.99 }), 7, 'mirrored bottom-right nose position selects pad 8');
 
 function feed(gestureId, samples, range) {
   const state = createGestureTriggerState();

@@ -412,13 +412,8 @@ function renderStatus(payload) {
   }
 }
 
-function flashGestureTrigger(gestureId) {
-  const icon = document.querySelector(`[data-gesture="${gestureId}"]`);
-  if (!icon) return;
-  icon.classList.remove('triggered');
-  void icon.offsetWidth;
-  icon.classList.add('triggered');
-  window.setTimeout(() => icon.classList.remove('triggered'), 190);
+function flashGestureTrigger() {
+  // The selected canvas pad owns the trigger flash so it stays aligned with the nose pointer.
 }
 
 function enterActiveUi(session) {
