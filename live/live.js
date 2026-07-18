@@ -28,7 +28,7 @@ const elements = Object.fromEntries([
   'closeSessionBtn','gestureTriggers','stopSessionBtn','paypalDonateLink','instagramProjectLink',
   'youtubeLivePanel','youtubeLiveFrame','youtubeSoundBtn','donationModal','donationAmounts','dismissDonationBtn',
   'venmoDonateLink','modalPaypalLink','modalVenmoLink','youtubeChannelLink','lastJamLink','youtubeFallback',
-  'termsConsent','googleAuthBtn','googleAuthLabel','authMessage','queueCard','queuePosition','queueEstimate',
+  'termsConsent','googleAuthBtn','googleAuthLabel','googleSignInBtn','authMessage','queueCard','queuePosition','queueEstimate',
   'authPanel','registrationTitle','registrationLead','availabilityPanel','availabilityTitle','availabilityText',
   'availabilityActions','notifyBellBtn','notifyBellLabel','availabilityRetryBtn','joinPanel','notificationModal',
   'notificationMessage','notificationConfirmBtn','notificationCancelBtn',
@@ -61,6 +61,7 @@ const state = {
   authReady: false,
   notifyInstallationOnline: false,
   previewClient: null,
+  previewFeedAvailable: false,
   previewStats: { fps: 0, receiveFps: 0, framesDecoded: 0, framesReceived: 0, jitter: 0, frameAgeMs: 0 },
 };
 
@@ -73,6 +74,8 @@ async function ensurePreviewClient({ role = 'waiting_viewer', sessionId = '' } =
   if (state.previewClient) {
     state.previewClient.stop?.();
     state.previewClient = null;
+    state.previewFeedAvailable = false;
+    updateProgramFeedVisibility();
   }
   try {
     const { PreviewClient } = await import('./broadcast/preview_client.js');
@@ -82,6 +85,8 @@ async function ensurePreviewClient({ role = 'waiting_viewer', sessionId = '' } =
       sessionId: requestedSessionId,
       onStream(stream) {
         if (!stream) return;
+        state.previewFeedAvailable = true;
+        updateProgramFeedVisibility();
         if (elements.previewVideo) {
           elements.previewVideo.srcObject = stream;
           elements.previewVideo.muted = true;
@@ -100,8 +105,17 @@ async function ensurePreviewClient({ role = 'waiting_viewer', sessionId = '' } =
     await state.previewClient.start();
   } catch {
     state.previewClient = null;
+    state.previewFeedAvailable = false;
+    updateProgramFeedVisibility();
   }
   return state.previewClient;
+}
+
+function updateProgramFeedVisibility() {
+  const hasFeed = Boolean(state.previewFeedAvailable);
+  document.body.classList.toggle('no-program-feed', !hasFeed);
+  setHidden(elements.previewVideo, !hasFeed || !state.session);
+  setHidden(elements.miniProgramPreview, !hasFeed || Boolean(state.session));
 }
 
 function resolveRelayOrigin() {
@@ -601,6 +615,7 @@ async function setupGoogleRegistration(publicConfig) {
       }
       elements.googleAuthLabel.textContent = user ? `SIGN OUT · ${user.displayName || user.email}` : 'REGISTER FREE';
       elements.googleAuthBtn.disabled = user ? false : !state.authReady || !elements.termsConsent.checked;
+      elements.googleSignInBtn.disabled = user ? true : !state.authReady || !elements.termsConsent.checked;
       elements.authMessage.textContent = user
         ? 'Account recognized on this device.'
         : 'Create an account to save your place and future sessions.';
@@ -722,8 +737,7 @@ function renderStatus(payload) {
     }
   }
 
-  const showMiniPreview = !state.session;
-  setHidden(elements.miniProgramPreview, !showMiniPreview);
+  updateProgramFeedVisibility();
 }
 
 function flashGestureTrigger() {
@@ -740,7 +754,7 @@ function enterActiveUi(session) {
   const flag = countryFlag(session.countryCode);
   elements.participantBadge.textContent = flag ? `${session.nickname} ${flag}` : session.nickname;
   setHidden(elements.miniProgramPreview, true);
-  setHidden(elements.previewVideo, false);
+  updateProgramFeedVisibility();
   startCountdown();
 }
 
@@ -760,8 +774,7 @@ function resetUi(message = 'Session ended. You can start another turn when the i
   state.session = null;
   state.participantSession = null;
   setFormMessage(message);
-  setHidden(elements.miniProgramPreview, false);
-  setHidden(elements.previewVideo, true);
+  updateProgramFeedVisibility();
   ensurePreviewClient({ role: 'waiting_viewer', sessionId: '' }).catch(() => {});
   refreshStatus();
   if (offerDonation) showDonationPrompt();
@@ -903,6 +916,7 @@ async function initialize() {
     elements.googleAuthBtn.disabled = state.authUser ? false : !state.authReady || !elements.termsConsent.checked;
   });
   elements.googleAuthBtn.addEventListener('click', registerWithGoogle);
+  elements.googleSignInBtn.addEventListener('click', registerWithGoogle);
   elements.notifyBellBtn.addEventListener('click', async () => {
     if (!state.authUser) return;
     if (state.notifyInstallationOnline) {
@@ -949,8 +963,7 @@ async function initialize() {
     await setupGoogleRegistration({});
   }
   await ensurePreviewClient({ role: 'waiting_viewer', sessionId: '' });
-  setHidden(elements.previewVideo, true);
-  setHidden(elements.miniProgramPreview, false);
+  updateProgramFeedVisibility();
   await refreshStatus();
   window.setInterval(refreshStatus, STATUS_POLL_MS);
 }
