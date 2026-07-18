@@ -17,13 +17,14 @@
     .updated{margin:12px 0 28px;color:var(--muted);font-size:13px}
     .notice{margin:0 0 28px;padding:16px;border:2px solid var(--cyan);background:rgba(54,246,178,.06);line-height:1.55}
     h2{margin:32px 0 10px;color:var(--bright);font-size:clamp(20px,5vw,27px);line-height:1.15}
+    .section-divider{margin:48px 0 16px;padding-top:32px;border-top:2px dashed var(--purple);color:var(--purple);font-size:16px;letter-spacing:.1em;text-transform:uppercase}
     p,li{color:#e0e4e1;font-size:15px;line-height:1.62}
     ul{padding-left:22px}
     li+li{margin-top:7px}
     strong{color:#fff}
     a{color:var(--cyan);text-underline-offset:3px}
     a:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
-    .contact{padding:16px;border:2px dashed rgba(124,255,79,.66);background:#080b08}
+    .contact{padding:16px;border:2px dashed rgba(124,255,79,.66);background:#080b08;margin-bottom:16px;}
     .back{display:inline-block;margin-top:34px;padding:13px 17px;border:3px solid #fff;border-right-color:#555566;border-bottom-color:#555566;color:#111116;background:#d8d8d8;box-shadow:4px 4px 0 #000;font-weight:700;text-decoration:none;text-transform:uppercase}
     .back:active{transform:translate(4px,4px);box-shadow:none}
     @media(max-width:520px){body{padding-left:8px;padding-right:8px}main{padding:20px 15px;border-left-width:3px;border-right-width:3px}p,li{font-size:14px}}
@@ -38,8 +39,9 @@
     <p class="notice">MIDImyFACE turns facial movement into live musical control. Camera images are processed in your browser and are not recorded or uploaded. Temporary facial landmark coordinates are transmitted to operate the installation.</p>
 
     <h2>1. Who operates MIDImyFACE</h2>
-    <p>MIDImyFACE is an interactive artistic and technological project operated by <strong>Ricardo Arbiza</strong>, Finland. Ricardo Arbiza is the data controller for personal information processed specifically for MIDImyFACE participation.</p>
-    <div class="contact"><strong>Privacy contact</strong><br><a href="mailto:midimyface@gmail.com">midimyface@gmail.com</a><br>Finland</div>
+    <p>MIDImyFACE is an interactive artistic and technological project operated by <strong>Ricardo Arbiza</strong>, Uruguay. Ricardo Arbiza is the data controller for personal information processed specifically for MIDImyFACE participation.</p>
+    <div class="contact"><strong>Privacy contact</strong><br><a href="mailto:midimyface@gmail.com">midimyface@gmail.com</a><br>Uruguay</div>
+    <p>MIDImyFACE is not intended for unsupervised children under 13. If you are under 13, please have a parent or guardian register and participate with you.</p>
 
     <h2>2. Information processed</h2>
     <p>Depending on how you use the live installation, the following information is processed:</p>
@@ -53,7 +55,7 @@
     <p>MIDImyFACE does <strong>not</strong> record, store or upload photographs or video from your camera. It does not use facial recognition to identify you and does not create a biometric identity profile.</p>
 
     <h2>3. Camera and landmark processing</h2>
-    <p>MediaPipe processes the camera image locally in your browser. The image is used only to calculate face landmarks and gestures for the immediate interaction. Normalized landmark coordinates—not the camera image—are sent temporarily through the Render relay to the Raspberry Pi so the installation display and solenoids can respond. A live session may include up to three participants; their nicknames, countries and translucent landmark layers are shared among the active participants for the collaborative display. The current live snapshots are replaced as new data arrives and cleared when each participant session ends or expires.</p>
+    <p>MediaPipe processes the camera image locally in your browser. The image is used only to calculate face landmarks and gestures for the immediate interaction. Normalized landmark coordinates—not the camera image—are sent temporarily through the Render relay to the <strong>local</strong> Raspberry Pi so the installation display and solenoids can respond. A live session may include up to three participants; their nicknames, countries and translucent landmark layers are shared among the active participants for the collaborative display. The current live snapshots are replaced as new data arrives and cleared when each participant session ends or expires.</p>
 
     <h2>4. Purposes and legal basis</h2>
     <p>Registration and session information is processed to provide the participation you request, manage the queue, prevent misuse, apply the cooldown and operate the installation. This processing is necessary to provide the requested interactive service and for the legitimate interests of operating it safely and fairly.</p>
@@ -74,7 +76,9 @@
 
     <h2>7. Your rights</h2>
     <p>Subject to applicable law, you may request access to, correction of, deletion of, restriction of, or objection to processing of your personal data. You may request data portability where applicable and withdraw any consent without affecting earlier lawful processing.</p>
-    <p>Send requests to <a href="mailto:midimyface@gmail.com">midimyface@gmail.com</a>. You may also lodge a complaint with Finland’s <a href="https://tietosuoja.fi/en/home" target="_blank" rel="noopener noreferrer">Office of the Data Protection Ombudsman</a>.</p>
+    <p>Send requests to <a href="mailto:midimyface@gmail.com">midimyface@gmail.com</a>. You may also lodge a complaint with Uruguay's <a href="https://www.gub.uy/unidad-reguladora-control-datos-personales/" target="_blank" rel="noopener noreferrer">Unidad Reguladora y de Control de Datos Personales (URCDP)</a>.</p>
+
+    <h2 class="section-divider">--- Terms of Participation ---</h2>
 
     <h2>8. Participant responsibilities</h2>
     <p>Participants must use MIDImyFACE lawfully and respectfully, follow reasonable operator or venue instructions, avoid damaging or disrupting the installation, and not use another person’s identity without permission. Access may be stopped for safety, maintenance, misuse prevention or technical reasons.</p>
