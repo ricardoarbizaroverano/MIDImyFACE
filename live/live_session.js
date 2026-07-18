@@ -301,7 +301,7 @@ export class ParticipantSession {
     this._video.srcObject = this._stream;
     await new Promise((resolve) => { this._video.onloadedmetadata = resolve; });
     await this._video.play();
-    this._ctx = this._canvas?.getContext('2d', { alpha: false, desynchronized: true }) || null;
+    this._ctx = this._canvas?.getContext('2d', { alpha: true, desynchronized: true }) || null;
     this._clearCanvas();
 
     this.onStatus({ phase: 'model', message: 'Loading face model…' });
@@ -405,8 +405,6 @@ export class ParticipantSession {
     ctx.save();
     ctx.setTransform(this._canvasMetrics.dpr, 0, 0, this._canvasMetrics.dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, width, height);
     for (const peer of this._peerParticipants) {
       if (!peer?.fresh || !Array.isArray(peer.landmarks)) continue;
       ctx.save();
@@ -563,8 +561,7 @@ export class ParticipantSession {
     const { width, height } = this._resizeCanvasToDisplaySize();
     ctx.save();
     ctx.setTransform(this._canvasMetrics.dpr, 0, 0, this._canvasMetrics.dpr, 0, 0);
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, width, height);
+    ctx.clearRect(0, 0, width, height);
     ctx.restore();
   }
 

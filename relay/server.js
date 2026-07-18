@@ -90,6 +90,27 @@ const LIVE_SESSION_DURATION_SECONDS  = Math.max(15, Math.min(Number(process.env.
 const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.LIVE_COOLDOWN_MINUTES || 30), 240));
 const LIVE_QUEUE_TICKET_TTL_MS       = Math.max(15_000, Math.min(Number(process.env.LIVE_QUEUE_TICKET_TTL_MS || 45_000), 300_000));
 const LIVE_SNAPSHOT_TTL_MS           = Math.max(500, Math.min(Number(process.env.LIVE_SNAPSHOT_TTL_MS || 2500), 10_000));
+const LIVE_PREVIEW_TTL_MS            = Math.max(15_000, Math.min(Number(process.env.LIVE_PREVIEW_TTL_MS || 120_000), 900_000));
+const LIVE_PREVIEW_TOKEN_TTL_SEC     = Math.max(20, Math.min(Number(process.env.LIVE_PREVIEW_TOKEN_TTL_SEC || 90), 600));
+const LIVE_PREVIEW_MAX_VIEWERS       = Math.max(1, Math.min(Number(process.env.LIVE_PREVIEW_MAX_VIEWERS || 1), 4));
+const LIVE_PREVIEW_MAX_PER_CLIENT    = Math.max(1, Math.min(Number(process.env.LIVE_PREVIEW_MAX_PER_CLIENT || 2), 8));
+const LIVE_PREVIEW_STALE_TIMEOUT_MS  = Math.max(10_000, Math.min(Number(process.env.LIVE_PREVIEW_STALE_TIMEOUT_MS || 30_000), 600_000));
+const LIVE_PREVIEW_MAX_ICE_PER_QUEUE = Math.max(4, Math.min(Number(process.env.LIVE_PREVIEW_MAX_ICE_PER_QUEUE || 48), 256));
+const LIVE_PREVIEW_MAX_NON_ICE_QUEUE = Math.max(4, Math.min(Number(process.env.LIVE_PREVIEW_MAX_NON_ICE_QUEUE || 24), 128));
+const LIVE_PREVIEW_RATE_LIMIT_WINDOW_MS = Math.max(5_000, Math.min(Number(process.env.LIVE_PREVIEW_RATE_LIMIT_WINDOW_MS || 60_000), 300_000));
+const LIVE_PREVIEW_RATE_LIMIT_MAX_REQ = Math.max(20, Math.min(Number(process.env.LIVE_PREVIEW_RATE_LIMIT_MAX_REQ || 360), 5000));
+const LIVE_PREVIEW_TOKEN_SECRET      = configuredEnv('LIVE_PREVIEW_TOKEN_SECRET')
+  || AUTH_TOKEN_SECRET
+  || RELAY_JOIN_TOKEN_SECRET
+  || 'dev-preview-token-secret-change-me';
+const LIVE_PREVIEW_ICE_STUN          = String(process.env.LIVE_PREVIEW_ICE_STUN || 'stun:stun.l.google.com:19302')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
+  .slice(0, 8);
+const LIVE_PREVIEW_ICE_TURN_URL      = cleanString(process.env.LIVE_PREVIEW_ICE_TURN_URL || '', 240);
+const LIVE_PREVIEW_ICE_TURN_USERNAME = cleanString(process.env.LIVE_PREVIEW_ICE_TURN_USERNAME || '', 160);
+const LIVE_PREVIEW_ICE_TURN_CREDENTIAL = cleanString(process.env.LIVE_PREVIEW_ICE_TURN_CREDENTIAL || '', 240);
 const LIVE_MAX_LANDMARKS             = 478;
 const LIVE_MAX_PARTICIPANTS          = 3;
 const LIVE_NICKNAME_MIN_LENGTH       = 2;
@@ -710,6 +731,205 @@ const activeLiveSessions = new Map();
 const liveSessionStartByIp = new Map();
 const liveCooldownByIdentity = new Map();
 const liveQueue = [];
+const livePreviewConnections = new Map();
+const livePreviewRateLimit = new Map();
+
+function livePreviewIceServers() {
+  const iceServers = [];
+  if (LIVE_PREVIEW_ICE_STUN.length) {
+    iceServers.push({ urls: LIVE_PREVIEW_ICE_STUN.slice() });
+  }
+  if (LIVE_PREVIEW_ICE_TURN_URL && LIVE_PREVIEW_ICE_TURN_USERNAME && LIVE_PREVIEW_ICE_TURN_CREDENTIAL) {
+    iceServers.push({
+      urls: [LIVE_PREVIEW_ICE_TURN_URL],
+      username: LIVE_PREVIEW_ICE_TURN_USERNAME,
+      credential: LIVE_PREVIEW_ICE_TURN_CREDENTIAL,
+    });
+  }
+  return iceServers;
+}
+
+function createPreviewToken({ connectionId, role, sessionId = '' }) {
+  return signToken({
+    type: 'preview',
+    cid: connectionId,
+    sid: cleanString(sessionId || '', 120) || null,
+    role,
+    iat: nowSec(),
+    exp: nowSec() + LIVE_PREVIEW_TOKEN_TTL_SEC,
+    jti: randomId(8),
+  }, LIVE_PREVIEW_TOKEN_SECRET);
+}
+
+function verifyPreviewToken(token, { connectionId, role, sessionId = '' } = {}) {
+  const payload = verifySignedToken(token, LIVE_PREVIEW_TOKEN_SECRET);
+  if (!payload || payload.type !== 'preview') return null;
+  if (connectionId && payload.cid !== connectionId) return null;
+  if (role && payload.role !== role) return null;
+  const expectedSid = cleanString(sessionId || '', 120);
+  if (expectedSid && payload.sid !== expectedSid) return null;
+  return payload;
+}
+
+function previewRoleFromValue(value) {
+  const role = cleanString(value || 'waiting_viewer', 32).toLowerCase();
+  if (role === 'participant' || role === 'host' || role === 'waiting_viewer') return role;
+  return 'waiting_viewer';
+}
+
+function previewRateLimitKey(req) {
+  const ip = liveRequestIp(req) || 'unknown';
+  const ua = sha256(cleanString(req.headers['user-agent'] || '', 180)).slice(0, 12);
+  return `${ip}:${ua}`;
+}
+
+function previewRateLimitExceeded(req) {
+  const key = previewRateLimitKey(req);
+  const now = Date.now();
+  const entry = livePreviewRateLimit.get(key) || { count: 0, startedAtMs: now };
+  if (now - entry.startedAtMs > LIVE_PREVIEW_RATE_LIMIT_WINDOW_MS) {
+    entry.count = 0;
+    entry.startedAtMs = now;
+  }
+  entry.count += 1;
+  livePreviewRateLimit.set(key, entry);
+  return entry.count > LIVE_PREVIEW_RATE_LIMIT_MAX_REQ;
+}
+
+function previewActiveViewerCount() {
+  const threshold = Date.now() - LIVE_PREVIEW_STALE_TIMEOUT_MS;
+  let count = 0;
+  for (const entry of livePreviewConnections.values()) {
+    if (entry.closedAtMs) continue;
+    if (entry.updatedAtMs >= threshold) count += 1;
+  }
+  return count;
+}
+
+function previewClientOpenConnectionCount(clientKey) {
+  if (!clientKey) return 0;
+  const threshold = Date.now() - LIVE_PREVIEW_STALE_TIMEOUT_MS;
+  let count = 0;
+  for (const entry of livePreviewConnections.values()) {
+    if (entry.closedAtMs) continue;
+    if (entry.clientKey === clientKey && entry.updatedAtMs >= threshold) count += 1;
+  }
+  return count;
+}
+
+function previewConnection(connectionId, { role = 'waiting_viewer', sessionId = '', clientKey = '', diagnosticsAllowed = false } = {}) {
+  if (!livePreviewConnections.has(connectionId)) {
+    livePreviewConnections.set(connectionId, {
+      connectionId,
+      createdAtMs: Date.now(),
+      updatedAtMs: Date.now(),
+      staleAtMs: Date.now() + LIVE_PREVIEW_STALE_TIMEOUT_MS,
+      role: previewRoleFromValue(role),
+      sessionId: cleanString(sessionId || '', 120) || null,
+      clientKey: cleanString(clientKey || '', 200) || '',
+      diagnosticsAllowed: diagnosticsAllowed === true,
+      closedAtMs: 0,
+      viewerQueue: [],
+      piQueue: [],
+    });
+  }
+  return livePreviewConnections.get(connectionId);
+}
+
+function purgePreviewConnections() {
+  const threshold = Date.now() - LIVE_PREVIEW_TTL_MS;
+  const staleThreshold = Date.now() - LIVE_PREVIEW_STALE_TIMEOUT_MS;
+  for (const [connectionId, entry] of livePreviewConnections.entries()) {
+    if (entry.updatedAtMs < threshold || entry.updatedAtMs < staleThreshold || entry.closedAtMs) {
+      livePreviewConnections.delete(connectionId);
+    }
+  }
+}
+
+function closePreviewConnection(connectionId, disconnectedBy = 'server') {
+  const entry = livePreviewConnections.get(connectionId);
+  if (!entry) return;
+  enqueuePreviewSignal(connectionId, 'pi', { type: 'disconnect', data: { by: disconnectedBy } }, { allowMissing: true });
+  enqueuePreviewSignal(connectionId, 'viewer', { type: 'disconnect', data: { by: disconnectedBy } }, { allowMissing: true });
+  entry.closedAtMs = Date.now();
+  entry.updatedAtMs = Date.now();
+}
+
+function enqueuePreviewSignal(connectionId, targetRole, payload, options = {}) {
+  const entry = livePreviewConnections.get(connectionId);
+  if (!entry && options.allowMissing !== true) return false;
+  const target = entry || previewConnection(connectionId);
+  const signal = {
+    id: genId(),
+    connectionId,
+    type: cleanString(payload?.type || '', 40),
+    data: payload?.data || null,
+    createdAt: new Date().toISOString(),
+    createdAtMs: Date.now(),
+  };
+  const queue = targetRole === 'viewer' ? target.viewerQueue : target.piQueue;
+  queue.push(signal);
+  target.updatedAtMs = Date.now();
+  target.staleAtMs = Date.now() + LIVE_PREVIEW_STALE_TIMEOUT_MS;
+  const isIce = signal.type === 'ice';
+  const maxSize = isIce ? LIVE_PREVIEW_MAX_ICE_PER_QUEUE : LIVE_PREVIEW_MAX_NON_ICE_QUEUE;
+  if (queue.length > maxSize) queue.splice(0, queue.length - maxSize);
+  return true;
+}
+
+function pullPreviewSignals(connectionId, role) {
+  purgePreviewConnections();
+  const entry = livePreviewConnections.get(connectionId);
+  if (!entry) return [];
+  entry.updatedAtMs = Date.now();
+  entry.staleAtMs = Date.now() + LIVE_PREVIEW_STALE_TIMEOUT_MS;
+  const expiresBefore = Date.now() - LIVE_PREVIEW_TTL_MS;
+  entry.viewerQueue = entry.viewerQueue.filter((item) => Number(item.createdAtMs || 0) >= expiresBefore);
+  entry.piQueue = entry.piQueue.filter((item) => Number(item.createdAtMs || 0) >= expiresBefore);
+  if (role === 'viewer') {
+    const queued = entry.viewerQueue.slice();
+    entry.viewerQueue = [];
+    return queued;
+  }
+  const queued = entry.piQueue.slice();
+  entry.piQueue = [];
+  return queued;
+}
+
+function pullAllPiSignals() {
+  purgePreviewConnections();
+  const out = [];
+  const expiresBefore = Date.now() - LIVE_PREVIEW_TTL_MS;
+  for (const [connectionId, entry] of livePreviewConnections.entries()) {
+    entry.piQueue = entry.piQueue.filter((item) => Number(item.createdAtMs || 0) >= expiresBefore);
+    if (!entry.piQueue.length) continue;
+    entry.updatedAtMs = Date.now();
+    entry.staleAtMs = Date.now() + LIVE_PREVIEW_STALE_TIMEOUT_MS;
+    out.push(...entry.piQueue.map((signal) => ({ ...signal, connectionId })));
+    entry.piQueue = [];
+  }
+  return out;
+}
+
+function previewDiagnosticsSummary() {
+  purgePreviewConnections();
+  let waitingViewer = 0;
+  let participant = 0;
+  let host = 0;
+  for (const entry of livePreviewConnections.values()) {
+    if (entry.role === 'participant') participant += 1;
+    else if (entry.role === 'host') host += 1;
+    else waitingViewer += 1;
+  }
+  return {
+    activeViewers: livePreviewConnections.size,
+    waitingViewer,
+    participant,
+    host,
+    maxViewers: LIVE_PREVIEW_MAX_VIEWERS,
+    perClientMax: LIVE_PREVIEW_MAX_PER_CLIENT,
+  };
+}
 
 function liveRequestIp(req) {
   return cleanString(String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0], 80);
@@ -1152,6 +1372,11 @@ setInterval(() => {
       console.log('[relay] GC removed empty session:', sid);
     }
   }
+  purgePreviewConnections();
+  const staleRateKeyMs = Date.now() - (LIVE_PREVIEW_RATE_LIMIT_WINDOW_MS * 2);
+  for (const [key, entry] of livePreviewRateLimit.entries()) {
+    if (Number(entry?.startedAtMs || 0) < staleRateKeyMs) livePreviewRateLimit.delete(key);
+  }
 }, 60_000);
 
 /* =================
@@ -1265,6 +1490,166 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       });
     }
 
+    if (req.method === 'POST' && parsed.pathname === '/api/live/preview/connect') {
+      if (previewRateLimitExceeded(req)) {
+        return sendJson(res, 429, { ok: false, error: 'preview_rate_limited' }, c);
+      }
+      try {
+        const body = await readBody(req, 16_384);
+        const role = previewRoleFromValue(body?.role || 'waiting_viewer');
+        const sessionId = cleanString(body?.sessionId || '', 120);
+        const diagnosticsAllowed = role === 'host';
+        const clientKey = sha256(`${liveRequestIp(req)}:${cleanString(body?.clientTag || req.headers['user-agent'] || '', 160)}`);
+        purgePreviewConnections();
+        if (previewClientOpenConnectionCount(clientKey) >= LIVE_PREVIEW_MAX_PER_CLIENT) {
+          return sendJson(res, 429, { ok: false, error: 'preview_client_limit_reached' }, c);
+        }
+        if (previewActiveViewerCount() >= LIVE_PREVIEW_MAX_VIEWERS) {
+          return sendJson(res, 429, { ok: false, error: 'preview_capacity_reached' }, c);
+        }
+        const connectionId = genId();
+        previewConnection(connectionId, { role, sessionId, clientKey, diagnosticsAllowed });
+        const token = createPreviewToken({ connectionId, role, sessionId });
+        return sendJson(res, 201, {
+          ok: true,
+          connectionId,
+          role,
+          token,
+          tokenExpiresInSec: LIVE_PREVIEW_TOKEN_TTL_SEC,
+          staleTimeoutMs: LIVE_PREVIEW_STALE_TIMEOUT_MS,
+          iceServers: livePreviewIceServers(),
+          serverTime: new Date().toISOString(),
+        }, { ...c, 'Cache-Control': 'no-store' });
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
+    }
+
+    if (req.method === 'POST' && parsed.pathname === '/api/live/preview/signal') {
+      try {
+        const body = await readBody(req, 64_000);
+        if (previewRateLimitExceeded(req)) {
+          return sendJson(res, 429, { ok: false, error: 'preview_rate_limited' }, c);
+        }
+        const connectionId = cleanString(body?.connectionId || '', 120);
+        const to = cleanString(body?.to || '', 20).toLowerCase();
+        const type = cleanString(body?.type || '', 40);
+        const entry = livePreviewConnections.get(connectionId);
+        if (!connectionId || !entry) {
+          return sendJson(res, 404, { ok: false, error: 'preview_connection_not_found' }, c);
+        }
+        if (!type || (to !== 'viewer' && to !== 'pi')) {
+          return sendJson(res, 400, { ok: false, error: 'invalid_preview_signal' }, c);
+        }
+        if (to === 'viewer') {
+          if (!RPI_DEVICE_TOKEN) return sendJson(res, 503, { ok: false, error: 'rpi_device_token_not_configured' }, c);
+          const bearerToken = parseBearerToken(req);
+          if (!bearerToken || bearerToken !== RPI_DEVICE_TOKEN) {
+            return sendJson(res, 401, { ok: false, error: 'unauthorized_device' }, c);
+          }
+        } else {
+          const token = cleanString(body?.token || '', 1200);
+          const verified = verifyPreviewToken(token, {
+            connectionId,
+            role: entry.role,
+            sessionId: entry.sessionId || '',
+          });
+          if (!verified) return sendJson(res, 401, { ok: false, error: 'invalid_preview_token' }, c);
+          if (entry.closedAtMs) return sendJson(res, 410, { ok: false, error: 'preview_connection_closed' }, c);
+        }
+        const accepted = enqueuePreviewSignal(connectionId, to, { type, data: body?.data || null });
+        if (!accepted) return sendJson(res, 404, { ok: false, error: 'preview_connection_not_found' }, c);
+        return sendJson(res, 200, { ok: true, serverTime: new Date().toISOString() }, { ...c, 'Cache-Control': 'no-store' });
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
+    }
+
+    if (req.method === 'GET' && parsed.pathname === '/api/live/preview/poll') {
+      if (previewRateLimitExceeded(req)) {
+        return sendJson(res, 429, { ok: false, error: 'preview_rate_limited' }, c);
+      }
+      const role = cleanString(parsed.query?.role || '', 20).toLowerCase();
+      const connectionId = cleanString(parsed.query?.connectionId || '', 120);
+      if (role !== 'viewer' && role !== 'pi') {
+        return sendJson(res, 400, { ok: false, error: 'invalid_preview_poll' }, c);
+      }
+      if (role === 'pi') {
+        if (!RPI_DEVICE_TOKEN) return sendJson(res, 503, { ok: false, error: 'rpi_device_token_not_configured' }, c);
+        const bearerToken = parseBearerToken(req);
+        if (!bearerToken || bearerToken !== RPI_DEVICE_TOKEN) {
+          return sendJson(res, 401, { ok: false, error: 'unauthorized_device' }, c);
+        }
+        const signals = connectionId ? pullPreviewSignals(connectionId, role) : pullAllPiSignals();
+        return sendJson(res, 200, {
+          ok: true,
+          connectionId: connectionId || null,
+          role,
+          signals,
+          serverTime: new Date().toISOString(),
+        }, { ...c, 'Cache-Control': 'no-store' });
+      }
+
+      if (!connectionId) {
+        return sendJson(res, 400, { ok: false, error: 'preview_connection_required' }, c);
+      }
+      const entry = livePreviewConnections.get(connectionId);
+      if (!entry) {
+        return sendJson(res, 404, { ok: false, error: 'preview_connection_not_found' }, c);
+      }
+      const token = cleanString(parsed.query?.token || '', 1200);
+      const verified = verifyPreviewToken(token, {
+        connectionId,
+        role: entry.role,
+        sessionId: entry.sessionId || '',
+      });
+      if (!verified) {
+        return sendJson(res, 401, { ok: false, error: 'invalid_preview_token' }, c);
+      }
+      const signals = pullPreviewSignals(connectionId, role);
+      return sendJson(res, 200, {
+        ok: true,
+        connectionId,
+        role,
+        signals,
+        serverTime: new Date().toISOString(),
+      }, { ...c, 'Cache-Control': 'no-store' });
+    }
+
+    if (req.method === 'POST' && parsed.pathname === '/api/live/preview/disconnect') {
+      try {
+        const body = await readBody(req, 8_192);
+        const connectionId = cleanString(body?.connectionId || '', 120);
+        const entry = connectionId ? livePreviewConnections.get(connectionId) : null;
+        if (entry) {
+          const token = cleanString(body?.token || '', 1200);
+          const verified = verifyPreviewToken(token, {
+            connectionId,
+            role: entry.role,
+            sessionId: entry.sessionId || '',
+          });
+          if (!verified) return sendJson(res, 401, { ok: false, error: 'invalid_preview_token' }, c);
+          closePreviewConnection(connectionId, 'viewer');
+        }
+        return sendJson(res, 200, { ok: true }, { ...c, 'Cache-Control': 'no-store' });
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
+    }
+
+    if (req.method === 'POST' && parsed.pathname === '/api/live/preview/pi/reset') {
+      if (!RPI_DEVICE_TOKEN) return sendJson(res, 503, { ok: false, error: 'rpi_device_token_not_configured' }, c);
+      const bearerToken = parseBearerToken(req);
+      if (!bearerToken || bearerToken !== RPI_DEVICE_TOKEN) {
+        return sendJson(res, 401, { ok: false, error: 'unauthorized_device' }, c);
+      }
+      for (const connectionId of livePreviewConnections.keys()) {
+        closePreviewConnection(connectionId, 'pi_restart');
+      }
+      purgePreviewConnections();
+      return sendJson(res, 200, { ok: true, cleared: true, serverTime: new Date().toISOString() }, { ...c, 'Cache-Control': 'no-store' });
+    }
+
     if (req.method === 'POST' && parsed.pathname === '/api/live/device/status') {
       if (!RPI_DEVICE_TOKEN) {
         return sendJson(res, 503, { ok: false, error: 'rpi_device_token_not_configured' }, c);
@@ -1283,6 +1668,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           ok: true,
           status: publicLiveState(nextState),
           installationStatus: installationStatus.status,
+          previewDiagnostics: previewDiagnosticsSummary(),
           serverTime: new Date().toISOString(),
         }, c);
       } catch (error) {

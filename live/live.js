@@ -32,6 +32,7 @@ const elements = Object.fromEntries([
   'authPanel','registrationTitle','registrationLead','availabilityPanel','availabilityTitle','availabilityText',
   'availabilityActions','notifyBellBtn','notifyBellLabel','availabilityRetryBtn','joinPanel','notificationModal',
   'notificationMessage','notificationConfirmBtn','notificationCancelBtn',
+  'miniProgramPreview','miniPreviewVideo','previewVideo',
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = {
@@ -59,7 +60,49 @@ const state = {
   firestoreSdk: null,
   authReady: false,
   notifyInstallationOnline: false,
+  previewClient: null,
+  previewStats: { fps: 0, receiveFps: 0, framesDecoded: 0, framesReceived: 0, jitter: 0, frameAgeMs: 0 },
 };
+
+async function ensurePreviewClient({ role = 'waiting_viewer', sessionId = '' } = {}) {
+  const requestedRole = String(role || 'waiting_viewer');
+  const requestedSessionId = String(sessionId || '');
+  if (state.previewClient && state.previewClient.role === requestedRole && state.previewClient.sessionId === requestedSessionId) {
+    return state.previewClient;
+  }
+  if (state.previewClient) {
+    state.previewClient.stop?.();
+    state.previewClient = null;
+  }
+  try {
+    const { PreviewClient } = await import('./broadcast/preview_client.js');
+    state.previewClient = new PreviewClient({
+      relayOrigin: state.relayOrigin,
+      role: requestedRole,
+      sessionId: requestedSessionId,
+      onStream(stream) {
+        if (!stream) return;
+        if (elements.previewVideo) {
+          elements.previewVideo.srcObject = stream;
+          elements.previewVideo.muted = true;
+          elements.previewVideo.play().catch(() => {});
+        }
+        if (elements.miniPreviewVideo) {
+          elements.miniPreviewVideo.srcObject = stream;
+          elements.miniPreviewVideo.muted = true;
+          elements.miniPreviewVideo.play().catch(() => {});
+        }
+      },
+      onStats(stats) {
+        state.previewStats = stats;
+      },
+    });
+    await state.previewClient.start();
+  } catch {
+    state.previewClient = null;
+  }
+  return state.previewClient;
+}
 
 function resolveRelayOrigin() {
   const params = new URLSearchParams(window.location.search);
@@ -600,6 +643,7 @@ async function registerWithGoogle() {
 
 async function activateReservation(reservation) {
   clearQueue();
+  await ensurePreviewClient({ role: 'participant', sessionId: reservation?.session?.sessionId || '' });
   state.session = { ...reservation.session, token: reservation.token };
   const { ParticipantSession } = await import('./live_session.js');
   state.participantSession = new ParticipantSession({
@@ -677,6 +721,9 @@ function renderStatus(payload) {
       setFormMessage(accepting ? `Ready for a ${formatTurnDuration(liveTurnDurationSeconds())} turn.` : 'Come back later.', !accepting);
     }
   }
+
+  const showMiniPreview = !state.session;
+  setHidden(elements.miniProgramPreview, !showMiniPreview);
 }
 
 function flashGestureTrigger() {
@@ -692,6 +739,8 @@ function enterActiveUi(session) {
   setHidden(elements.stopSessionBtn, false);
   const flag = countryFlag(session.countryCode);
   elements.participantBadge.textContent = flag ? `${session.nickname} ${flag}` : session.nickname;
+  setHidden(elements.miniProgramPreview, true);
+  setHidden(elements.previewVideo, false);
   startCountdown();
 }
 
@@ -711,6 +760,9 @@ function resetUi(message = 'Session ended. You can start another turn when the i
   state.session = null;
   state.participantSession = null;
   setFormMessage(message);
+  setHidden(elements.miniProgramPreview, false);
+  setHidden(elements.previewVideo, true);
+  ensurePreviewClient({ role: 'waiting_viewer', sessionId: '' }).catch(() => {});
   refreshStatus();
   if (offerDonation) showDonationPrompt();
 }
@@ -880,7 +932,10 @@ async function initialize() {
     if (event.key === 'Escape' && !elements.donationModal.classList.contains('hidden')) hideDonationPrompt();
     else if (event.key === 'Escape' && state.participantSession) endSession(true, undefined, true);
   });
-  window.addEventListener('pagehide', () => state.participantSession?.stop({ notifyRelay: true }));
+  window.addEventListener('pagehide', () => {
+    state.participantSession?.stop({ notifyRelay: true });
+    state.previewClient?.stop?.();
+  });
 
   try {
     state.bootstrap = await api('/api/live/bootstrap');
@@ -893,6 +948,9 @@ async function initialize() {
   } catch {
     await setupGoogleRegistration({});
   }
+  await ensurePreviewClient({ role: 'waiting_viewer', sessionId: '' });
+  setHidden(elements.previewVideo, true);
+  setHidden(elements.miniProgramPreview, false);
   await refreshStatus();
   window.setInterval(refreshStatus, STATUS_POLL_MS);
 }
