@@ -7,6 +7,9 @@ const DEFAULT_YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/channel/UCequCs51Hu
 const DEFAULT_YOUTUBE_VIDEOS_URL = `${DEFAULT_YOUTUBE_CHANNEL_URL}/videos`;
 const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/midimyface/';
 const TERMS_ACCEPTED_STORAGE_KEY = 'mmf_live_terms_accepted_v1';
+const INSTALLATION_STATUS_COLLECTION = 'installation';
+const INSTALLATION_STATUS_DOCUMENT = 'status';
+const USER_PROFILE_COLLECTION = 'users';
 const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 10;
 const BLOCKED_NICKNAME_TERMS = [
@@ -26,13 +29,19 @@ const elements = Object.fromEntries([
   'youtubeLivePanel','youtubeLiveFrame','youtubeSoundBtn','donationModal','donationAmounts','dismissDonationBtn',
   'venmoDonateLink','modalPaypalLink','modalVenmoLink','youtubeChannelLink','lastJamLink','youtubeFallback',
   'termsConsent','googleAuthBtn','googleAuthLabel','authMessage','queueCard','queuePosition','queueEstimate',
-  'authPanel',
+  'authPanel','registrationTitle','registrationLead','availabilityPanel','availabilityTitle','availabilityText',
+  'availabilityActions','notifyBellBtn','notifyBellLabel','availabilityRetryBtn','joinPanel','notificationModal',
+  'notificationMessage','notificationConfirmBtn','notificationCancelBtn',
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = {
   relayOrigin: resolveRelayOrigin(),
   bootstrap: null,
   status: null,
+  availabilityState: 'checking',
+  availabilityReason: '',
+  installationStatusUnsubscribe: null,
+  userPreferenceUnsubscribe: null,
   session: null,
   participantSession: null,
   countdownTimer: null,
@@ -46,7 +55,10 @@ const state = {
   authUser: null,
   authToken: null,
   firebaseAuth: null,
+  firestore: null,
+  firestoreSdk: null,
   authReady: false,
+  notifyInstallationOnline: false,
 };
 
 function resolveRelayOrigin() {
@@ -117,6 +129,160 @@ function updateNicknameFieldState() {
 
 function setHidden(node, hidden) {
   node?.classList.toggle('hidden', hidden);
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function setAvailabilityState(nextState, reason = '') {
+  state.availabilityState = nextState;
+  state.availabilityReason = reason;
+  document.body.classList.toggle('availability-online', nextState === 'online');
+  setHidden(elements.joinPanel, nextState !== 'online');
+  setHidden(elements.availabilityPanel, nextState === 'online');
+  setHidden(elements.availabilityRetryBtn, nextState !== 'error');
+
+  if (nextState === 'checking') {
+    elements.statusDot.classList.remove('online');
+    elements.machineStatus.textContent = 'Checking installation…';
+    elements.machineMessage.textContent = '';
+    elements.availabilityTitle.textContent = 'Checking installation…';
+    elements.availabilityText.textContent = '';
+  } else if (nextState === 'offline') {
+    elements.statusDot.classList.remove('online');
+    elements.machineStatus.textContent = 'Installation Offline';
+    elements.machineMessage.textContent = '';
+    elements.availabilityTitle.textContent = 'Installation Offline';
+    elements.availabilityText.textContent = 'Come back later.';
+  } else if (nextState === 'error') {
+    elements.statusDot.classList.remove('online');
+    elements.machineStatus.textContent = 'Connection error';
+    elements.machineMessage.textContent = '';
+    elements.availabilityTitle.textContent = 'Connection error';
+    elements.availabilityText.textContent = reason || 'Please try again.';
+  } else {
+    elements.statusDot.classList.add('online');
+    elements.machineStatus.textContent = 'Installation Ready';
+    elements.machineMessage.textContent = '';
+  }
+
+  renderNotificationUi();
+  setRegistrationGate(state.authUser);
+}
+
+function updateAuthPanelCopy() {
+  if (state.availabilityState === 'offline') {
+    elements.registrationTitle.textContent = 'INSTALLATION OFFLINE';
+    elements.registrationLead.textContent = 'Come back later.';
+    return;
+  }
+  if (state.availabilityState === 'checking') {
+    elements.registrationTitle.textContent = 'CHECKING INSTALLATION…';
+    elements.registrationLead.textContent = 'Please wait.';
+    return;
+  }
+  if (state.availabilityState === 'error') {
+    elements.registrationTitle.textContent = 'CONNECTION ERROR';
+    elements.registrationLead.textContent = 'Please try again.';
+    return;
+  }
+  elements.registrationTitle.textContent = 'REGISTER TO JOIN';
+  elements.registrationLead.textContent = 'Create a free account before entering the instrument queue.';
+}
+
+function renderNotificationUi() {
+  const showBell = state.availabilityState === 'offline' && Boolean(state.authUser);
+  setHidden(elements.notifyBellBtn, !showBell);
+  setHidden(elements.notifyBellLabel, !showBell);
+  if (!showBell) {
+    elements.notifyBellBtn.classList.remove('active');
+    elements.notifyBellBtn.setAttribute('aria-pressed', 'false');
+    return;
+  }
+  elements.notifyBellBtn.classList.toggle('active', state.notifyInstallationOnline);
+  elements.notifyBellBtn.setAttribute('aria-pressed', state.notifyInstallationOnline ? 'true' : 'false');
+}
+
+function closeNotificationPrompt() {
+  setHidden(elements.notificationModal, true);
+}
+
+function openNotificationPrompt() {
+  setHidden(elements.notificationModal, false);
+}
+
+async function setNotificationPreference(enabled) {
+  if (!state.authUser || !state.firestore || !state.firestoreSdk) return;
+  const { doc, setDoc, serverTimestamp } = state.firestoreSdk;
+  await setDoc(doc(state.firestore, USER_PROFILE_COLLECTION, state.authUser.uid), {
+    email: state.authUser.email || '',
+    displayName: state.authUser.displayName || null,
+    notifyInstallationOnline: enabled === true,
+    notificationPreferenceUpdatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+async function ensureUserDocument(user) {
+  if (!user || !state.firestore || !state.firestoreSdk) return;
+  const { doc, getDoc, setDoc, serverTimestamp } = state.firestoreSdk;
+  const ref = doc(state.firestore, USER_PROFILE_COLLECTION, user.uid);
+  const snapshot = await getDoc(ref).catch(() => null);
+  const payload = {
+    email: user.email || '',
+    displayName: user.displayName || null,
+  };
+  if (!snapshot?.exists?.() || typeof snapshot.data()?.notifyInstallationOnline !== 'boolean') {
+    payload.notifyInstallationOnline = false;
+    payload.notificationPreferenceUpdatedAt = serverTimestamp();
+  }
+  await setDoc(ref, payload, { merge: true });
+}
+
+function subscribeUserPreference(user) {
+  state.userPreferenceUnsubscribe?.();
+  state.userPreferenceUnsubscribe = null;
+  state.notifyInstallationOnline = false;
+  renderNotificationUi();
+  if (!user || !state.firestore || !state.firestoreSdk) return;
+  const { doc, onSnapshot } = state.firestoreSdk;
+  state.userPreferenceUnsubscribe = onSnapshot(doc(state.firestore, USER_PROFILE_COLLECTION, user.uid), (snapshot) => {
+    const data = snapshot.data();
+    state.notifyInstallationOnline = data?.notifyInstallationOnline === true;
+    renderNotificationUi();
+  }, () => {
+    state.notifyInstallationOnline = false;
+    renderNotificationUi();
+  });
+}
+
+function applyInstallationStatusSnapshot(snapshot) {
+  if (!snapshot?.exists?.()) {
+    setAvailabilityState('offline');
+    return;
+  }
+  const data = snapshot.data();
+  if (!isPlainObject(data) || data.online !== true) {
+    setAvailabilityState('offline');
+    return;
+  }
+  setAvailabilityState('online');
+}
+
+function restartInstallationStatusListener() {
+  state.installationStatusUnsubscribe?.();
+  state.installationStatusUnsubscribe = null;
+  if (!state.firestore || !state.firestoreSdk) {
+    setAvailabilityState('error', 'Please try again.');
+    return;
+  }
+  const { doc, onSnapshot } = state.firestoreSdk;
+  setAvailabilityState('checking');
+  state.installationStatusUnsubscribe = onSnapshot(
+    doc(state.firestore, INSTALLATION_STATUS_COLLECTION, INSTALLATION_STATUS_DOCUMENT),
+    applyInstallationStatusSnapshot,
+    () => setAvailabilityState('error', 'Please try again.'),
+  );
 }
 
 function safeExternalUrl(value, allowedDomains, fallback) {
@@ -343,9 +509,11 @@ function clearQueue() {
 
 function setRegistrationGate(user = null) {
   const registered = Boolean(user);
-  document.body.classList.toggle('auth-required', !registered);
-  setHidden(elements.authPanel, registered);
-  if (!registered) elements.startSessionBtn.disabled = true;
+  const showGate = !registered && (state.availabilityState === 'online' || state.availabilityState === 'offline');
+  document.body.classList.toggle('auth-required', showGate);
+  setHidden(elements.authPanel, !showGate);
+  updateAuthPanelCopy();
+  if (state.availabilityState !== 'online') elements.startSessionBtn.disabled = true;
 }
 
 async function setupGoogleRegistration(publicConfig) {
@@ -353,21 +521,26 @@ async function setupGoogleRegistration(publicConfig) {
   const firebaseConfig = publicConfig?.firebase || {};
   const requiredConfig = ['apiKey', 'authDomain', 'projectId', 'appId'];
   const validConfig = requiredConfig.every((key) => typeof firebaseConfig[key] === 'string' && firebaseConfig[key].trim());
-  if (!authConfig.enabled || !authConfig.firebaseConfigured || !validConfig) {
+  if (!validConfig) {
     state.authReady = false;
     elements.googleAuthBtn.disabled = true;
-    elements.authMessage.textContent = 'Registration is required, but Firebase is not configured on Render yet.';
+    elements.authMessage.textContent = 'Secure registration is temporarily unavailable. Please try again later.';
     setRegistrationGate(null);
+    setAvailabilityState('error', 'Please try again.');
     return;
   }
   try {
-    const [{ initializeApp }, authSdk] = await Promise.all([
+    const [{ initializeApp }, authSdk, firestoreSdk] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js'),
     ]);
     const app = initializeApp(firebaseConfig);
     state.firebaseAuth = { auth: authSdk.getAuth(app), authSdk };
-    state.authReady = true;
+    state.firestore = firestoreSdk.getFirestore(app);
+    state.firestoreSdk = firestoreSdk;
+    state.authReady = Boolean(authConfig.enabled && authConfig.firebaseConfigured);
+    restartInstallationStatusListener();
     authSdk.onAuthStateChanged(state.firebaseAuth.auth, async (user) => {
       if (user && localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) !== 'true') {
         await authSdk.signOut(state.firebaseAuth.auth);
@@ -377,6 +550,12 @@ async function setupGoogleRegistration(publicConfig) {
       }
       state.authUser = user || null;
       state.authToken = user ? await user.getIdToken() : null;
+      if (user) {
+        await ensureUserDocument(user).catch(() => {});
+        subscribeUserPreference(user);
+      } else {
+        subscribeUserPreference(null);
+      }
       elements.googleAuthLabel.textContent = user ? `SIGN OUT · ${user.displayName || user.email}` : 'REGISTER FREE';
       elements.googleAuthBtn.disabled = user ? false : !state.authReady || !elements.termsConsent.checked;
       elements.authMessage.textContent = user
@@ -389,6 +568,7 @@ async function setupGoogleRegistration(publicConfig) {
     elements.googleAuthBtn.disabled = true;
     elements.authMessage.textContent = 'Secure registration is temporarily unavailable. Please try again later.';
     setRegistrationGate(null);
+    setAvailabilityState('error', 'Please try again.');
   }
 }
 
@@ -470,10 +650,16 @@ function renderStatus(payload) {
   state.status = payload.status || null;
   const machine = payload.status?.machine || {};
   const accepting = Boolean(machine.alive && machine.acceptingParticipants);
-  elements.statusDot.classList.toggle('online', Boolean(machine.alive));
-  elements.machineStatus.textContent = machine.alive ? (accepting ? 'Installation ready' : 'Installation online') : 'Installation offline — come back later.';
-  elements.machineMessage.textContent = machine.message ? `· ${machine.message}` : '';
   renderDonationAmounts(payload.status?.donations?.suggestedAmounts);
+
+  if (state.availabilityState !== 'online') {
+    elements.startSessionBtn.disabled = true;
+    return;
+  }
+
+  elements.statusDot.classList.toggle('online', Boolean(machine.alive));
+  elements.machineStatus.textContent = machine.alive ? (accepting ? 'Installation Ready' : 'Installation Online') : 'Installation Offline';
+  elements.machineMessage.textContent = machine.message ? `· ${machine.message}` : '';
 
   if (!state.session && !state.queueToken) {
     const activeSessions = Array.isArray(payload.sessions) ? payload.sessions : (payload.session ? [payload.session] : []);
@@ -561,6 +747,10 @@ function friendlyStartError(error) {
 async function startSession(event) {
   event.preventDefault();
   if (state.participantSession) return;
+  if (state.availabilityState !== 'online') {
+    setAvailabilityState('offline');
+    return;
+  }
   if (!state.authUser || !state.authToken) {
     setRegistrationGate(null);
     elements.authMessage.textContent = 'Register with Google before joining the instrument.';
@@ -632,15 +822,16 @@ async function refreshStatus() {
   try {
     renderStatus(await api('/api/live/status'));
   } catch {
-    elements.statusDot.classList.remove('online');
-    elements.machineStatus.textContent = 'Installation offline — come back later.';
-    elements.machineMessage.textContent = '';
-    if (!state.session) elements.startSessionBtn.disabled = true;
+    if (state.availabilityState === 'online' && !state.session) {
+      elements.startSessionBtn.disabled = true;
+      setFormMessage('Could not refresh live status. Please try again.', true);
+    }
   }
 }
 
 async function initialize() {
   state.deviceId = resolveDeviceId();
+  setAvailabilityState('checking');
   setRegistrationGate(null);
   elements.termsConsent.checked = localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) === 'true';
   buildCountryOptions();
@@ -660,8 +851,25 @@ async function initialize() {
     elements.googleAuthBtn.disabled = state.authUser ? false : !state.authReady || !elements.termsConsent.checked;
   });
   elements.googleAuthBtn.addEventListener('click', registerWithGoogle);
+  elements.notifyBellBtn.addEventListener('click', async () => {
+    if (!state.authUser) return;
+    if (state.notifyInstallationOnline) {
+      await setNotificationPreference(false);
+      return;
+    }
+    openNotificationPrompt();
+  });
+  elements.notificationConfirmBtn.addEventListener('click', async () => {
+    await setNotificationPreference(true);
+    closeNotificationPrompt();
+  });
+  elements.notificationCancelBtn.addEventListener('click', closeNotificationPrompt);
+  elements.availabilityRetryBtn.addEventListener('click', restartInstallationStatusListener);
   elements.donationModal.addEventListener('click', (event) => {
     if (event.target === elements.donationModal) hideDonationPrompt();
+  });
+  elements.notificationModal.addEventListener('click', (event) => {
+    if (event.target === elements.notificationModal) closeNotificationPrompt();
   });
   elements.youtubeSoundBtn.addEventListener('click', () => {
     state.youtubePlayer?.unMute?.();
@@ -677,9 +885,6 @@ async function initialize() {
   try {
     state.bootstrap = await api('/api/live/bootstrap');
     configurePublicLinks(state.bootstrap);
-    if (!state.session && !state.queueToken && !state.status?.machine?.alive) {
-      setFormMessage(`Ready for a ${formatTurnDuration(liveTurnDurationSeconds(state.bootstrap))} turn.`);
-    }
   } catch {
     configurePublicLinks({});
   }

@@ -283,6 +283,50 @@
     .google-button svg { width:24px; height:24px; background:#fff; }
     .auth-alt { margin:10px 0 0; color:var(--muted); font-size:12px; line-height:1.35; text-align:center; }
     #authMessage { margin:0; color:var(--muted); font-size:12px; line-height:1.35; text-align:center; }
+    .availability-panel { display:grid; gap:14px; justify-items:center; text-align:center; padding:20px 12px 10px; }
+    .availability-panel h2 { margin:0; color:var(--green-bright); font-size:clamp(28px,8vw,42px); letter-spacing:.05em; }
+    .availability-panel p { margin:0; color:#e4e7e5; font-size:15px; line-height:1.45; }
+    .availability-actions { display:flex; align-items:center; justify-content:center; gap:12px; min-height:64px; }
+    .notify-bell {
+      width:64px;
+      min-height:64px;
+      display:grid;
+      place-items:center;
+      padding:0;
+      font-size:28px;
+      line-height:1;
+      color:#111116;
+      background:#d8d8d8;
+    }
+    .notify-bell.active {
+      color:#fff;
+      background:#5548c8;
+      border-color:#c8c3ff #27205f #27205f #c8c3ff;
+      box-shadow:4px 4px 0 #000,0 0 18px rgba(85,72,200,.34);
+    }
+    .notify-bell-label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+    .availability-retry { min-width:160px; }
+    .notification-modal {
+      position:fixed;
+      inset:0;
+      z-index:195;
+      display:grid;
+      place-items:center;
+      padding:20px;
+      background:rgba(0,0,0,.88);
+    }
+    .notification-card {
+      width:min(100%,420px);
+      display:grid;
+      gap:16px;
+      padding:22px;
+      border:4px solid var(--green);
+      background:linear-gradient(180deg,var(--panel),#050705);
+      box-shadow:0 0 0 4px #000,8px 8px 0 rgba(0,0,0,.72);
+      text-align:center;
+    }
+    .notification-card p { margin:0; color:#e4e7e5; font-size:15px; line-height:1.45; }
+    .notification-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .queue-card { display:grid; gap:7px; margin-top:14px; padding:14px; border:3px solid var(--amber); background:#17120a; color:#fff; text-align:center; box-shadow:4px 4px 0 #000; }
     .queue-card strong { color:var(--amber); }
     .youtube-live,.youtube-fallback { width:min(94vw,760px); margin:0 auto 18px; color:#fff; background:#050505; border:3px solid rgba(124,255,79,.7); overflow:hidden; box-shadow:4px 4px 0 #000; }
@@ -331,7 +375,7 @@
         <div id="authPanel" class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="registrationTitle">
           <div class="auth-gate-card">
             <h2 id="registrationTitle">REGISTER TO JOIN</h2>
-            <p>Create a free account before entering the instrument queue.</p>
+            <p id="registrationLead">Create a free account before entering the instrument queue.</p>
             <label class="terms-check">
               <input id="termsConsent" type="checkbox">
               <span>I have read and accept the <a class="terms-link" href="./terms.html" target="_blank" rel="noopener">MIDImyFACE Participation Terms and Privacy Notice</a>.</span>
@@ -344,22 +388,33 @@
             <p id="authMessage">Connecting to secure registration…</p>
           </div>
         </div>
-        <h2>JOIN</h2>
-        <div class="identity-grid">
-          <label class="field">Nickname
-            <input id="nicknameInput" name="nickname" type="text" maxlength="10" minlength="2" autocomplete="nickname" required placeholder="Your stage name" aria-describedby="nicknameHelp">
-            <span id="nicknameHelp" class="field-note">2–10 characters. Respectful nicknames only.</span>
-          </label>
-          <label class="field">Country
-            <select id="countrySelect" name="country" required><option value="">Choose country</option></select>
-          </label>
+        <div id="availabilityPanel" class="availability-panel" aria-live="polite">
+          <h2 id="availabilityTitle">Checking installation…</h2>
+          <p id="availabilityText"></p>
+          <div id="availabilityActions" class="availability-actions">
+            <button id="notifyBellBtn" class="notify-bell hidden" type="button" aria-label="Toggle notification preference" aria-pressed="false">🔔</button>
+            <button id="availabilityRetryBtn" class="availability-retry hidden" type="button">Retry</button>
+          </div>
+          <div id="notifyBellLabel" class="notify-bell-label hidden">Notify me when it is available again</div>
         </div>
-        <button id="startSessionBtn" class="snes-button primary" type="submit">START</button>
-        <div id="formMessage" aria-live="polite">Checking the installation…</div>
-        <div id="queueCard" class="queue-card hidden" aria-live="polite">
-          <strong>YOU ARE IN THE QUEUE</strong>
-          <span id="queuePosition">Position —</span>
-          <span id="queueEstimate">Estimated wait —</span>
+        <div id="joinPanel" class="hidden">
+          <h2>JOIN</h2>
+          <div class="identity-grid">
+            <label class="field">Nickname
+              <input id="nicknameInput" name="nickname" type="text" maxlength="10" minlength="2" autocomplete="nickname" required placeholder="Your stage name" aria-describedby="nicknameHelp">
+              <span id="nicknameHelp" class="field-note">2–10 characters. Respectful nicknames only.</span>
+            </label>
+            <label class="field">Country
+              <select id="countrySelect" name="country" required><option value="">Choose country</option></select>
+            </label>
+          </div>
+          <button id="startSessionBtn" class="snes-button primary" type="submit">START</button>
+          <div id="formMessage" aria-live="polite">Checking the installation…</div>
+          <div id="queueCard" class="queue-card hidden" aria-live="polite">
+            <strong>YOU ARE IN THE QUEUE</strong>
+            <span id="queuePosition">Position —</span>
+            <span id="queueEstimate">Estimated wait —</span>
+          </div>
         </div>
       </form>
     </section>
@@ -397,6 +452,16 @@
   </section>
 
   <button id="stopSessionBtn" class="hidden" type="button">End session</button>
+
+  <div id="notificationModal" class="notification-modal hidden" role="dialog" aria-modal="true" aria-labelledby="notificationMessage">
+    <div class="notification-card">
+      <p id="notificationMessage">Would you like to get a notification when the installation is available again?</p>
+      <div class="notification-actions">
+        <button id="notificationConfirmBtn" type="button">Yes</button>
+        <button id="notificationCancelBtn" type="button">No</button>
+      </div>
+    </div>
+  </div>
 
   <div id="donationModal" class="donation-modal hidden" role="dialog" aria-modal="true" aria-labelledby="donationTitle">
     <div class="donation-card">

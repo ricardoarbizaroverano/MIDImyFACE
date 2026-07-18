@@ -55,6 +55,8 @@ async function run() {
     body: JSON.stringify({ machine: { alive: true, acceptingParticipants: true, mode: 'hybrid' } }),
   });
   assert.equal(result.response.status, 200);
+  assert.equal(result.body.installationStatus.online, true);
+  assert.equal(typeof result.body.installationStatus.notificationId, 'string');
 
   result = await request('/api/live/session/start', {
     method: 'POST',
@@ -225,6 +227,14 @@ async function run() {
   assert.equal(result.body.active, false);
   assert.deepEqual(result.body.gestures, {});
   assert.deepEqual(result.body.triggerCounts, {});
+
+  result = await request('/api/live/device/status', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${deviceToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ machine: { alive: false, acceptingParticipants: false, mode: 'offline' } }),
+  });
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.installationStatus.online, false);
   console.log('live session integration test passed');
 }
 

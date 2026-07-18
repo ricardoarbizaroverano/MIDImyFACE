@@ -10,6 +10,8 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const { cert, getApps, initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
+const { notifyInstallationOnline } = require('./notification-service');
 
 function loadLocalEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -81,6 +83,8 @@ const FIREBASE_ADMIN_PROJECT_ID      = configuredEnv('FIREBASE_ADMIN_PROJECT_ID'
 const FIREBASE_ADMIN_CLIENT_EMAIL    = configuredEnv('FIREBASE_ADMIN_CLIENT_EMAIL');
 const FIREBASE_ADMIN_PRIVATE_KEY_RAW = configuredEnv('FIREBASE_ADMIN_PRIVATE_KEY');
 const LIVE_MASTER_EMAILS_RAW         = configuredEnv('LIVE_MASTER_EMAILS');
+const INSTALLATION_STATUS_COLLECTION = 'installation';
+const INSTALLATION_STATUS_DOCUMENT   = 'status';
 const DEFAULT_LIVE_SESSION_DURATION_SECONDS = 60;
 const LIVE_SESSION_DURATION_SECONDS  = Math.max(15, Math.min(Number(process.env.LIVE_SESSION_DURATION_SECONDS || DEFAULT_LIVE_SESSION_DURATION_SECONDS), 300));
 const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.LIVE_COOLDOWN_MINUTES || 30), 240));
@@ -287,6 +291,11 @@ function firebaseAdminConfigured() {
 
 let firebaseAuthVerifierInitialized = false;
 let firebaseAuthVerifier = null;
+let firebaseAdminAppInitialized = false;
+let firebaseAdminApp = null;
+let firebaseFirestoreInitialized = false;
+let firebaseFirestoreDb = null;
+let testInstallationStatus = null;
 
 function testFirebaseAuthVerifier() {
   if (NODE_ENV !== 'test' || !process.env.LIVE_FIREBASE_TEST_TOKENS_JSON) return null;
@@ -313,24 +322,175 @@ function getFirebaseAuthVerifier() {
     firebaseAuthVerifier = testVerifier;
     return firebaseAuthVerifier;
   }
-  if (!firebaseAdminConfigured()) return null;
+  const app = getFirebaseAdminApp();
+  if (!app) return null;
 
   try {
-    const appName = 'midimyface-live-relay';
-    const privateKey = FIREBASE_ADMIN_PRIVATE_KEY_RAW.replace(/\\n/g, '\n');
-    const app = getApps().find((candidate) => candidate.name === appName) || initializeApp({
-      credential: cert({
-        projectId: FIREBASE_ADMIN_PROJECT_ID,
-        clientEmail: FIREBASE_ADMIN_CLIENT_EMAIL,
-        privateKey,
-      }),
-    }, appName);
     firebaseAuthVerifier = getAuth(app);
   } catch {
     console.warn('[live-auth] Firebase Admin initialization failed; check the backend environment variables.');
     firebaseAuthVerifier = null;
   }
   return firebaseAuthVerifier;
+}
+
+function getFirebaseAdminApp() {
+  if (firebaseAdminAppInitialized) return firebaseAdminApp;
+  firebaseAdminAppInitialized = true;
+  if (!firebaseAdminConfigured()) return null;
+
+  try {
+    const appName = 'midimyface-live-relay';
+    const privateKey = FIREBASE_ADMIN_PRIVATE_KEY_RAW.replace(/\\n/g, '\n');
+    firebaseAdminApp = getApps().find((candidate) => candidate.name === appName) || initializeApp({
+      credential: cert({
+        projectId: FIREBASE_ADMIN_PROJECT_ID,
+        clientEmail: FIREBASE_ADMIN_CLIENT_EMAIL,
+        privateKey,
+      }),
+    }, appName);
+  } catch {
+    firebaseAdminApp = null;
+  }
+  return firebaseAdminApp;
+}
+
+function getInstallationStatusStore() {
+  if (firebaseFirestoreInitialized) return firebaseFirestoreDb;
+  firebaseFirestoreInitialized = true;
+
+  if (NODE_ENV === 'test') {
+    firebaseFirestoreDb = {
+      collection() {
+        return {
+          doc() {
+            return {
+              async get() {
+                return {
+                  exists: Boolean(testInstallationStatus),
+                  data: () => testInstallationStatus,
+                };
+              },
+              async set(value) {
+                testInstallationStatus = value;
+              },
+            };
+          },
+        };
+      },
+    };
+    return firebaseFirestoreDb;
+  }
+
+  const app = getFirebaseAdminApp();
+  if (!app) return null;
+  try {
+    firebaseFirestoreDb = getFirestore(app);
+  } catch {
+    firebaseFirestoreDb = null;
+  }
+  return firebaseFirestoreDb;
+}
+
+function normalizeInstallationStatusValue(rawValue, fallback = null) {
+  if (rawValue === null || rawValue === undefined || rawValue === '') return fallback;
+  if (rawValue instanceof Date) return rawValue;
+  if (typeof rawValue?.toDate === 'function') {
+    try {
+      return rawValue.toDate();
+    } catch {
+      return fallback;
+    }
+  }
+  const parsed = new Date(rawValue);
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+}
+
+function serializeInstallationStatus(status) {
+  if (!status || typeof status !== 'object') return null;
+  const startedAt = normalizeInstallationStatusValue(status.startedAt, null);
+  const endedAt = normalizeInstallationStatusValue(status.endedAt, null);
+  const updatedAt = normalizeInstallationStatusValue(status.updatedAt, null);
+  return {
+    online: status.online === true,
+    sessionId: cleanString(status.sessionId || '', 160) || null,
+    notificationId: cleanString(status.notificationId || '', 160) || null,
+    startedAt: startedAt ? startedAt.toISOString() : null,
+    endedAt: endedAt ? endedAt.toISOString() : null,
+    updatedAt: updatedAt ? updatedAt.toISOString() : null,
+  };
+}
+
+async function readInstallationStatusDocument() {
+  const store = getInstallationStatusStore();
+  if (!store) return null;
+  try {
+    const snapshot = await store.collection(INSTALLATION_STATUS_COLLECTION).doc(INSTALLATION_STATUS_DOCUMENT).get();
+    return snapshot.exists ? snapshot.data() : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeInstallationStatusPatch(input, previousStatus = null) {
+  const requested = isPlainObject(input?.installation) ? input.installation : {};
+  const previous = isPlainObject(previousStatus) ? previousStatus : {};
+  const derivedOnline = asBoolean(input?.machine?.alive, false) && asBoolean(input?.machine?.acceptingParticipants, false);
+  const online = Object.prototype.hasOwnProperty.call(requested, 'online') ? requested.online === true : derivedOnline;
+  const previousStartedAt = normalizeInstallationStatusValue(previous.startedAt, null);
+  const requestedStartedAt = normalizeInstallationStatusValue(requested.startedAt, null);
+  const requestedEndedAt = normalizeInstallationStatusValue(requested.endedAt, null);
+  const requestedSessionId = cleanString(requested.sessionId || '', 160) || null;
+  const requestedNotificationId = cleanString(requested.notificationId || '', 160) || null;
+
+  return {
+    online,
+    sessionId: requestedSessionId,
+    notificationId: online ? (requestedNotificationId || genId()) : null,
+    startedAt: online ? (requestedStartedAt || (previous.online === true && previousStartedAt ? previousStartedAt : new Date())) : null,
+    endedAt: online ? null : (requestedEndedAt || new Date()),
+    updatedAt: new Date(),
+  };
+}
+
+async function syncInstallationStatus(input) {
+  const store = getInstallationStatusStore();
+  if (!store) {
+    return { enabled: false, status: null, notification: { enabled: false, queued: 0 } };
+  }
+
+  try {
+    const previous = await readInstallationStatusDocument();
+    const nextStatus = normalizeInstallationStatusPatch(input, previous);
+    await store.collection(INSTALLATION_STATUS_COLLECTION).doc(INSTALLATION_STATUS_DOCUMENT).set({
+      online: nextStatus.online,
+      sessionId: nextStatus.sessionId,
+      notificationId: nextStatus.notificationId,
+      startedAt: nextStatus.startedAt ? Timestamp.fromDate(nextStatus.startedAt) : null,
+      endedAt: nextStatus.endedAt ? Timestamp.fromDate(nextStatus.endedAt) : null,
+      updatedAt: Timestamp.fromDate(nextStatus.updatedAt),
+    });
+
+    let notification = { enabled: false, queued: 0 };
+    if (nextStatus.online && previous?.online !== true) {
+      notification = await notifyInstallationOnline({
+        notificationId: nextStatus.notificationId,
+        sessionId: nextStatus.sessionId,
+        startedAt: nextStatus.startedAt ? nextStatus.startedAt.toISOString() : null,
+      });
+    }
+
+    return {
+      enabled: true,
+      status: serializeInstallationStatus(nextStatus),
+      notification,
+    };
+  } catch (error) {
+    const syncError = new Error(error?.message || 'installation_status_sync_failed');
+    syncError.code = 'installation_status_sync_failed';
+    syncError.detail = error?.message || 'installation_status_sync_failed';
+    throw syncError;
+  }
 }
 
 function firebaseVerificationAvailable() {
@@ -1118,12 +1278,19 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       try {
         const body = await readBody(req, 8_192);
         const nextState = updateLiveState(body, cleanString(body?.updatedBy || 'raspberry-pi', 80) || 'raspberry-pi');
+        const installationStatus = await syncInstallationStatus(body);
         return sendJson(res, 200, {
           ok: true,
           status: publicLiveState(nextState),
+          installationStatus: installationStatus.status,
           serverTime: new Date().toISOString(),
         }, c);
-      } catch {
+      } catch (error) {
+        if (error?.code === 'installation_status_sync_failed') {
+          const payload = { ok: false, error: 'installation_status_sync_failed' };
+          if (NODE_ENV === 'test' && error?.detail) payload.detail = error.detail;
+          return sendJson(res, 503, payload, c);
+        }
         return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
       }
     }
