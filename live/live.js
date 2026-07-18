@@ -282,7 +282,31 @@ function buildCountryOptions() {
 }
 
 function countryFlag(code) {
-  return String(code || '').toUpperCase().replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
+  const normalized = String(code || '').trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(normalized)) return '';
+  return normalized.replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
+}
+
+function liveTurnDurationSeconds(source = state.bootstrap) {
+  const bootstrapDuration = Number(source?.queuePolicy?.turnDurationSeconds);
+  if (Number.isFinite(bootstrapDuration) && bootstrapDuration > 0) return bootstrapDuration;
+  const statusDuration = Number(state.status?.queue?.turnDurationSeconds);
+  if (Number.isFinite(statusDuration) && statusDuration > 0) return statusDuration;
+  return 60;
+}
+
+function formatTurnDuration(seconds) {
+  const safeSeconds = Math.max(1, Math.round(Number(seconds) || 0));
+  if (safeSeconds < 60) return `${safeSeconds}-second`;
+  const minutes = safeSeconds / 60;
+  return Number.isInteger(minutes) && minutes !== 1 ? `${minutes}-minute` : `${safeSeconds}-second`;
+}
+
+function formatSessionCountdown(remainingMs) {
+  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 function resolveDeviceId() {
@@ -464,7 +488,7 @@ function renderStatus(payload) {
     } else {
       elements.participantBadge.textContent = '';
       elements.startSessionBtn.disabled = !accepting || !state.authUser;
-      setFormMessage(accepting ? 'Ready for a 30-second turn.' : 'Come back later.', !accepting);
+      setFormMessage(accepting ? `Ready for a ${formatTurnDuration(liveTurnDurationSeconds())} turn.` : 'Come back later.', !accepting);
     }
   }
 }
@@ -480,7 +504,8 @@ function enterActiveUi(session) {
   setHidden(elements.closeSessionBtn, false);
   setHidden(elements.gestureTriggers, false);
   setHidden(elements.stopSessionBtn, false);
-  elements.participantBadge.textContent = `${session.nickname} ${countryFlag(session.countryCode)}`;
+  const flag = countryFlag(session.countryCode);
+  elements.participantBadge.textContent = flag ? `${session.nickname} ${flag}` : session.nickname;
   startCountdown();
 }
 
@@ -509,7 +534,7 @@ function startCountdown() {
   const update = () => {
     if (!state.session?.expiresAt) return;
     const remaining = Math.max(0, Date.parse(state.session.expiresAt) - Date.now());
-    elements.sessionCountdown.textContent = `${Math.ceil(remaining / 1000)}s`;
+    elements.sessionCountdown.textContent = formatSessionCountdown(remaining);
     if (remaining <= 0) {
       clearInterval(state.countdownTimer);
       state.countdownTimer = null;
@@ -652,6 +677,9 @@ async function initialize() {
   try {
     state.bootstrap = await api('/api/live/bootstrap');
     configurePublicLinks(state.bootstrap);
+    if (!state.session && !state.queueToken && !state.status?.machine?.alive) {
+      setFormMessage(`Ready for a ${formatTurnDuration(liveTurnDurationSeconds(state.bootstrap))} turn.`);
+    }
   } catch {
     configurePublicLinks({});
   }

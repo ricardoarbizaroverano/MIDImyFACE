@@ -11,11 +11,36 @@ export const WINK_HOLD_MS = 250;
 const LANDMARK_SMOOTHING = 0.58;
 export const GESTURE_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent'];
 export const GRID_TRIGGER_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent', 'mouthOpen'];
-const GRID_COLS = 4;
-const GRID_ROWS = 2;
 const MOUTH_GATE_OPEN_PX = 10;
 const MOUTH_GATE_CLOSE_PX = 7;
 const MOUTH_LANDMARKS = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78, 191, 80, 81, 82, 13, 312, 311, 310, 415];
+const GRID_VISUALS = globalThis.MMFPerformanceGridVisuals || {
+  GRID_COLS: 4,
+  GRID_ROWS: 2,
+  FLASH_DURATION_MS: 240,
+  HIT_EFFECT_DURATION_MS: 620,
+  getCellVisual({ index, activeCellIndex = -1, gateOpen = false, flashCellIndex = -1, flashUntil = 0, now = 0 } = {}) {
+    const selected = index === activeCellIndex;
+    const firing = selected && flashCellIndex === index && now < flashUntil;
+    if (firing) {
+      return { firing, selected, fill: [185, 255, 106, 0.34], stroke: [255, 255, 255, 1], lineWidth: 4, shadow: [185, 255, 106, 1], shadowBlur: 22, label: [5, 7, 8, 1] };
+    }
+    if (selected) {
+      return { firing, selected, fill: [50, 255, 140, gateOpen ? 0.24 : 0.12], stroke: [185, 255, 106, 0.88], lineWidth: 2.5, shadow: [54, 246, 178, 1], shadowBlur: 8, label: [255, 255, 255, gateOpen ? 1 : 0.88] };
+    }
+    return { firing, selected, fill: [20, 140, 60, 0.055], stroke: [124, 255, 79, 0.27], lineWidth: 1, shadow: null, shadowBlur: 0, label: [185, 255, 106, 0.42] };
+  },
+  createHitEffect(pad, startedAt = 0) { return { pad, startedAt }; },
+  getHitEffectProgress(effect, now = 0) { return Math.max(0, Math.min(1, (now - Number(effect?.startedAt || 0)) / 620)); },
+  getHitEffectStyle(progress) {
+    const alpha = Math.max(0, 1 - progress);
+    return { alpha, stroke: progress < 0.45 ? [255, 255, 255, alpha] : [185, 255, 106, alpha], lineWidth: Math.max(1, 5 * (1 - progress)), shadow: [124, 255, 79, alpha], shadowBlur: 18 * (1 - progress), label: [255, 255, 255, alpha] };
+  },
+  filterActiveHitEffects(effects, now = 0) { return Array.isArray(effects) ? effects.filter((effect) => (now - Number(effect?.startedAt || 0)) < 620) : []; },
+  getNosePulse(now = 0) { return 1 + Math.sin(now / 125) * 0.1; },
+};
+const GRID_COLS = GRID_VISUALS.GRID_COLS || 4;
+const GRID_ROWS = GRID_VISUALS.GRID_ROWS || 2;
 
 // Landmark indices used in the main script
 const LM = {
@@ -37,6 +62,23 @@ function dist(x1, y1, x2, y2) {
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
+}
+
+function rgba(color) {
+  if (!Array.isArray(color) || color.length < 4) return 'rgba(255,255,255,1)';
+  return `rgba(${Math.round(color[0])},${Math.round(color[1])},${Math.round(color[2])},${Math.max(0, Math.min(1, color[3]))})`;
+}
+
+function countryFlag(code) {
+  const normalized = String(code || '').trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(normalized)) return '';
+  return normalized.replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
+}
+
+function formatParticipantLabel(peer = {}) {
+  const nickname = String(peer.nickname || 'Guest').trim() || 'Guest';
+  const flag = countryFlag(peer.countryCode);
+  return flag ? `${nickname} ${flag}` : nickname;
 }
 
 // ------- gesture computation (matches src/script.js) -------
@@ -230,8 +272,16 @@ export class ParticipantSession {
     this._postTimer    = null;
     this._video        = null;
     this._canvas       = null;
+    this._ctx          = null;
     this._stream       = null;
     this._faceMesh     = null;
+    this._renderFrameHandle = 0;
+    this._videoFrameHandle = 0;
+    this._faceMeshBusy = false;
+    this._lastProcessedVideoTime = -1;
+    this._latestLandmarks = null;
+    this._latestMouthOpen = 0;
+    this._canvasMetrics = { cssWidth: 0, cssHeight: 0, dpr: 1 };
   }
 
   async start(videoEl, canvasEl) {
@@ -251,7 +301,8 @@ export class ParticipantSession {
     this._video.srcObject = this._stream;
     await new Promise((resolve) => { this._video.onloadedmetadata = resolve; });
     await this._video.play();
-    this._clearCanvas(this._video.videoWidth || 640, this._video.videoHeight || 480);
+    this._ctx = this._canvas?.getContext('2d', { alpha: false, desynchronized: true }) || null;
+    this._clearCanvas();
 
     this.onStatus({ phase: 'model', message: 'Loading face model…' });
     try {
@@ -265,15 +316,22 @@ export class ParticipantSession {
 
     this.onStatus({ phase: 'active', message: 'Point with your nose. Open your mouth to play.' });
     this._schedulePost();
-    this._processLoop();
+    this._startRenderLoop();
+    this._startProcessingLoop();
   }
 
   async stop({ notifyRelay = true } = {}) {
     this.running = false;
     clearTimeout(this._postTimer);
+    if (this._renderFrameHandle) cancelAnimationFrame(this._renderFrameHandle);
+    if (this._videoFrameHandle && typeof this._video?.cancelVideoFrameCallback === 'function') {
+      this._video.cancelVideoFrameCallback(this._videoFrameHandle);
+    }
+    this._renderFrameHandle = 0;
+    this._videoFrameHandle = 0;
     this._stream?.getTracks().forEach((t) => t.stop());
     this._faceMesh?.close?.();
-    this._clearCanvas(this._canvas?.width || 640, this._canvas?.height || 480);
+    this._clearCanvas();
     if (notifyRelay) await this._stopRemote();
     this.onStatus({ phase: 'stopped', message: 'Session ended.' });
   }
@@ -294,7 +352,8 @@ export class ParticipantSession {
     if (!this.running) return;
     const lms = results?.multiFaceLandmarks?.[0];
     if (!lms || lms.length === 0) {
-      this._clearCanvas(this._video.videoWidth || 640, this._video.videoHeight || 480);
+      this._latestLandmarks = null;
+      this._latestMouthOpen = 0;
       return;
     }
 
@@ -310,17 +369,16 @@ export class ParticipantSession {
     if (shouldOpen && !this._mouthGateOpen && this._activePad >= 0) {
       const triggerId = GRID_TRIGGER_IDS[this._activePad];
       this._triggerCounts[triggerId] += 1;
-      this._padFlashUntil = performance.now() + 240;
-      this._hitEffects.push({ pad: this._activePad, startedAt: performance.now() });
+      this._padFlashUntil = performance.now() + (GRID_VISUALS.FLASH_DURATION_MS || 240);
+      this._hitEffects.push(GRID_VISUALS.createHitEffect(this._activePad, performance.now()));
       this.onTrigger(triggerId, this._activePad);
     }
     this._mouthGateOpen = shouldOpen;
     this._lastGestures = gestures;
-    this._lastLandmarks = smoothed.map((landmark) => ({ x: landmark.x, y: landmark.y }));
+    this._latestLandmarks = smoothed;
+    this._lastLandmarks = smoothed;
+    this._latestMouthOpen = gestures.mouthOpen;
     this.onGestures(gestures, smoothed);
-
-    // Draw landmark overlay on canvas
-    this._drawLandmarks(smoothed, W, H, gestures.mouthOpen);
   }
 
   _computeAccent(landmarks, W, H) {
@@ -340,87 +398,95 @@ export class ParticipantSession {
     return Math.min(100, totalPixels / Math.max(1, current.length) * 4);
   }
 
-  _drawLandmarks(landmarks, W, H, mouthOpen) {
-    const ctx = this._canvas?.getContext('2d');
+  _drawLandmarks(landmarks, mouthOpen) {
+    const ctx = this._ctx;
     if (!ctx) return;
-    const width = this._video.videoWidth || W;
-    const height = this._video.videoHeight || H;
-    if (this._canvas.width !== width) this._canvas.width = width;
-    if (this._canvas.height !== height) this._canvas.height = height;
+    const { width, height } = this._resizeCanvasToDisplaySize();
+    ctx.save();
+    ctx.setTransform(this._canvasMetrics.dpr, 0, 0, this._canvasMetrics.dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
+    ctx.fillRect(0, 0, width, height);
     for (const peer of this._peerParticipants) {
       if (!peer?.fresh || !Array.isArray(peer.landmarks)) continue;
       ctx.save();
-      ctx.globalAlpha = 0.32;
       ctx.fillStyle = /^#[0-9a-f]{6}$/i.test(peer.color || '') ? peer.color : '#8e6bff';
       ctx.shadowColor = ctx.fillStyle;
       ctx.shadowBlur = 5;
       for (const landmark of peer.landmarks) {
         if (!Number.isFinite(landmark?.x) || !Number.isFinite(landmark?.y)) continue;
         ctx.beginPath();
-        ctx.arc((1 - landmark.x) * this._canvas.width, landmark.y * this._canvas.height, 0.8, 0, Math.PI * 2);
+        ctx.arc((1 - landmark.x) * width, landmark.y * height, 0.8, 0, Math.PI * 2);
         ctx.fill();
       }
       const anchor = peer.landmarks[10] || peer.landmarks[1];
       if (anchor) {
-        ctx.globalAlpha = 0.72;
         ctx.shadowBlur = 8;
-        ctx.font = `700 ${Math.max(10, this._canvas.width * 0.018)}px "Courier New", monospace`;
+        ctx.font = `700 ${Math.max(10, width * 0.018)}px "Courier New", monospace`;
         ctx.textAlign = 'center';
-        ctx.fillText(String(peer.nickname || 'Guest').slice(0, 18), (1 - anchor.x) * this._canvas.width, anchor.y * this._canvas.height - 12);
+        ctx.fillText(formatParticipantLabel(peer).slice(0, 22), (1 - anchor.x) * width, anchor.y * height - 12);
       }
       ctx.restore();
     }
 
     const ownColor = /^#[0-9a-f]{6}$/i.test(this.session?.color || '') ? this.session.color : '#67ff9e';
+    ctx.save();
+    ctx.globalAlpha = 1;
     ctx.fillStyle = ownColor;
     ctx.shadowColor = ownColor;
     ctx.shadowBlur = 2;
-    const dotRadius = Math.max(0.55, Math.min(0.9, Math.min(this._canvas.width, this._canvas.height) * 0.0017));
+    const dotRadius = Math.max(0.75, Math.min(1.2, Math.min(width, height) * 0.0019));
     for (const lm of landmarks) {
       ctx.beginPath();
-      ctx.arc((1 - lm.x) * this._canvas.width, lm.y * this._canvas.height, dotRadius, 0, Math.PI * 2);
+      ctx.arc((1 - lm.x) * width, lm.y * height, dotRadius, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.shadowBlur = 0;
+    ctx.restore();
 
-    const cellW = this._canvas.width / GRID_COLS;
-    const cellH = this._canvas.height / GRID_ROWS;
+    const cellW = width / GRID_COLS;
+    const cellH = height / GRID_ROWS;
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = `700 ${Math.max(22, Math.min(cellW, cellH) * 0.22)}px "Courier New", monospace`;
+    const now = performance.now();
     for (let index = 0; index < GRID_COLS * GRID_ROWS; index += 1) {
       const col = index % GRID_COLS;
       const row = Math.floor(index / GRID_COLS);
-      const selected = index === this._activePad;
-      const firing = selected && performance.now() < this._padFlashUntil;
-      ctx.fillStyle = firing ? 'rgba(185,255,106,.34)' : selected ? 'rgba(54,246,178,.09)' : 'rgba(5,8,7,.035)';
-      ctx.strokeStyle = firing ? '#ffffff' : selected ? 'rgba(185,255,106,.88)' : 'rgba(124,255,79,.27)';
-      ctx.lineWidth = firing ? 4 : selected ? 2.5 : 1;
-      ctx.shadowColor = firing ? '#b9ff6a' : selected ? '#36f6b2' : 'transparent';
-      ctx.shadowBlur = firing ? 22 : selected ? 8 : 0;
+      const visual = GRID_VISUALS.getCellVisual({
+        index,
+        activeCellIndex: this._activePad,
+        gateOpen: this._mouthGateOpen,
+        flashCellIndex: this._activePad,
+        flashUntil: this._padFlashUntil,
+        now,
+      });
+      ctx.fillStyle = rgba(visual.fill);
+      ctx.strokeStyle = rgba(visual.stroke);
+      ctx.lineWidth = visual.lineWidth;
+      ctx.shadowColor = visual.shadow ? rgba(visual.shadow) : 'transparent';
+      ctx.shadowBlur = visual.shadowBlur || 0;
       ctx.fillRect(col * cellW + 4, row * cellH + 4, cellW - 8, cellH - 8);
       ctx.strokeRect(col * cellW + 4, row * cellH + 4, cellW - 8, cellH - 8);
-      ctx.fillStyle = firing ? '#050708' : selected ? '#ffffff' : 'rgba(185,255,106,.42)';
+      ctx.fillStyle = rgba(visual.label);
       ctx.fillText(String(index + 1), col * cellW + cellW / 2, row * cellH + cellH / 2);
     }
 
-    const now = performance.now();
-    this._hitEffects = this._hitEffects.filter((effect) => now - effect.startedAt < 620);
+    this._hitEffects = GRID_VISUALS.filterActiveHitEffects(this._hitEffects, now);
     for (const effect of this._hitEffects) {
-      const progress = (now - effect.startedAt) / 620;
+      const progress = GRID_VISUALS.getHitEffectProgress(effect, now);
+      const visual = GRID_VISUALS.getHitEffectStyle(progress);
       const col = effect.pad % GRID_COLS;
       const row = Math.floor(effect.pad / GRID_COLS);
       const cx = col * cellW + cellW / 2;
       const cy = row * cellH + cellH / 2;
       const radius = Math.min(cellW, cellH) * (0.12 + progress * 0.55);
-      ctx.globalAlpha = Math.max(0, 1 - progress);
-      ctx.strokeStyle = progress < 0.45 ? '#ffffff' : '#b9ff6a';
-      ctx.lineWidth = Math.max(1, 5 * (1 - progress));
-      ctx.shadowColor = '#7cff4f';
-      ctx.shadowBlur = 18 * (1 - progress);
+      ctx.globalAlpha = visual.alpha;
+      ctx.strokeStyle = rgba(visual.stroke);
+      ctx.lineWidth = visual.lineWidth;
+      ctx.shadowColor = rgba(visual.shadow);
+      ctx.shadowBlur = visual.shadowBlur;
       ctx.strokeRect(cx - radius, cy - radius, radius * 2, radius * 2);
       for (let ray = 0; ray < 8; ray += 1) {
         const angle = (Math.PI * 2 * ray) / 8;
@@ -431,7 +497,7 @@ export class ParticipantSession {
         ctx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
         ctx.stroke();
       }
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = rgba(visual.label);
       ctx.font = `700 ${Math.max(10, Math.min(cellW, cellH) * 0.09)}px "Courier New", monospace`;
       ctx.fillText('HIT!', cx, cy + radius * 0.72);
       ctx.globalAlpha = 1;
@@ -439,9 +505,9 @@ export class ParticipantSession {
 
     const nose = landmarks[LM.nose];
     if (nose) {
-      const px = (1 - nose.x) * this._canvas.width;
-      const py = nose.y * this._canvas.height;
-      const pulse = 1 + Math.sin(performance.now() / 125) * 0.1;
+      const px = (1 - nose.x) * width;
+      const py = nose.y * height;
+      const pulse = GRID_VISUALS.getNosePulse(now);
       ctx.shadowColor = 'rgba(255,49,49,.72)';
       ctx.shadowBlur = 12;
       ctx.fillStyle = 'rgba(255,70,70,.92)';
@@ -456,7 +522,7 @@ export class ParticipantSession {
     }
 
     const invitation = Math.max(0, Math.min(1, mouthOpen / MOUTH_GATE_OPEN_PX));
-    ctx.fillStyle = this._mouthGateOpen ? '#ffffff' : 'rgba(200,195,255,.78)';
+    ctx.fillStyle = this._mouthGateOpen ? '#ffffff' : '#c8c3ff';
     ctx.shadowColor = '#8e6bff';
     ctx.shadowBlur = 4 + invitation * 14;
     const mouthRadius = 1.25 + invitation * 1.45;
@@ -464,27 +530,89 @@ export class ParticipantSession {
       const landmark = landmarks[index];
       if (!landmark) continue;
       ctx.beginPath();
-      ctx.arc((1 - landmark.x) * this._canvas.width, landmark.y * this._canvas.height, mouthRadius, 0, Math.PI * 2);
+      ctx.arc((1 - landmark.x) * width, landmark.y * height, mouthRadius, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
   }
 
-  _clearCanvas(W, H) {
-    const ctx = this._canvas?.getContext('2d');
-    if (!ctx || !this._canvas) return;
-    this._canvas.width = W;
-    this._canvas.height = H;
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
+  _resizeCanvasToDisplaySize() {
+    if (!this._canvas || !this._ctx) {
+      return { width: 640, height: 480 };
+    }
+    const rect = this._canvas.getBoundingClientRect();
+    const cssWidth = Math.max(1, Math.round(rect.width || this._video?.videoWidth || 640));
+    const cssHeight = Math.max(1, Math.round(rect.height || this._video?.videoHeight || 480));
+    const dprCap = cssWidth >= 700 ? 1.5 : 2;
+    const dpr = Math.min(globalThis.devicePixelRatio || 1, dprCap);
+    if (
+      this._canvasMetrics.cssWidth !== cssWidth
+      || this._canvasMetrics.cssHeight !== cssHeight
+      || this._canvasMetrics.dpr !== dpr
+    ) {
+      this._canvas.width = Math.max(1, Math.round(cssWidth * dpr));
+      this._canvas.height = Math.max(1, Math.round(cssHeight * dpr));
+      this._canvasMetrics = { cssWidth, cssHeight, dpr };
+    }
+    return { width: cssWidth, height: cssHeight };
   }
 
-  async _processLoop() {
+  _clearCanvas() {
+    const ctx = this._ctx;
+    if (!ctx || !this._canvas) return;
+    const { width, height } = this._resizeCanvasToDisplaySize();
+    ctx.save();
+    ctx.setTransform(this._canvasMetrics.dpr, 0, 0, this._canvasMetrics.dpr, 0, 0);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+
+  _startRenderLoop() {
+    const render = () => {
+      if (!this.running) return;
+      if (this._latestLandmarks?.length) {
+        this._drawLandmarks(this._latestLandmarks, this._latestMouthOpen);
+      } else {
+        this._clearCanvas();
+      }
+      this._renderFrameHandle = requestAnimationFrame(render);
+    };
+    this._renderFrameHandle = requestAnimationFrame(render);
+  }
+
+  _startProcessingLoop() {
+    const step = async () => {
+      if (!this.running) return;
+      await this._processVideoFrame();
+      if (!this.running) return;
+      if (typeof this._video?.requestVideoFrameCallback === 'function') {
+        this._videoFrameHandle = this._video.requestVideoFrameCallback(() => {
+          step();
+        });
+      } else {
+        this._renderFrameHandle = requestAnimationFrame(() => {
+          step();
+        });
+      }
+    };
+    step();
+  }
+
+  async _processVideoFrame() {
     if (!this.running) return;
-    if (this._video.readyState >= 2 && this._faceMesh) {
-      try { await this._faceMesh.send({ image: this._video }); } catch (_e) { /* ignore frame errors */ }
+    if (!this._faceMesh || !this._video || this._video.readyState < 2 || this._faceMeshBusy) return;
+    const currentTime = Number(this._video.currentTime || 0);
+    if (currentTime === this._lastProcessedVideoTime) return;
+    this._faceMeshBusy = true;
+    this._lastProcessedVideoTime = currentTime;
+    try {
+      await this._faceMesh.send({ image: this._video });
+    } catch (_e) {
+      // Ignore transient frame errors and keep the loop alive.
+    } finally {
+      this._faceMeshBusy = false;
     }
-    requestAnimationFrame(() => this._processLoop());
   }
 
   _schedulePost() {
@@ -515,7 +643,7 @@ export class ParticipantSession {
       body: JSON.stringify({
         gestures,
         triggerCounts: this._triggerCounts,
-        landmarks,
+        landmarks: Array.isArray(landmarks) ? landmarks.map((landmark) => ({ x: landmark.x, y: landmark.y })) : [],
         frameAspect: (this._video?.videoWidth || 640) / Math.max(1, this._video?.videoHeight || 480),
       }),
     });

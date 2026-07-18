@@ -81,7 +81,8 @@ const FIREBASE_ADMIN_PROJECT_ID      = configuredEnv('FIREBASE_ADMIN_PROJECT_ID'
 const FIREBASE_ADMIN_CLIENT_EMAIL    = configuredEnv('FIREBASE_ADMIN_CLIENT_EMAIL');
 const FIREBASE_ADMIN_PRIVATE_KEY_RAW = configuredEnv('FIREBASE_ADMIN_PRIVATE_KEY');
 const LIVE_MASTER_EMAILS_RAW         = configuredEnv('LIVE_MASTER_EMAILS');
-const LIVE_SESSION_DURATION_SECONDS  = Math.max(15, Math.min(Number(process.env.LIVE_SESSION_DURATION_SECONDS || 30), 300));
+const DEFAULT_LIVE_SESSION_DURATION_SECONDS = 60;
+const LIVE_SESSION_DURATION_SECONDS  = Math.max(15, Math.min(Number(process.env.LIVE_SESSION_DURATION_SECONDS || DEFAULT_LIVE_SESSION_DURATION_SECONDS), 300));
 const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.LIVE_COOLDOWN_MINUTES || 30), 240));
 const LIVE_QUEUE_TICKET_TTL_MS       = Math.max(15_000, Math.min(Number(process.env.LIVE_QUEUE_TICKET_TTL_MS || 45_000), 300_000));
 const LIVE_SNAPSHOT_TTL_MS           = Math.max(500, Math.min(Number(process.env.LIVE_SNAPSHOT_TTL_MS || 2500), 10_000));
@@ -431,7 +432,7 @@ function createDefaultLiveState() {
       enabled: false,
       open: false,
       busy: false,
-      turnDurationSeconds: 30,
+      turnDurationSeconds: LIVE_SESSION_DURATION_SECONDS,
       cooldownMinutes: LIVE_COOLDOWN_MINUTES,
       oneFreeTurn: true,
       message: 'Queue opens only when the installation is live and accepting participants.',
@@ -497,7 +498,7 @@ function sanitizeLiveStatePatch(input) {
       enabled: asBoolean(patch.queue?.enabled, false),
       open: asBoolean(patch.queue?.open, false),
       busy: asBoolean(patch.queue?.busy, false),
-      turnDurationSeconds: Math.max(10, Math.min(Number(patch.queue?.turnDurationSeconds || 30), 180)),
+      turnDurationSeconds: Math.max(10, Math.min(Number(patch.queue?.turnDurationSeconds || LIVE_SESSION_DURATION_SECONDS), 180)),
       cooldownMinutes: Math.max(1, Math.min(Number(patch.queue?.cooldownMinutes || LIVE_COOLDOWN_MINUTES), 240)),
       oneFreeTurn: asBoolean(patch.queue?.oneFreeTurn, true),
       message: cleanString(patch.queue?.message || '', 240),
