@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { WINK_HOLD_MS, compactTelemetryLandmarks, createGestureTriggerState, evaluateGestureTrigger, gestureRange, resolveGridPad, GRID_TRIGGER_IDS } from './live_session.js';
+
+const previewClientSource = await readFile(new URL('./broadcast/preview_client.js', import.meta.url), 'utf8');
+assert.match(previewClientSource, /offerToReceiveAudio:\s*true/, 'participant WebRTC offers must request Pi audio');
+assert.doesNotMatch(previewClientSource, /offerToReceiveAudio:\s*false/, 'participant WebRTC offers must not disable Pi audio');
 
 assert.equal(GRID_TRIGGER_IDS.length, 8, 'the live grid exposes eight playable pads');
 assert.equal(new Set(GRID_TRIGGER_IDS).size, 8, 'the live grid trigger mapping must be eight unique IDs');
