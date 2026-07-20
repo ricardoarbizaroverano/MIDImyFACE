@@ -98,7 +98,7 @@ export class PreviewClient {
         }
       };
 
-      const offer = await this.pc.createOffer({ offerToReceiveVideo: true, offerToReceiveAudio: false });
+      const offer = await this.pc.createOffer({ offerToReceiveVideo: true, offerToReceiveAudio: true });
       await this.pc.setLocalDescription(offer);
       await this._sendSignal('pi', 'offer', {
         type: offer.type,
