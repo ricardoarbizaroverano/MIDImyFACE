@@ -118,7 +118,7 @@ async function ensurePreviewClient() {
     return state.previewClient;
   }
   try {
-    const { PreviewClient } = await import('./broadcast/preview_client.js');
+    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260720-media-1');
     state.previewClient = new PreviewClient({
       relayOrigin: state.relayOrigin,
       role: 'waiting_viewer',

@@ -5,6 +5,8 @@ import { WINK_HOLD_MS, compactTelemetryLandmarks, createGestureTriggerState, eva
 const previewClientSource = await readFile(new URL('./broadcast/preview_client.js', import.meta.url), 'utf8');
 assert.match(previewClientSource, /offerToReceiveAudio:\s*true/, 'participant WebRTC offers must request Pi audio');
 assert.doesNotMatch(previewClientSource, /offerToReceiveAudio:\s*false/, 'participant WebRTC offers must not disable Pi audio');
+const livePageSource = await readFile(new URL('./live.js', import.meta.url), 'utf8');
+assert.match(livePageSource, /preview_client\.js\?v=\d{8}-media-\d+/, 'live page must cache-bust the WebRTC preview client');
 
 assert.equal(GRID_TRIGGER_IDS.length, 8, 'the live grid exposes eight playable pads');
 assert.equal(new Set(GRID_TRIGGER_IDS).size, 8, 'the live grid trigger mapping must be eight unique IDs');
