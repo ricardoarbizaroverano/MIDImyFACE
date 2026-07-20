@@ -9,11 +9,20 @@ const MEDIAPIPE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.163
 const PERCUSSION_SENSITIVITY = 5;
 export const WINK_HOLD_MS = 250;
 const LANDMARK_SMOOTHING = 0.58;
-export const GESTURE_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent'];
-export const GRID_TRIGGER_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent', 'mouthOpen'];
+export const GESTURE_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent', 'grid8'];
+export const GRID_TRIGGER_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 'noseX', 'noseY', 'accent', 'grid8'];
 const MOUTH_GATE_OPEN_PX = 10;
 const MOUTH_GATE_CLOSE_PX = 7;
 const MOUTH_LANDMARKS = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78, 191, 80, 81, 82, 13, 312, 311, 310, 415];
+const TELEMETRY_LANDMARK_INDICES = [...new Set([
+  10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152,
+  148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109,
+  33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159, 158, 157, 173,
+  263, 249, 390, 373, 374, 380, 381, 382, 362, 466, 388, 387, 386, 385, 384, 398,
+  70, 63, 105, 66, 107, 55, 65, 52, 53, 46, 300, 293, 334, 296, 336, 285, 295, 282, 283, 276,
+  168, 6, 197, 195, 5, 4, 1, 19, 94, 2, 98, 327,
+  ...MOUTH_LANDMARKS,
+])];
 const GRID_VISUALS = globalThis.MMFPerformanceGridVisuals || {
   GRID_COLS: 4,
   GRID_ROWS: 2,
@@ -98,6 +107,7 @@ export function extractGestures(landmarks, canvasWidth, canvasHeight) {
     noseX:     lm(LM.nose).x * W,
     noseY:     lm(LM.nose).y * H,
     accent:    0,
+    grid8:     0,
   };
 }
 
@@ -110,6 +120,17 @@ export function smoothLandmarks(raw, cache) {
     cache[i].z = lerp(cache[i].z, lm.z, LANDMARK_SMOOTHING);
     return cache[i];
   });
+}
+
+export function compactTelemetryLandmarks(landmarks) {
+  if (!Array.isArray(landmarks)) return [];
+  return TELEMETRY_LANDMARK_INDICES
+    .map((index) => landmarks[index])
+    .filter((landmark) => Number.isFinite(landmark?.x) && Number.isFinite(landmark?.y))
+    .map((landmark) => [
+      Math.round(Math.max(0, Math.min(1, landmark.x)) * 10_000) / 10_000,
+      Math.round(Math.max(0, Math.min(1, landmark.y)) * 10_000) / 10_000,
+    ]);
 }
 
 // This is the same sudden-movement trigger used by the main page's
@@ -127,6 +148,7 @@ export function getGestureTriggerProfile(gestureId) {
     // Accent is the existing seventh live channel. It uses the exact same
     // trigger state machine on whole-face motion instead of a held distance.
     accent: { mode: 'ascending', activationRatio: 0.05, rearmRatio: 0.025, spanScale: 0.12, speedScale: 0.35, minRawDelta: 4 },
+    grid8: { mode: 'ascending', activationRatio: 0.05, rearmRatio: 0.025, spanScale: 0.12, speedScale: 0.35, minRawDelta: 4 },
   };
   return profiles[gestureId] || profiles.mouthOpen;
 }
@@ -238,6 +260,7 @@ export function gestureRange(gestureId, width, height) {
     noseX: { min: 0, max: width },
     noseY: { min: 0, max: height },
     accent: { min: 0, max: 100 },
+    grid8: { min: 0, max: 100 },
   };
   return ranges[gestureId] || { min: 0, max: 200 };
 }
@@ -282,6 +305,8 @@ export class ParticipantSession {
     this._latestLandmarks = null;
     this._latestMouthOpen = 0;
     this._canvasMetrics = { cssWidth: 0, cssHeight: 0, dpr: 1 };
+    this._installationEpoch = Number.isSafeInteger(Number(session?.installationEpoch)) ? Number(session.installationEpoch) : 0;
+    this._sequenceNumber = 0;
   }
 
   async start(videoEl, canvasEl) {
@@ -634,13 +659,19 @@ export class ParticipantSession {
 
   async _postGestures(gestures, landmarks) {
     const url = `${this.relayOrigin}/api/live/session/gestures`;
+    const sequenceNumber = this._sequenceNumber;
+    this._sequenceNumber += 1;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` },
       body: JSON.stringify({
+        installationEpoch: this._installationEpoch,
+        participantSessionId: String(this.session?.sessionId || ''),
+        sequenceNumber,
+        clientTimestamp: Date.now(),
         gestures,
         triggerCounts: this._triggerCounts,
-        landmarks: Array.isArray(landmarks) ? landmarks.map((landmark) => ({ x: landmark.x, y: landmark.y })) : [],
+        landmarks: compactTelemetryLandmarks(landmarks),
         frameAspect: (this._video?.videoWidth || 640) / Math.max(1, this._video?.videoHeight || 480),
       }),
     });

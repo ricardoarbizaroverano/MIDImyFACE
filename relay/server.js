@@ -86,10 +86,12 @@ const LIVE_MASTER_EMAILS_RAW         = configuredEnv('LIVE_MASTER_EMAILS');
 const INSTALLATION_STATUS_COLLECTION = 'installation';
 const INSTALLATION_STATUS_DOCUMENT   = 'status';
 const DEFAULT_LIVE_SESSION_DURATION_SECONDS = 60;
-const LIVE_SESSION_DURATION_SECONDS  = Math.max(15, Math.min(Number(process.env.LIVE_SESSION_DURATION_SECONDS || DEFAULT_LIVE_SESSION_DURATION_SECONDS), 300));
+const LIVE_SESSION_DURATION_SECONDS  = DEFAULT_LIVE_SESSION_DURATION_SECONDS;
 const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.LIVE_COOLDOWN_MINUTES || 30), 240));
 const LIVE_QUEUE_TICKET_TTL_MS       = Math.max(15_000, Math.min(Number(process.env.LIVE_QUEUE_TICKET_TTL_MS || 45_000), 300_000));
 const LIVE_SNAPSHOT_TTL_MS           = Math.max(500, Math.min(Number(process.env.LIVE_SNAPSHOT_TTL_MS || 2500), 10_000));
+const LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_AGE_MS = Math.max(5_000, Math.min(Number(process.env.LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_AGE_MS || 30_000), 120_000));
+const LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_FUTURE_MS = Math.max(1_000, Math.min(Number(process.env.LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_FUTURE_MS || 10_000), 30_000));
 const LIVE_PREVIEW_TTL_MS            = Math.max(15_000, Math.min(Number(process.env.LIVE_PREVIEW_TTL_MS || 120_000), 900_000));
 const LIVE_PREVIEW_TOKEN_TTL_SEC     = Math.max(20, Math.min(Number(process.env.LIVE_PREVIEW_TOKEN_TTL_SEC || 90), 600));
 const LIVE_PREVIEW_MAX_VIEWERS       = Math.max(1, Math.min(Number(process.env.LIVE_PREVIEW_MAX_VIEWERS || 1), 4));
@@ -566,6 +568,7 @@ function buildLivePublicConfigPayload() {
 
 function createDefaultLiveState() {
   return {
+    installationEpoch: Date.now(),
     updatedAt: null,
     updatedBy: 'defaults',
     machine: {
@@ -629,7 +632,12 @@ function createDefaultLiveState() {
 
 function sanitizeLiveStatePatch(input) {
   const patch = isPlainObject(input) ? input : {};
+  const installationEpoch = normalizeInstallationEpoch(
+    patch.installationEpoch,
+    Number.isSafeInteger(Number(liveState?.installationEpoch)) ? Number(liveState.installationEpoch) : Date.now(),
+  );
   return {
+    installationEpoch,
     updatedAt: cleanString(patch.updatedAt || new Date().toISOString(), 64),
     updatedBy: cleanString(patch.updatedBy || 'raspberry-pi', 80),
     machine: {
@@ -723,6 +731,47 @@ function persistLiveState(state) {
   } catch (error) {
     console.warn('[live] Failed to persist live state:', error?.message || error);
   }
+}
+
+function normalizeInstallationEpoch(value, fallback = Date.now()) {
+  const numeric = Number(value);
+  if (!Number.isSafeInteger(numeric) || numeric <= 0) {
+    const fallbackValue = Number(fallback);
+    if (Number.isSafeInteger(fallbackValue) && fallbackValue >= 0) return fallbackValue;
+    return Date.now();
+  }
+  return numeric;
+}
+
+function currentInstallationEpoch() {
+  const epoch = normalizeInstallationEpoch(liveState?.installationEpoch, Date.now());
+  if (liveState?.installationEpoch !== epoch) {
+    liveState.installationEpoch = epoch;
+    persistLiveState(liveState);
+  }
+  return epoch;
+}
+
+function resetLiveRuntime({ installationEpoch, updatedBy = 'raspberry-pi' } = {}) {
+  const nextEpoch = normalizeInstallationEpoch(installationEpoch, Date.now());
+  activeLiveSessions.clear();
+  liveGestureSnapshots.clear();
+  liveQueue.splice(0, liveQueue.length);
+  liveSessionStartByIp.clear();
+  liveCooldownByIdentity.clear();
+  for (const connectionId of livePreviewConnections.keys()) {
+    closePreviewConnection(connectionId, 'runtime_reset');
+  }
+  livePreviewConnections.clear();
+  livePreviewRateLimit.clear();
+
+  liveState = deepMerge(liveState, {
+    installationEpoch: nextEpoch,
+    updatedAt: new Date().toISOString(),
+    updatedBy: cleanString(updatedBy || 'raspberry-pi', 80) || 'raspberry-pi',
+  });
+  persistLiveState(liveState);
+  return nextEpoch;
 }
 
 let liveState = loadLiveState();
@@ -1015,6 +1064,7 @@ function createLiveParticipantSession({ nickname, countryCode, identityKey, mast
   const token = crypto.randomBytes(32).toString('base64url');
   const startedAtMs = Date.now();
   const expiresAtMs = startedAtMs + LIVE_SESSION_DURATION_SECONDS * 1000;
+  const installationEpoch = currentInstallationEpoch();
   const usedColorIndexes = new Set(Array.from(activeLiveSessions.values()).map((session) => session.colorIndex));
   const colorIndex = [0, 1, 2].find((index) => !usedColorIndexes.has(index)) ?? 0;
   const activeLiveSession = {
@@ -1030,6 +1080,8 @@ function createLiveParticipantSession({ nickname, countryCode, identityKey, mast
     expiresAt: new Date(expiresAtMs).toISOString(),
     expiresAtMs,
     lastSeenAtMs: startedAtMs,
+    installationEpoch,
+    lastGestureSequenceNumber: -1,
   };
   activeLiveSessions.set(activeLiveSession.sessionId, activeLiveSession);
   if (!master) liveCooldownByIdentity.set(identityKey, startedAtMs);
@@ -1045,9 +1097,16 @@ function liveParticipantAuth(req) {
   const bearerToken = parseBearerToken(req);
   if (!bearerToken) return null;
   const providedHash = Buffer.from(sha256(bearerToken), 'hex');
+  const epoch = currentInstallationEpoch();
   for (const session of activeLiveSessions.values()) {
     const expectedHash = Buffer.from(session.tokenHash, 'hex');
-    if (providedHash.length === expectedHash.length && crypto.timingSafeEqual(providedHash, expectedHash)) return session;
+    if (providedHash.length === expectedHash.length && crypto.timingSafeEqual(providedHash, expectedHash)) {
+      if (Number(session.installationEpoch) !== epoch) {
+        clearLiveSession(session.sessionId);
+        return null;
+      }
+      return session;
+    }
   }
   return null;
 }
@@ -1056,8 +1115,8 @@ function sanitizeLiveLandmarks(value) {
   if (!Array.isArray(value)) return [];
   const landmarks = [];
   for (const item of value.slice(0, LIVE_MAX_LANDMARKS)) {
-    const x = Number(item?.x);
-    const y = Number(item?.y);
+    const x = Number(Array.isArray(item) ? item[0] : item?.x);
+    const y = Number(Array.isArray(item) ? item[1] : item?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
     landmarks.push({
       x: Math.round(Math.max(0, Math.min(1, x)) * 10_000) / 10_000,
@@ -1084,6 +1143,8 @@ function publicLiveParticipantSnapshots({ excludeSessionId = '', includeStale = 
         landmarks: fresh ? snapshot.landmarks : [],
         frameAspect: fresh ? snapshot.frameAspect : 4 / 3,
         updatedAt: snapshot?.updatedAt || null,
+        sequenceNumber: fresh && Number.isSafeInteger(snapshot?.sequenceNumber) ? snapshot.sequenceNumber : null,
+        clientTimestamp: fresh && Number.isFinite(snapshot?.clientTimestamp) ? snapshot.clientTimestamp : null,
       };
     })
     .filter(Boolean);
@@ -1099,6 +1160,7 @@ function publicLiveSession(session) {
     color: session.color,
     startedAt: session.startedAt,
     expiresAt: session.expiresAt,
+    installationEpoch: normalizeInstallationEpoch(session.installationEpoch, currentInstallationEpoch()),
   };
 }
 
@@ -1115,10 +1177,12 @@ function publicLiveState(state = liveState) {
 }
 
 function buildLiveBootstrapPayload() {
+  const installationEpoch = currentInstallationEpoch();
   return {
     ok: true,
     route: LIVE_ROUTE_PATH,
     relayOrigin: PUBLIC_BASE_URL,
+    installationEpoch,
     links: {
       youtubeChannelUrl: LIVE_YOUTUBE_CHANNEL_URL,
       youtubeVideosUrl: LIVE_YOUTUBE_VIDEOS_URL,
@@ -1471,8 +1535,10 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       expireLiveSessionsIfNeeded();
       purgeLiveQueue();
       const sessions = publicLiveSessions();
+      const installationEpoch = currentInstallationEpoch();
       return sendJson(res, 200, {
         ok: true,
+        installationEpoch,
         status: publicLiveState(),
         session: sessions[0] || null,
         sessions,
@@ -1681,6 +1747,33 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       }
     }
 
+    if (req.method === 'POST' && parsed.pathname === '/api/live/device/reset-runtime') {
+      if (!RPI_DEVICE_TOKEN) {
+        return sendJson(res, 503, { ok: false, error: 'rpi_device_token_not_configured' }, c);
+      }
+      const bearerToken = parseBearerToken(req);
+      if (!bearerToken || bearerToken !== RPI_DEVICE_TOKEN) {
+        return sendJson(res, 401, { ok: false, error: 'unauthorized_device' }, c);
+      }
+      try {
+        const body = await readBody(req, 8_192);
+        const installationEpoch = normalizeInstallationEpoch(body?.installationEpoch, Date.now());
+        const updatedBy = cleanString(body?.updatedBy || 'raspberry-pi', 80) || 'raspberry-pi';
+        resetLiveRuntime({ installationEpoch, updatedBy });
+        return sendJson(res, 200, {
+          ok: true,
+          installationEpoch,
+          status: publicLiveState(),
+          sessionsCleared: true,
+          queueCleared: true,
+          previewCleared: true,
+          serverTime: new Date().toISOString(),
+        }, { ...c, 'Cache-Control': 'no-store' });
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
+    }
+
     // Participant control requires a verified Firebase account by default.
     // Explicit test/bench deployments may opt back into anonymous sessions.
     if (req.method === 'POST' && parsed.pathname === '/api/live/session/start') {
@@ -1738,6 +1831,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
             countryCode,
             queuedAtMs,
             lastSeenAtMs: queuedAtMs,
+            installationEpoch: currentInstallationEpoch(),
           };
           insertLiveQueueEntry(entry);
           return sendJson(res, 202, {
@@ -1778,6 +1872,10 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         const entryIndex = liveQueue.findIndex((entry) => entry.ticketHash === ticketHash);
         if (entryIndex < 0) return sendJson(res, 410, { ok: false, error: 'queue_ticket_expired' }, c);
         const entry = liveQueue[entryIndex];
+        if (Number(entry.installationEpoch) !== currentInstallationEpoch()) {
+          liveQueue.splice(entryIndex, 1);
+          return sendJson(res, 410, { ok: false, error: 'queue_ticket_epoch_mismatch' }, c);
+        }
         entry.lastSeenAtMs = Date.now();
 
         if (activeLiveSessions.size < LIVE_MAX_PARTICIPANTS && entryIndex === 0) {
@@ -1816,11 +1914,35 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         const session = liveParticipantAuth(req);
         if (!session) return sendJson(res, 401, { ok: false, error: 'invalid_or_expired_session' }, c);
         const body = await readBody(req, 128_000);
+        const installationEpoch = normalizeInstallationEpoch(body?.installationEpoch, 0);
+        if (installationEpoch !== currentInstallationEpoch()) {
+          return sendJson(res, 409, { ok: false, error: 'stale_installation_epoch' }, c);
+        }
+        const participantSessionId = cleanString(body?.participantSessionId || '', 120);
+        if (!participantSessionId || participantSessionId !== session.sessionId) {
+          return sendJson(res, 409, { ok: false, error: 'participant_session_mismatch' }, c);
+        }
+        const sequenceNumber = Number(body?.sequenceNumber);
+        const lastSequenceNumber = Number.isSafeInteger(Number(session.lastGestureSequenceNumber))
+          ? Number(session.lastGestureSequenceNumber)
+          : -1;
+        if (!Number.isSafeInteger(sequenceNumber) || sequenceNumber < 0 || sequenceNumber <= lastSequenceNumber) {
+          return sendJson(res, 409, { ok: false, error: 'invalid_sequence_number' }, c);
+        }
+        const rawClientTimestamp = Number(body?.clientTimestamp);
+        if (!Number.isFinite(rawClientTimestamp)) {
+          return sendJson(res, 400, { ok: false, error: 'client_timestamp_required' }, c);
+        }
+        const clientTimestamp = Math.floor(rawClientTimestamp);
+        const now = Date.now();
+        if (clientTimestamp < now - LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_AGE_MS || clientTimestamp > now + LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_FUTURE_MS) {
+          return sendJson(res, 409, { ok: false, error: 'stale_client_timestamp' }, c);
+        }
         const gestures = isPlainObject(body?.gestures) ? body.gestures : {};
         const triggerCounts = isPlainObject(body?.triggerCounts) ? body.triggerCounts : {};
         const sanitized = {};
         const sanitizedTriggerCounts = {};
-        const GESTURE_KEYS = ['mouthOpen','smile','leftWink','rightWink','noseX','noseY','accent'];
+        const GESTURE_KEYS = ['mouthOpen','smile','leftWink','rightWink','noseX','noseY','accent','grid8'];
         for (const key of GESTURE_KEYS) {
           const v = gestures[key];
           if (v !== undefined && v !== null) {
@@ -1842,15 +1964,25 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           landmarks: sanitizeLiveLandmarks(body?.landmarks),
           frameAspect,
           updatedAt: new Date().toISOString(),
+          installationEpoch,
+          sequenceNumber,
+          clientTimestamp,
           participant: { nickname: session.nickname, countryCode: session.countryCode },
           sessionId: session.sessionId,
         };
         liveGestureSnapshots.set(session.sessionId, liveGestureSnapshot);
         session.lastSeenAtMs = Date.now();
+        session.lastGestureSequenceNumber = sequenceNumber;
         return sendJson(res, 200, {
           ok: true,
           gestures: sanitized,
           triggerCounts: sanitizedTriggerCounts,
+          metadata: {
+            installationEpoch,
+            participantSessionId: session.sessionId,
+            sequenceNumber,
+            clientTimestamp,
+          },
           expiresAt: session.expiresAt,
           remainingMs: Math.max(0, session.expiresAtMs - Date.now()),
           participants: publicLiveParticipantSnapshots({ excludeSessionId: session.sessionId, includeStale: false }),
@@ -1875,8 +2007,10 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
       const participants = publicLiveParticipantSnapshots({ includeStale: true });
       const primary = participants.find((participant) => participant.fresh) || participants[0] || null;
       const fresh = participants.some((participant) => participant.fresh);
+      const installationEpoch = currentInstallationEpoch();
       return sendJson(res, 200, {
         ok: true,
+        installationEpoch,
         active: activeLiveSessions.size > 0,
         fresh,
         stale: Boolean(activeLiveSessions.size > 0 && !fresh),
@@ -1889,6 +2023,8 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           landmarks: primary.landmarks,
           frameAspect: primary.frameAspect,
           updatedAt: primary.updatedAt,
+          sequenceNumber: Number.isSafeInteger(primary.sequenceNumber) ? primary.sequenceNumber : null,
+          clientTimestamp: Number.isFinite(primary.clientTimestamp) ? primary.clientTimestamp : null,
           participant: { nickname: primary.nickname, countryCode: primary.countryCode, color: primary.color, colorIndex: primary.colorIndex },
           sessionId: primary.sessionId,
         } : {
@@ -1897,6 +2033,8 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           landmarks: [],
           frameAspect: 4 / 3,
           updatedAt: primary?.updatedAt || null,
+          sequenceNumber: null,
+          clientTimestamp: null,
           participant: primary ? {
             nickname: primary.nickname,
             countryCode: primary.countryCode,

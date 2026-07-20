@@ -1,8 +1,10 @@
 export class PreviewClient {
-  constructor({ relayOrigin, onStream, onStats, role = 'waiting_viewer', sessionId = '' } = {}) {
+  constructor({ relayOrigin, onStream, onStats, onConnectionState, onMediaState, role = 'waiting_viewer', sessionId = '' } = {}) {
     this.relayOrigin = String(relayOrigin || '').replace(/\/+$/, '');
     this.onStream = typeof onStream === 'function' ? onStream : () => {};
     this.onStats = typeof onStats === 'function' ? onStats : () => {};
+    this.onConnectionState = typeof onConnectionState === 'function' ? onConnectionState : () => {};
+    this.onMediaState = typeof onMediaState === 'function' ? onMediaState : () => {};
     this.role = String(role || 'waiting_viewer').trim().toLowerCase();
     this.sessionId = String(sessionId || '').trim();
     this.connectionId = '';
@@ -15,10 +17,12 @@ export class PreviewClient {
     this.reconnectTimer = 0;
     this.reconnectDelayMs = 600;
     this.lastStatsSnapshot = null;
+    this.connectionState = 'connecting';
   }
 
   async start() {
     this.closed = false;
+    this._emitConnectionState('connecting');
     await this._connect();
   }
 
@@ -35,6 +39,8 @@ export class PreviewClient {
       this.pc.close();
       this.pc = null;
     }
+    this.stream = null;
+    this._emitMediaState({ hasVideo: false, hasAudio: false });
   }
 
   async _connect() {
@@ -59,6 +65,10 @@ export class PreviewClient {
 
       this.pc.ontrack = (event) => {
         this.stream = event.streams?.[0] || null;
+        const tracks = this.stream?.getTracks?.() || [];
+        const hasVideo = tracks.some((track) => track.kind === 'video' && track.enabled !== false);
+        const hasAudio = tracks.some((track) => track.kind === 'audio' && track.enabled !== false);
+        this._emitMediaState({ hasVideo, hasAudio });
         this.onStream(this.stream);
       };
 
@@ -72,8 +82,18 @@ export class PreviewClient {
       };
 
       this.pc.onconnectionstatechange = () => {
-        const state = this.pc?.connectionState;
+        const state = String(this.pc?.connectionState || '').toLowerCase();
+        if (state === 'connected') {
+          this.reconnectDelayMs = 600;
+          this._emitConnectionState('connected');
+          return;
+        }
+        if (state === 'connecting' || state === 'new') {
+          this._emitConnectionState('connecting');
+          return;
+        }
         if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+          this._emitConnectionState('reconnecting');
           this._scheduleReconnect();
         }
       };
@@ -87,6 +107,7 @@ export class PreviewClient {
       this._pollSignals();
       this._startStatsLoop();
     } catch {
+      this._emitConnectionState('reconnecting');
       this._scheduleReconnect();
     }
   }
@@ -102,6 +123,9 @@ export class PreviewClient {
     this.connectionId = '';
     this.token = '';
     this.lastStatsSnapshot = null;
+    this.stream = null;
+    this._emitMediaState({ hasVideo: false, hasAudio: false });
+    this._emitConnectionState('reconnecting');
     const delay = this.reconnectDelayMs;
     this.reconnectDelayMs = Math.min(4000, this.reconnectDelayMs * 1.5);
     this.reconnectTimer = window.setTimeout(async () => {
@@ -119,6 +143,7 @@ export class PreviewClient {
         await this._handleSignal(signal);
       }
     } catch {
+      this._emitConnectionState('reconnecting');
       this._scheduleReconnect();
       return;
     }
@@ -142,8 +167,18 @@ export class PreviewClient {
       return;
     }
     if (type === 'disconnect') {
+      this._emitConnectionState('reconnecting');
       this._scheduleReconnect();
     }
+  }
+
+  _emitConnectionState(nextState) {
+    this.connectionState = nextState;
+    this.onConnectionState(nextState);
+  }
+
+  _emitMediaState(state) {
+    this.onMediaState({ hasVideo: Boolean(state?.hasVideo), hasAudio: Boolean(state?.hasAudio) });
   }
 
   async _sendSignal(to, type, data) {

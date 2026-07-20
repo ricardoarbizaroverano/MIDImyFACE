@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
-import { WINK_HOLD_MS, createGestureTriggerState, evaluateGestureTrigger, gestureRange, resolveGridPad, GRID_TRIGGER_IDS } from './live_session.js';
+import { WINK_HOLD_MS, compactTelemetryLandmarks, createGestureTriggerState, evaluateGestureTrigger, gestureRange, resolveGridPad, GRID_TRIGGER_IDS } from './live_session.js';
 
 assert.equal(GRID_TRIGGER_IDS.length, 8, 'the live grid exposes eight playable pads');
+assert.equal(new Set(GRID_TRIGGER_IDS).size, 8, 'the live grid trigger mapping must be eight unique IDs');
+assert.ok(GRID_TRIGGER_IDS.includes('grid8'), 'the live grid includes the dedicated eighth trigger id');
+const syntheticLandmarks = Array.from({ length: 478 }, (_, index) => ({ x: index / 477, y: 1 - index / 477 }));
+const compact = compactTelemetryLandmarks(syntheticLandmarks);
+assert.ok(compact.length >= 100 && compact.length < syntheticLandmarks.length, 'telemetry keeps key face features without all 478 points');
+assert.ok(compact.every((point) => Array.isArray(point) && point.length === 2), 'telemetry uses compact coordinate arrays');
 assert.equal(resolveGridPad({ x: 0.99, y: 0.01 }), 0, 'mirrored top-left nose position selects pad 1');
 assert.equal(resolveGridPad({ x: 0.01, y: 0.01 }), 3, 'mirrored top-right nose position selects pad 4');
 assert.equal(resolveGridPad({ x: 0.99, y: 0.99 }), 4, 'mirrored bottom-left nose position selects pad 5');

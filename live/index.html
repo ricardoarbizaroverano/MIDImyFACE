@@ -59,6 +59,8 @@
     .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #d33; }
     .status-dot.online { background: var(--green); box-shadow: 0 0 14px rgba(99,255,133,.65); }
     #machineStatus, #sessionCountdown { color: var(--green); font-weight: 700; }
+    #webrtcConnectionLabel { color: #c8c3ff; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    #webrtcSoundBtn { min-height: 36px; padding: 6px 10px; font-size: 12px; }
     #machineMessage { display: none; }
     #participantBadge { color: #fff; }
 
@@ -174,20 +176,6 @@
     .nose-key { color:#ff4b4b; text-shadow:0 0 12px #ff3131; }
     .mouth-key { color:#c8c3ff; text-shadow:0 0 12px #8e6bff; }
 
-    .youtube-live {
-      width: min(94vw, 760px);
-      margin: 0 auto 18px;
-      color: #fff;
-      background: #050505;
-      border: 1px solid rgba(99,255,133,.58);
-      overflow: hidden;
-    }
-    .youtube-live-header { min-height: 42px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .youtube-live-label { color: var(--green); font-size: 14px; font-weight: 700; }
-    #youtubeSoundBtn { min-height: 34px; padding: 5px 10px; font-size: 12px; }
-    .youtube-frame-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; }
-    #youtubeLiveFrame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-
     .donation-modal {
       position: fixed;
       inset: 0;
@@ -217,19 +205,6 @@
     #stopSessionBtn { width: min(94vw, 760px); margin: 0 auto max(18px, env(safe-area-inset-bottom)); border-color: var(--danger); color: var(--danger); font-size: 17px; }
     body.session-active #header, body.session-active .installation-status, body.session-active #stopSessionBtn { display: none; }
     body.session-active #videoContainer { width: 100vw; max-width: none; height: 100dvh; min-height: 0; border: 0; margin: 0; }
-    body.session-active .youtube-live {
-      position: fixed;
-      z-index: 40;
-      right: 10px;
-      bottom: calc(86px + env(safe-area-inset-bottom));
-      width: min(38vw, 280px);
-      margin: 0;
-      box-shadow: 0 8px 28px rgba(0,0,0,.8);
-    }
-    body.session-active .youtube-live-header { min-height: 32px; padding: 4px 7px; }
-    body.session-active .youtube-live-label { font-size: 10px; }
-    body.session-active #youtubeSoundBtn { min-height: 27px; padding: 2px 6px; font-size: 9px; }
-
     /* SNES skin shared with the main MIDImyFACE page. */
     :root { --green: #7cff4f; --green-bright: #b9ff6a; --cyan: #36f6b2; --purple: #8e6bff; --amber: #ffb44c; --panel: #10131d; --danger: #ff5a5a; }
     html, body { background: #050708; }
@@ -346,17 +321,12 @@
       background: #0d1410;
       object-fit: cover;
     }
-    .youtube-live,.youtube-fallback { width:min(94vw,760px); margin:0 auto 18px; color:#fff; background:#050505; border:3px solid rgba(124,255,79,.7); overflow:hidden; box-shadow:4px 4px 0 #000; }
-    .youtube-fallback { display:grid; gap:8px; justify-items:center; padding:18px; text-align:center; }
-    .youtube-fallback strong { color:var(--amber); font-size:18px; }
-    .youtube-fallback span { color:#d5d5d5; }
-    .youtube-fallback .support-link { width:min(100%,360px); margin-top:6px; }
     .donation-card { width:min(100%,480px); padding:24px; border:4px solid var(--green); background:linear-gradient(180deg,var(--panel),#050705); box-shadow:0 0 0 4px #000,8px 8px 0 rgba(0,0,0,.7); }
     .donation-pixel-heart { color:var(--danger); font-size:48px; line-height:1; text-shadow:4px 4px 0 #5e1515; }
     .donation-amounts { grid-template-columns:repeat(4,1fr); }
     .donation-amount { border:3px solid #d9cdff; border-right-color:#33296d; border-bottom-color:#33296d; color:#fff; background:#6957d8; box-shadow:3px 3px 0 #000; }
     .donation-providers { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
-    body.session-active #belowStage, body.session-active #youtubeFallback { display:none; }
+    body.session-active #belowStage { display:none; }
 
     @media (max-width: 620px) {
       #header { padding-top: 18px; }
@@ -369,7 +339,6 @@
       .session-intro { place-items:start center; padding:12px 10px; }
       .intro-panel { margin:0 auto; padding:16px 13px 20px; }
       .donation-amounts { grid-template-columns:repeat(2,1fr); }
-      body.session-active .youtube-live { width: min(46vw, 220px); bottom: calc(82px + env(safe-area-inset-bottom)); }
     }
   </style>
 </head>
@@ -380,7 +349,7 @@
 
   <div class="installation-status" aria-live="polite">
     <div class="status-left"><span id="statusDot" class="status-dot"></span><span id="machineStatus">Connecting…</span><span id="machineMessage"></span></div>
-    <div class="status-right"><span id="participantBadge"></span><span id="sessionCountdown"></span></div>
+    <div class="status-right"><span id="participantBadge"></span><span id="sessionCountdown"></span><span id="webrtcConnectionLabel">Connecting</span><button id="webrtcSoundBtn" type="button" aria-pressed="false">Sound Off</button></div>
   </div>
 
   <main id="videoContainer">
@@ -456,21 +425,11 @@
     </nav>
     <nav class="community-links" aria-label="Follow MIDImyFACE">
       <a id="youtubeChannelLink" class="support-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g" target="_blank" rel="noopener noreferrer"><span class="social-icon youtube-icon">▶</span><span>YOUTUBE CHANNEL</span></a>
+      <a id="lastJamLink" class="support-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g/videos" target="_blank" rel="noopener noreferrer"><span class="social-icon youtube-icon">▶</span><span>LAST JAM ARCHIVE</span></a>
       <a id="instagramProjectLink" class="support-link" href="https://www.instagram.com/midimyface/" target="_blank" rel="noopener noreferrer"><span class="social-icon">＋</span><span>FOLLOW @midimyface</span></a>
       <a class="support-link" href="https://www.instagram.com/ricardoarbiza.sound/" target="_blank" rel="noopener noreferrer"><span class="social-icon">＋</span><span>FOLLOW CREATOR<br><small>@ricardoarbiza.sound</small></span></a>
       <a class="support-link" href="https://midimyface.com/"><span class="social-icon">↗</span><span>MIDIMYFACE.COM</span></a>
     </nav>
-  </section>
-
-  <section id="youtubeLivePanel" class="youtube-live hidden" aria-label="MIDImyFACE YouTube live stream">
-    <div class="youtube-live-header"><span class="youtube-live-label">● LIVE ON YOUTUBE</span><button id="youtubeSoundBtn" type="button">Sound on</button></div>
-    <div class="youtube-frame-wrap"><iframe id="youtubeLiveFrame" title="MIDImyFACE live stream" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
-  </section>
-
-  <section id="youtubeFallback" class="youtube-fallback">
-    <strong>NO LIVE JAM RIGHT NOW</strong>
-    <span>Come back later or check our last jam.</span>
-    <a id="lastJamLink" class="support-link" href="https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g/videos" target="_blank" rel="noopener noreferrer"><span class="youtube-icon">▶</span> CHECK OUR LAST JAM</a>
   </section>
 
   <button id="stopSessionBtn" class="hidden" type="button">End session</button>

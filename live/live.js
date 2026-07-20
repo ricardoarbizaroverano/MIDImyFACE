@@ -2,10 +2,10 @@ const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const STATUS_POLL_MS = 10_000;
 const DEFAULT_PAYPAL_URL = 'https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download';
 const DEFAULT_VENMO_URL = 'https://venmo.com/code?user_id=2982237150642176372&created=1784274093';
-const DEFAULT_YOUTUBE_EMBED_URL = 'https://www.youtube.com/embed/live_stream?channel=UCequCs51HuUdCYC-RQL-b9g&autoplay=1';
 const DEFAULT_YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/channel/UCequCs51HuUdCYC-RQL-b9g';
 const DEFAULT_YOUTUBE_VIDEOS_URL = `${DEFAULT_YOUTUBE_CHANNEL_URL}/videos`;
 const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/midimyface/';
+const WEBRTC_SOUND_PREF_KEY = 'mmf_live_webrtc_sound_on';
 const TERMS_ACCEPTED_STORAGE_KEY = 'mmf_live_terms_accepted_v1';
 const INSTALLATION_STATUS_COLLECTION = 'installation';
 const INSTALLATION_STATUS_DOCUMENT = 'status';
@@ -26,8 +26,8 @@ const elements = Object.fromEntries([
   'statusDot','machineStatus','machineMessage','participantBadge','sessionCountdown','sessionIntro','identityForm',
   'nicknameInput','countrySelect','startSessionBtn','formMessage','sessionVideo','sessionCanvas','sessionStatus',
   'closeSessionBtn','gestureTriggers','stopSessionBtn','paypalDonateLink','instagramProjectLink',
-  'youtubeLivePanel','youtubeLiveFrame','youtubeSoundBtn','donationModal','donationAmounts','dismissDonationBtn',
-  'venmoDonateLink','modalPaypalLink','modalVenmoLink','youtubeChannelLink','lastJamLink','youtubeFallback',
+  'webrtcSoundBtn','webrtcConnectionLabel','donationModal','donationAmounts','dismissDonationBtn',
+  'venmoDonateLink','modalPaypalLink','modalVenmoLink','youtubeChannelLink','lastJamLink',
   'termsConsent','googleAuthBtn','googleAuthLabel','googleSignInBtn','authMessage','queueCard','queuePosition','queueEstimate',
   'authPanel','registrationTitle','registrationLead','availabilityPanel','availabilityTitle','availabilityText',
   'availabilityActions','notifyBellBtn','notifyBellLabel','availabilityRetryBtn','joinPanel','notificationModal',
@@ -47,9 +47,6 @@ const state = {
   participantSession: null,
   countdownTimer: null,
   paypalUrl: DEFAULT_PAYPAL_URL,
-  youtubePlayer: null,
-  youtubeProbeTimer: null,
-  youtubeLiveDetected: false,
   queueToken: null,
   queuePollTimer: null,
   deviceId: null,
@@ -62,41 +59,87 @@ const state = {
   notifyInstallationOnline: false,
   previewClient: null,
   previewFeedAvailable: false,
+  previewConnectionState: 'connecting',
+  previewHasVideo: false,
+  previewHasAudio: false,
+  webrtcSoundEnabled: sessionStorage.getItem(WEBRTC_SOUND_PREF_KEY) === 'true',
   previewStats: { fps: 0, receiveFps: 0, framesDecoded: 0, framesReceived: 0, jitter: 0, frameAgeMs: 0 },
 };
 
-async function ensurePreviewClient({ role = 'waiting_viewer', sessionId = '' } = {}) {
-  const requestedRole = String(role || 'waiting_viewer');
-  const requestedSessionId = String(sessionId || '');
-  if (state.previewClient && state.previewClient.role === requestedRole && state.previewClient.sessionId === requestedSessionId) {
-    return state.previewClient;
+function attachPreviewStream(videoEl, stream, { muted = true } = {}) {
+  if (!videoEl) return;
+  const sameStream = videoEl.srcObject === stream;
+  videoEl.srcObject = stream;
+  videoEl.muted = muted;
+  if (!sameStream) {
+    videoEl.play().catch(() => {});
   }
+}
+
+function updateWebRtcUi() {
+  const stateLabel = elements.webrtcConnectionLabel;
+  if (stateLabel) {
+    let label = 'Connecting';
+    if (state.previewConnectionState === 'reconnecting') label = 'Reconnecting';
+    else if (state.previewConnectionState === 'connected' && !state.previewHasVideo) label = 'Video unavailable';
+    else if (state.previewConnectionState === 'connected' && !state.previewHasAudio) label = 'Audio unavailable';
+    else if (state.previewConnectionState === 'connected') label = 'Connected';
+    stateLabel.textContent = label;
+  }
+
+  const button = elements.webrtcSoundBtn;
+  if (!button) return;
+  const audioAvailable = state.previewHasAudio && state.previewFeedAvailable;
+  if (!audioAvailable) {
+    button.textContent = 'Audio unavailable';
+    button.disabled = true;
+    button.setAttribute('aria-pressed', 'false');
+    return;
+  }
+  button.disabled = false;
+  button.textContent = state.webrtcSoundEnabled ? 'Sound On' : 'Sound Off';
+  button.setAttribute('aria-pressed', state.webrtcSoundEnabled ? 'true' : 'false');
+}
+
+function applyWebRtcAudioPreference() {
+  const shouldPlayAudio = Boolean(state.webrtcSoundEnabled && state.previewHasAudio && state.previewFeedAvailable);
+  if (elements.previewVideo) {
+    elements.previewVideo.muted = !shouldPlayAudio;
+    if (shouldPlayAudio) elements.previewVideo.play().catch(() => {});
+  }
+  if (elements.miniPreviewVideo) {
+    elements.miniPreviewVideo.muted = true;
+  }
+  updateWebRtcUi();
+}
+
+async function ensurePreviewClient() {
   if (state.previewClient) {
-    state.previewClient.stop?.();
-    state.previewClient = null;
-    state.previewFeedAvailable = false;
-    updateProgramFeedVisibility();
+    return state.previewClient;
   }
   try {
     const { PreviewClient } = await import('./broadcast/preview_client.js');
     state.previewClient = new PreviewClient({
       relayOrigin: state.relayOrigin,
-      role: requestedRole,
-      sessionId: requestedSessionId,
+      role: 'waiting_viewer',
+      sessionId: '',
       onStream(stream) {
-        if (!stream) return;
-        state.previewFeedAvailable = true;
+        state.previewFeedAvailable = Boolean(stream);
+        state.previewHasVideo = Boolean(stream?.getVideoTracks?.().some((track) => track.readyState === 'live'));
+        state.previewHasAudio = Boolean(stream?.getAudioTracks?.().some((track) => track.readyState === 'live'));
         updateProgramFeedVisibility();
-        if (elements.previewVideo) {
-          elements.previewVideo.srcObject = stream;
-          elements.previewVideo.muted = true;
-          elements.previewVideo.play().catch(() => {});
-        }
-        if (elements.miniPreviewVideo) {
-          elements.miniPreviewVideo.srcObject = stream;
-          elements.miniPreviewVideo.muted = true;
-          elements.miniPreviewVideo.play().catch(() => {});
-        }
+        attachPreviewStream(elements.previewVideo, stream, { muted: true });
+        attachPreviewStream(elements.miniPreviewVideo, stream, { muted: true });
+        applyWebRtcAudioPreference();
+      },
+      onConnectionState(nextState) {
+        state.previewConnectionState = String(nextState || 'connecting');
+        updateWebRtcUi();
+      },
+      onMediaState({ hasVideo, hasAudio }) {
+        state.previewHasVideo = Boolean(hasVideo);
+        state.previewHasAudio = Boolean(hasAudio);
+        applyWebRtcAudioPreference();
       },
       onStats(stats) {
         state.previewStats = stats;
@@ -106,7 +149,11 @@ async function ensurePreviewClient({ role = 'waiting_viewer', sessionId = '' } =
   } catch {
     state.previewClient = null;
     state.previewFeedAvailable = false;
+    state.previewHasVideo = false;
+    state.previewHasAudio = false;
+    state.previewConnectionState = 'reconnecting';
     updateProgramFeedVisibility();
+    updateWebRtcUi();
   }
   return state.previewClient;
 }
@@ -116,6 +163,7 @@ function updateProgramFeedVisibility() {
   document.body.classList.toggle('no-program-feed', !hasFeed);
   setHidden(elements.previewVideo, !hasFeed || !state.session);
   setHidden(elements.miniProgramPreview, !hasFeed || Boolean(state.session));
+  applyWebRtcAudioPreference();
 }
 
 function resolveRelayOrigin() {
@@ -367,11 +415,6 @@ function configurePublicLinks(bootstrap) {
   elements.youtubeChannelLink.href = safeExternalUrl(links.youtubeChannelUrl, ['youtube.com'], DEFAULT_YOUTUBE_CHANNEL_URL);
   elements.lastJamLink.href = safeExternalUrl(links.youtubeVideosUrl, ['youtube.com'], DEFAULT_YOUTUBE_VIDEOS_URL);
   renderDonationAmounts(state.status?.donations?.suggestedAmounts);
-  setupYouTubeLiveProbe(safeExternalUrl(
-    links.youtubeLiveEmbedUrl,
-    ['youtube.com', 'youtube-nocookie.com'],
-    DEFAULT_YOUTUBE_EMBED_URL,
-  ));
 }
 
 function renderDonationAmounts(rawAmounts) {
@@ -400,84 +443,6 @@ function showDonationPrompt() {
 
 function hideDonationPrompt() {
   setHidden(elements.donationModal, true);
-}
-
-function loadYouTubePlayerApi() {
-  if (window.YT?.Player) return Promise.resolve(window.YT);
-  return new Promise((resolve, reject) => {
-    let script = document.querySelector('script[data-mmf-youtube-api]');
-    if (!script) {
-      script = document.createElement('script');
-      script.src = 'https://www.youtube.com/iframe_api';
-      script.async = true;
-      script.dataset.mmfYoutubeApi = 'true';
-      script.onerror = () => reject(new Error('youtube_api_unavailable'));
-      document.head.appendChild(script);
-    }
-    const startedAt = Date.now();
-    const timer = window.setInterval(() => {
-      if (window.YT?.Player) {
-        clearInterval(timer);
-        resolve(window.YT);
-      } else if (Date.now() - startedAt > 12_000) {
-        clearInterval(timer);
-        reject(new Error('youtube_api_timeout'));
-      }
-    }, 100);
-  });
-}
-
-function setYouTubeLiveVisible(visible) {
-  state.youtubeLiveDetected = Boolean(visible);
-  setHidden(elements.youtubeLivePanel, !visible);
-  setHidden(elements.youtubeFallback, visible);
-}
-
-function inspectYouTubePlayer(attemptPlayback = true) {
-  if (!state.youtubePlayer) return false;
-  try {
-    const videoId = String(state.youtubePlayer.getVideoData?.()?.video_id || '');
-    if (!videoId) return false;
-    setYouTubeLiveVisible(true);
-    if (attemptPlayback) {
-      state.youtubePlayer.unMute?.();
-      state.youtubePlayer.setVolume?.(80);
-      state.youtubePlayer.playVideo?.();
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function setupYouTubeLiveProbe(rawEmbedUrl) {
-  try {
-    const embedUrl = new URL(rawEmbedUrl);
-    embedUrl.searchParams.set('autoplay', '1');
-    embedUrl.searchParams.set('enablejsapi', '1');
-    embedUrl.searchParams.set('playsinline', '1');
-    embedUrl.searchParams.set('origin', window.location.origin);
-    elements.youtubeLiveFrame.src = embedUrl.toString();
-    const YT = await loadYouTubePlayerApi();
-    state.youtubePlayer = new YT.Player(elements.youtubeLiveFrame, {
-      events: {
-        onReady: () => inspectYouTubePlayer(),
-        onStateChange: (event) => {
-          if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.BUFFERING || event.data === YT.PlayerState.CUED) {
-            inspectYouTubePlayer();
-          }
-        },
-        onError: () => setYouTubeLiveVisible(false),
-        onAutoplayBlocked: () => {
-          if (inspectYouTubePlayer(false)) setHidden(elements.youtubeSoundBtn, false);
-        },
-      },
-    });
-    clearInterval(state.youtubeProbeTimer);
-    state.youtubeProbeTimer = window.setInterval(inspectYouTubePlayer, 3_000);
-  } catch {
-    setYouTubeLiveVisible(false);
-  }
 }
 
 function setFormMessage(message, error = false) {
@@ -658,7 +623,7 @@ async function registerWithGoogle() {
 
 async function activateReservation(reservation) {
   clearQueue();
-  await ensurePreviewClient({ role: 'participant', sessionId: reservation?.session?.sessionId || '' });
+  await ensurePreviewClient();
   state.session = { ...reservation.session, token: reservation.token };
   const { ParticipantSession } = await import('./live_session.js');
   state.participantSession = new ParticipantSession({
@@ -775,7 +740,7 @@ function resetUi(message = 'Session ended. You can start another turn when the i
   state.participantSession = null;
   setFormMessage(message);
   updateProgramFeedVisibility();
-  ensurePreviewClient({ role: 'waiting_viewer', sessionId: '' }).catch(() => {});
+  ensurePreviewClient().catch(() => {});
   refreshStatus();
   if (offerDonation) showDonationPrompt();
 }
@@ -937,10 +902,11 @@ async function initialize() {
   elements.notificationModal.addEventListener('click', (event) => {
     if (event.target === elements.notificationModal) closeNotificationPrompt();
   });
-  elements.youtubeSoundBtn.addEventListener('click', () => {
-    state.youtubePlayer?.unMute?.();
-    state.youtubePlayer?.setVolume?.(80);
-    state.youtubePlayer?.playVideo?.();
+  elements.webrtcSoundBtn.addEventListener('click', () => {
+    if (!state.previewHasAudio || !state.previewFeedAvailable) return;
+    state.webrtcSoundEnabled = !state.webrtcSoundEnabled;
+    sessionStorage.setItem(WEBRTC_SOUND_PREF_KEY, state.webrtcSoundEnabled ? 'true' : 'false');
+    applyWebRtcAudioPreference();
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !elements.donationModal.classList.contains('hidden')) hideDonationPrompt();
@@ -962,8 +928,9 @@ async function initialize() {
   } catch {
     await setupGoogleRegistration({});
   }
-  await ensurePreviewClient({ role: 'waiting_viewer', sessionId: '' });
+  await ensurePreviewClient();
   updateProgramFeedVisibility();
+  updateWebRtcUi();
   await refreshStatus();
   window.setInterval(refreshStatus, STATUS_POLL_MS);
 }

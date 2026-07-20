@@ -57,6 +57,8 @@ async function run() {
   assert.equal(result.response.status, 200);
   assert.equal(result.body.installationStatus.online, true);
   assert.equal(typeof result.body.installationStatus.notificationId, 'string');
+  const installationEpoch = Number(result.body.status?.installationEpoch);
+  assert.ok(Number.isSafeInteger(installationEpoch) && installationEpoch > 0);
 
   result = await request('/api/live/session/start', {
     method: 'POST',
@@ -82,7 +84,10 @@ async function run() {
   assert.equal(result.response.status, 201);
   assert.ok(result.body.token);
   const participantToken = result.body.token;
+  const participantSessionId = result.body.session.sessionId;
+  assert.equal(result.body.session.installationEpoch, installationEpoch);
   const concurrentTokens = [];
+  const concurrentSessionIds = [];
   for (const [index, nickname] of ['Second', 'Third'].entries()) {
     result = await request('/api/live/session/start', {
       method: 'POST',
@@ -91,6 +96,8 @@ async function run() {
     });
     assert.equal(result.response.status, 201);
     concurrentTokens.push(result.body.token);
+    concurrentSessionIds.push(result.body.session.sessionId);
+    assert.equal(result.body.session.installationEpoch, installationEpoch);
   }
   result = await request('/api/live/status');
   assert.equal(result.body.sessions.length, 3);
@@ -131,6 +138,10 @@ async function run() {
     method: 'POST',
     headers: { Authorization: `Bearer ${participantToken}`, 'Content-Type': 'application/json', Origin: origin },
     body: JSON.stringify({
+      installationEpoch,
+      participantSessionId,
+      sequenceNumber: 0,
+      clientTimestamp: Date.now(),
       gestures: { mouthOpen: 20.123, accent: 8.5 },
       triggerCounts: { mouthOpen: 2, accent: 1 },
       landmarks: fullFaceLandmarks,
@@ -138,11 +149,50 @@ async function run() {
     }),
   });
   assert.equal(result.response.status, 200);
+  assert.equal(result.body.metadata.installationEpoch, installationEpoch);
+  assert.equal(result.body.metadata.participantSessionId, participantSessionId);
+  assert.equal(result.body.metadata.sequenceNumber, 0);
+
+  result = await request('/api/live/session/gestures', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${participantToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({
+      installationEpoch,
+      participantSessionId,
+      sequenceNumber: 0,
+      clientTimestamp: Date.now(),
+      gestures: { mouthOpen: 21 },
+      triggerCounts: { mouthOpen: 3 },
+      landmarks: fullFaceLandmarks,
+    }),
+  });
+  assert.equal(result.response.status, 409);
+  assert.equal(result.body.error, 'invalid_sequence_number');
+
+  result = await request('/api/live/session/gestures', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${participantToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({
+      installationEpoch,
+      participantSessionId,
+      sequenceNumber: 1,
+      clientTimestamp: Date.now() - 90_000,
+      gestures: { mouthOpen: 21 },
+      triggerCounts: { mouthOpen: 3 },
+      landmarks: fullFaceLandmarks,
+    }),
+  });
+  assert.equal(result.response.status, 409);
+  assert.equal(result.body.error, 'stale_client_timestamp');
 
   result = await request('/api/live/session/gestures', {
     method: 'POST',
     headers: { Authorization: `Bearer ${concurrentTokens[0]}`, 'Content-Type': 'application/json', Origin: origin },
     body: JSON.stringify({
+      installationEpoch,
+      participantSessionId: concurrentSessionIds[0],
+      sequenceNumber: 0,
+      clientTimestamp: Date.now(),
       gestures: { smile: 12 },
       triggerCounts: { smile: 1 },
       landmarks: fullFaceLandmarks.slice(0, 100),
@@ -155,6 +205,10 @@ async function run() {
     method: 'POST',
     headers: { Authorization: `Bearer ${participantToken}`, 'Content-Type': 'application/json', Origin: origin },
     body: JSON.stringify({
+      installationEpoch,
+      participantSessionId,
+      sequenceNumber: 1,
+      clientTimestamp: Date.now(),
       gestures: { mouthOpen: 20.123, accent: 8.5 },
       triggerCounts: { mouthOpen: 2, accent: 1 },
       landmarks: fullFaceLandmarks,
@@ -179,47 +233,62 @@ async function run() {
   assert.deepEqual(result.body.landmarks[0], { x: 0, y: 0 });
   assert.deepEqual(result.body.triggerCounts, { mouthOpen: 2, accent: 1 });
   assert.equal(result.body.frameAspect, 0.5625);
+  assert.equal(result.body.installationEpoch, installationEpoch);
+  assert.equal(result.body.sequenceNumber, 1);
+  assert.ok(Number.isFinite(result.body.clientTimestamp));
 
-  result = await request('/api/live/session/stop', {
+  result = await request('/api/live/device/reset-runtime', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${participantToken}`, 'Content-Type': 'application/json', Origin: origin },
-    body: '{}',
+    headers: { Authorization: `Bearer ${deviceToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({}),
   });
   assert.equal(result.response.status, 200);
+  assert.ok(Number.isSafeInteger(result.body.installationEpoch));
+  assert.notEqual(result.body.installationEpoch, installationEpoch);
+  const nextInstallationEpoch = result.body.installationEpoch;
+
+  result = await request('/api/live/status');
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.sessions.length, 0);
+  assert.equal(result.body.queue.waiting, 0);
+  assert.equal(result.body.installationEpoch, nextInstallationEpoch);
+
+  result = await request('/api/live/session/gestures', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${participantToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({
+      installationEpoch,
+      participantSessionId,
+      sequenceNumber: 2,
+      clientTimestamp: Date.now(),
+      gestures: { mouthOpen: 23 },
+      triggerCounts: { mouthOpen: 4 },
+      landmarks: fullFaceLandmarks,
+    }),
+  });
+  assert.equal(result.response.status, 401);
 
   result = await request('/api/live/queue/status', {
     method: 'POST',
     headers: { Authorization: `Bearer ${queueToken}`, 'Content-Type': 'application/json', Origin: origin },
     body: '{}',
   });
-  assert.equal(result.response.status, 200);
-  assert.equal(result.body.ready, true);
-  assert.equal(result.body.session.nickname, 'QueuedUp');
-  const queuedParticipantToken = result.body.token;
-
-  for (const token of concurrentTokens) {
-    result = await request('/api/live/session/stop', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Origin: origin },
-      body: '{}',
-    });
-    assert.equal(result.response.status, 200);
-  }
-
-  result = await request('/api/live/session/stop', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${queuedParticipantToken}`, 'Content-Type': 'application/json', Origin: origin },
-    body: '{}',
-  });
-  assert.equal(result.response.status, 200);
+  assert.equal(result.response.status, 410);
 
   result = await request('/api/live/session/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin },
     body: JSON.stringify({ nickname: 'TestPlayr', countryCode: 'UY', deviceId: 'test_device_0000000000000001' }),
   });
-  assert.equal(result.response.status, 429);
-  assert.equal(result.body.error, 'participant_cooldown');
+  assert.equal(result.response.status, 201);
+  assert.equal(result.body.session.installationEpoch, nextInstallationEpoch);
+
+  result = await request('/api/live/session/stop', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${result.body.token}`, 'Content-Type': 'application/json', Origin: origin },
+    body: '{}',
+  });
+  assert.equal(result.response.status, 200);
 
   result = await request('/api/live/session/gestures', {
     headers: { Authorization: `Bearer ${deviceToken}` },

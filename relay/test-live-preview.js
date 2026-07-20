@@ -120,6 +120,21 @@ async function run() {
   });
   assert.equal(result.response.status, 200);
 
+  result = await request('/api/live/device/reset-runtime', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({}),
+  });
+  assert.equal(result.response.status, 401);
+
+  result = await request('/api/live/device/reset-runtime', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${deviceToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({}),
+  });
+  assert.equal(result.response.status, 200);
+  assert.ok(Number.isSafeInteger(result.body.installationEpoch));
+
   console.log('live preview signaling test passed');
 }
 
