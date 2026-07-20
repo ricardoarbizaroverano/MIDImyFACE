@@ -90,6 +90,7 @@ const LIVE_SESSION_DURATION_SECONDS  = DEFAULT_LIVE_SESSION_DURATION_SECONDS;
 const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.LIVE_COOLDOWN_MINUTES || 30), 240));
 const LIVE_QUEUE_TICKET_TTL_MS       = Math.max(15_000, Math.min(Number(process.env.LIVE_QUEUE_TICKET_TTL_MS || 45_000), 300_000));
 const LIVE_SNAPSHOT_TTL_MS           = Math.max(500, Math.min(Number(process.env.LIVE_SNAPSHOT_TTL_MS || 2500), 10_000));
+const LIVE_DEVICE_HEARTBEAT_TTL_MS   = Math.max(500, Math.min(Number(process.env.LIVE_DEVICE_HEARTBEAT_TTL_MS || 45_000), 120_000));
 const LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_AGE_MS = Math.max(5_000, Math.min(Number(process.env.LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_AGE_MS || 30_000), 120_000));
 const LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_FUTURE_MS = Math.max(1_000, Math.min(Number(process.env.LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_FUTURE_MS || 10_000), 30_000));
 const LIVE_PREVIEW_TTL_MS            = Math.max(15_000, Math.min(Number(process.env.LIVE_PREVIEW_TTL_MS || 120_000), 900_000));
@@ -1171,9 +1172,24 @@ function updateLiveState(rawPatch, updatedBy = 'raspberry-pi') {
   return liveState;
 }
 
+function liveDeviceHeartbeatFresh(state = liveState, nowMs = Date.now()) {
+  const heartbeatMs = Date.parse(state?.machine?.heartbeatAt || '');
+  const ageMs = nowMs - heartbeatMs;
+  return Number.isFinite(heartbeatMs) && ageMs >= 0 && ageMs <= LIVE_DEVICE_HEARTBEAT_TTL_MS;
+}
+
 function publicLiveState(state = liveState) {
   const { auth: _legacyPrivateAuth, ...publicState } = state || {};
-  return publicState;
+  const heartbeatFresh = liveDeviceHeartbeatFresh(state);
+  return {
+    ...publicState,
+    machine: {
+      ...(publicState.machine || {}),
+      alive: Boolean(publicState.machine?.alive && heartbeatFresh),
+      acceptingParticipants: Boolean(publicState.machine?.acceptingParticipants && heartbeatFresh),
+      controlReachable: heartbeatFresh,
+    },
+  };
 }
 
 function buildLiveBootstrapPayload() {
@@ -1779,6 +1795,9 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
     if (req.method === 'POST' && parsed.pathname === '/api/live/session/start') {
       try {
         expireLiveSessionsIfNeeded();
+        if (!liveDeviceHeartbeatFresh()) {
+          return sendJson(res, 503, { ok: false, error: 'installation_control_unreachable' }, c);
+        }
         if (!liveState.machine?.alive || !liveState.machine?.acceptingParticipants) {
           return sendJson(res, 409, { ok: false, error: 'installation_not_accepting' }, c);
         }

@@ -763,6 +763,7 @@ function startCountdown() {
 
 function friendlyStartError(error) {
   if (error.code === 'installation_busy') return 'Another participant is playing. Join the queue.';
+  if (error.code === 'installation_control_unreachable') return 'The installation control link is offline. Please wait for it to reconnect.';
   if (error.code === 'installation_not_accepting') return 'The installation is online but not accepting participants.';
   if (error.code === 'start_rate_limited') return 'Please wait a few seconds before trying again.';
   if (error.code === 'invalid_firebase_token') return 'Your Google session could not be verified. Sign out, sign in, and try again.';

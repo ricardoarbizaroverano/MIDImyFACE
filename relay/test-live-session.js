@@ -25,6 +25,7 @@ const child = spawn(process.execPath, ['server.js'], {
     LIVE_STATE_FILE: stateFile,
     LIVE_SESSION_DURATION_SECONDS: '15',
     LIVE_SNAPSHOT_TTL_MS: '1000',
+    LIVE_DEVICE_HEARTBEAT_TTL_MS: '500',
     LIVE_REQUIRE_FIREBASE_AUTH: 'false',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -59,6 +60,24 @@ async function run() {
   assert.equal(typeof result.body.installationStatus.notificationId, 'string');
   const installationEpoch = Number(result.body.status?.installationEpoch);
   assert.ok(Number.isSafeInteger(installationEpoch) && installationEpoch > 0);
+
+  await new Promise((resolve) => setTimeout(resolve, 550));
+  result = await request('/api/live/status');
+  assert.equal(result.body.status.machine.controlReachable, false);
+  assert.equal(result.body.status.machine.acceptingParticipants, false);
+  result = await request('/api/live/session/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ nickname: 'NoControl', countryCode: 'UY', deviceId: 'test_device_no_control' }),
+  });
+  assert.equal(result.response.status, 503);
+  assert.equal(result.body.error, 'installation_control_unreachable');
+  result = await request('/api/live/device/status', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${deviceToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ machine: { alive: true, acceptingParticipants: true, mode: 'hybrid' } }),
+  });
+  assert.equal(result.response.status, 200);
 
   result = await request('/api/live/session/start', {
     method: 'POST',
