@@ -3,6 +3,12 @@
   const GRID_ROWS = 2;
   const FLASH_DURATION_MS = 240;
   const HIT_EFFECT_DURATION_MS = 620;
+  const PERFORMER_NOSE_INDEX = 1;
+  const PERFORMER_MOUTH_INDICES = Object.freeze([
+    61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291,
+    308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78,
+    191, 80, 81, 82, 13, 312, 311, 310, 415,
+  ]);
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -87,6 +93,45 @@
     return 1 + Math.sin(now / 125) * 0.1;
   }
 
+  function getPerformerFaceCue(landmarks, width, height, now = 0) {
+    if (!Array.isArray(landmarks) || landmarks.length <= PERFORMER_NOSE_INDEX) {
+      return null;
+    }
+
+    const stageWidth = Math.max(1, Number(width) || 1);
+    const stageHeight = Math.max(1, Number(height) || 1);
+    const stageScale = Math.min(stageWidth, stageHeight);
+    const project = (landmark) => {
+      if (!landmark || !Number.isFinite(landmark.x) || !Number.isFinite(landmark.y)) return null;
+      return {
+        x: stageWidth - (landmark.x * stageWidth),
+        y: landmark.y * stageHeight,
+      };
+    };
+    const nose = project(landmarks[PERFORMER_NOSE_INDEX]);
+    if (!nose) return null;
+
+    return {
+      nose: {
+        ...nose,
+        diameter: Math.max(12, stageScale * 0.034 * getNosePulse(now)),
+        fill: toColor(255, 38, 58, 0.96),
+        glow: toColor(255, 20, 45, 0.96),
+        glowBlur: Math.max(18, stageScale * 0.045),
+      },
+      mouth: PERFORMER_MOUTH_INDICES
+        .map((index) => project(landmarks[index]))
+        .filter(Boolean)
+        .map((point) => ({
+          ...point,
+          diameter: Math.max(5, stageScale * 0.011),
+          fill: toColor(255, 255, 255, 0.98),
+          glow: toColor(255, 255, 255, 0.94),
+          glowBlur: Math.max(12, stageScale * 0.028),
+        })),
+    };
+  }
+
   globalScope.MMFPerformanceGridVisuals = {
     GRID_COLS,
     GRID_ROWS,
@@ -99,5 +144,6 @@
     isHitEffectActive,
     filterActiveHitEffects,
     getNosePulse,
+    getPerformerFaceCue,
   };
 })(window);
