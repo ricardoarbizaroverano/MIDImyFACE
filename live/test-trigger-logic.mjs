@@ -19,6 +19,11 @@ assert.doesNotMatch(livePageSource, /await ensurePreviewClient\(\);\s*updateProg
 assert.match(livePageSource, /preview_client\.js\?v=\d{8}-media-\d+/, 'live page must cache-bust the WebRTC preview client');
 assert.match(livePageSource, /state\.previewFeedAvailable = state\.previewHasVideo;/, 'the program background must follow the live video track state');
 assert.match(livePageSource, /onMediaState\([\s\S]*?updateProgramFeedVisibility\(\);/, 'track state changes must immediately refresh program-feed visibility');
+assert.match(livePageSource, /live_session\.js\?v=\d{8}-media-\d+/, 'live page must cache-bust participant gesture transport');
+const participantSource = await readFile(new URL('./live_session.js', import.meta.url), 'utf8');
+assert.match(participantSource, /new WebSocket\(socketUrl\.toString\(\)\)/, 'participant telemetry must use a persistent WebSocket');
+assert.match(participantSource, /type: 'live\/participant-auth'/, 'participant WebSocket must authenticate its live session');
+assert.match(participantSource, /this\._gestureSocket\.send\(JSON\.stringify\(\{ type: 'live\/gesture'/, 'landmarks and triggers must use the live socket once ready');
 const liveHtmlSource = await readFile(new URL('./index.html', import.meta.url), 'utf8');
 assert.match(liveHtmlSource, /id="webrtcConnectionLabel" class="hidden"/, 'disabled media must not show a reconnect status placeholder');
 assert.match(liveHtmlSource, /id="webrtcSoundBtn" class="hidden"/, 'disabled media must not show sound controls');

@@ -2,11 +2,13 @@ const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { WebSocket } = require('ws');
 
 const port = 32147;
 const origin = `http://127.0.0.1:${port}`;
 const deviceToken = 'test-device-token-000000000000000000000000';
 const stateFile = path.join('/tmp', `midimyface-live-test-${process.pid}.json`);
+let streamAbort = null;
 
 const child = spawn(process.execPath, ['server.js'], {
   cwd: __dirname,
@@ -46,6 +48,45 @@ async function waitForServer() {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error('relay did not start');
+}
+
+function waitForWsMessage(socket, predicate, timeoutMs = 3000) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('websocket message timeout')), timeoutMs);
+    const onMessage = (raw) => {
+      let message = null;
+      try { message = JSON.parse(String(raw)); } catch { return; }
+      if (!predicate(message)) return;
+      clearTimeout(timeout);
+      socket.off('message', onMessage);
+      resolve(message);
+    };
+    socket.on('message', onMessage);
+  });
+}
+
+async function readSseSnapshot(reader, predicate, timeoutMs = 3000) {
+  const decoder = new TextDecoder();
+  let buffered = '';
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const remaining = Math.max(1, deadline - Date.now());
+    const result = await Promise.race([
+      reader.read(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('SSE snapshot timeout')), remaining)),
+    ]);
+    if (result.done) throw new Error('SSE stream closed');
+    buffered += decoder.decode(result.value, { stream: true });
+    const events = buffered.split('\n\n');
+    buffered = events.pop() || '';
+    for (const event of events) {
+      const dataLine = event.split('\n').find((line) => line.startsWith('data:'));
+      if (!dataLine) continue;
+      const payload = JSON.parse(dataLine.slice(5).trim());
+      if (predicate(payload)) return payload;
+    }
+  }
+  throw new Error('SSE snapshot timeout');
 }
 
 async function run() {
@@ -260,6 +301,45 @@ async function run() {
   assert.equal(result.body.sequenceNumber, 1);
   assert.ok(Number.isFinite(result.body.clientTimestamp));
 
+  streamAbort = new AbortController();
+  const streamResponse = await fetch(`${origin}/api/live/session/gestures/stream`, {
+    headers: { Authorization: `Bearer ${deviceToken}` },
+    signal: streamAbort.signal,
+  });
+  assert.equal(streamResponse.status, 200);
+  const streamReader = streamResponse.body.getReader();
+  await readSseSnapshot(streamReader, (payload) => payload.sequenceNumber === 1);
+
+  const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: { Origin: origin } });
+  await new Promise((resolve, reject) => {
+    socket.once('open', resolve);
+    socket.once('error', reject);
+  });
+  socket.send(JSON.stringify({ type: 'live/participant-auth', token: participantToken }));
+  const ready = await waitForWsMessage(socket, (message) => message.type === 'live/participant-ready');
+  assert.equal(ready.data.sessionId, participantSessionId);
+  socket.send(JSON.stringify({
+    type: 'live/gesture',
+    data: {
+      installationEpoch,
+      participantSessionId,
+      sequenceNumber: 2,
+      clientTimestamp: Date.now(),
+      gestures: { mouthOpen: 22 },
+      triggerCounts: { mouthOpen: 3, accent: 1 },
+      landmarks: fullFaceLandmarks,
+      frameAspect: 9 / 16,
+    },
+  }));
+  const acknowledgment = await waitForWsMessage(socket, (message) => message.type === 'live/gesture-ack');
+  assert.equal(acknowledgment.data.sequenceNumber, 2);
+  const streamed = await readSseSnapshot(streamReader, (payload) => payload.sequenceNumber === 2);
+  assert.equal(streamed.triggerCounts.mouthOpen, 3);
+  assert.equal(streamed.landmarks.length, 468);
+  socket.close();
+  streamAbort.abort();
+  streamAbort = null;
+
   result = await request('/api/live/device/reset-runtime', {
     method: 'POST',
     headers: { Authorization: `Bearer ${deviceToken}`, 'Content-Type': 'application/json', Origin: origin },
@@ -332,6 +412,7 @@ async function run() {
 
 run()
   .finally(async () => {
+    streamAbort?.abort();
     child.kill('SIGTERM');
     await fs.rm(stateFile, { force: true });
   })

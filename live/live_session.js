@@ -284,6 +284,9 @@ export class ParticipantSession {
     this._hitEffects = [];
     this._peerParticipants = [];
     this._postTimer    = null;
+    this._gestureSocket = null;
+    this._gestureSocketReady = false;
+    this._gestureSocketReconnectTimer = 0;
     this._video        = null;
     this._canvas       = null;
     this._ctx          = null;
@@ -331,6 +334,7 @@ export class ParticipantSession {
     }
 
     this.onStatus({ phase: 'active', message: 'Point with your nose. Open your mouth to play.' });
+    this._connectGestureSocket();
     this._schedulePost();
     this._startRenderLoop();
     this._startProcessingLoop();
@@ -339,6 +343,7 @@ export class ParticipantSession {
   async stop({ notifyRelay = true } = {}) {
     this.running = false;
     clearTimeout(this._postTimer);
+    this._closeGestureSocket();
     if (this._renderFrameHandle) cancelAnimationFrame(this._renderFrameHandle);
     if (this._videoFrameHandle && typeof this._video?.cancelVideoFrameCallback === 'function') {
       this._video.cancelVideoFrameCallback(this._videoFrameHandle);
@@ -430,7 +435,7 @@ export class ParticipantSession {
       for (const landmark of peer.landmarks) {
         if (!Number.isFinite(landmark?.x) || !Number.isFinite(landmark?.y)) continue;
         ctx.beginPath();
-        ctx.arc((1 - landmark.x) * width, landmark.y * height, 0.8, 0, Math.PI * 2);
+        ctx.arc((1 - landmark.x) * width, landmark.y * height, 1.3, 0, Math.PI * 2);
         ctx.fill();
       }
       const anchor = peer.landmarks[10] || peer.landmarks[1];
@@ -449,7 +454,7 @@ export class ParticipantSession {
     ctx.fillStyle = ownColor;
     ctx.shadowColor = ownColor;
     ctx.shadowBlur = 2;
-    const dotRadius = Math.max(0.75, Math.min(1.2, Math.min(width, height) * 0.0019));
+    const dotRadius = Math.max(1.25, Math.min(1.7, Math.min(width, height) * 0.0019 + 0.5));
     for (const lm of landmarks) {
       ctx.beginPath();
       ctx.arc((1 - lm.x) * width, lm.y * height, dotRadius, 0, Math.PI * 2);
@@ -649,22 +654,29 @@ export class ParticipantSession {
   }
 
   async _postGestures(gestures, landmarks) {
-    const url = `${this.relayOrigin}/api/live/session/gestures`;
     const sequenceNumber = this._sequenceNumber;
     this._sequenceNumber += 1;
+    const body = {
+      installationEpoch: this._installationEpoch,
+      participantSessionId: String(this.session?.sessionId || ''),
+      sequenceNumber,
+      clientTimestamp: Date.now(),
+      gestures,
+      triggerCounts: this._triggerCounts,
+      landmarks: compactTelemetryLandmarks(landmarks),
+      frameAspect: (this._video?.videoWidth || 640) / Math.max(1, this._video?.videoHeight || 480),
+    };
+    if (this._gestureSocketReady && this._gestureSocket?.readyState === WebSocket.OPEN) {
+      if (this._gestureSocket.bufferedAmount < 256_000) {
+        this._gestureSocket.send(JSON.stringify({ type: 'live/gesture', data: body }));
+      }
+      return;
+    }
+    const url = `${this.relayOrigin}/api/live/session/gestures`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` },
-      body: JSON.stringify({
-        installationEpoch: this._installationEpoch,
-        participantSessionId: String(this.session?.sessionId || ''),
-        sequenceNumber,
-        clientTimestamp: Date.now(),
-        gestures,
-        triggerCounts: this._triggerCounts,
-        landmarks: compactTelemetryLandmarks(landmarks),
-        frameAspect: (this._video?.videoWidth || 640) / Math.max(1, this._video?.videoHeight || 480),
-      }),
+      body: JSON.stringify(body),
     });
     if (!response.ok) {
       const error = new Error(`gesture_post_${response.status}`);
@@ -673,6 +685,59 @@ export class ParticipantSession {
     }
     const payload = await response.json().catch(() => ({}));
     this._peerParticipants = Array.isArray(payload.participants) ? payload.participants.slice(0, 2) : [];
+  }
+
+  _connectGestureSocket() {
+    if (!this.running || !this.token || this._gestureSocket) return;
+    try {
+      const socketUrl = new URL('/ws', this.relayOrigin);
+      socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+      const socket = new WebSocket(socketUrl.toString());
+      this._gestureSocket = socket;
+      socket.onopen = () => {
+        socket.send(JSON.stringify({ type: 'live/participant-auth', token: this.token }));
+      };
+      socket.onmessage = (event) => {
+        let message = null;
+        try { message = JSON.parse(String(event.data || '')); } catch { return; }
+        if (message?.type === 'live/participant-ready') {
+          this._gestureSocketReady = true;
+          return;
+        }
+        if (message?.type === 'live/gesture-ack') {
+          const peers = message?.data?.participants;
+          this._peerParticipants = Array.isArray(peers) ? peers.slice(0, 2) : [];
+          return;
+        }
+        if (message?.type === 'live/error' && (message?.status === 401 || message?.status === 410)) {
+          this.running = false;
+          this._stream?.getTracks().forEach((track) => track.stop());
+          this._faceMesh?.close?.();
+          this.onStatus({ phase: 'expired', message: 'Your turn is complete.' });
+        }
+      };
+      socket.onclose = () => {
+        if (this._gestureSocket === socket) this._gestureSocket = null;
+        this._gestureSocketReady = false;
+        if (this.running && this.token) {
+          clearTimeout(this._gestureSocketReconnectTimer);
+          this._gestureSocketReconnectTimer = setTimeout(() => this._connectGestureSocket(), 800);
+        }
+      };
+      socket.onerror = () => {};
+    } catch {
+      this._gestureSocket = null;
+      this._gestureSocketReady = false;
+    }
+  }
+
+  _closeGestureSocket() {
+    clearTimeout(this._gestureSocketReconnectTimer);
+    this._gestureSocketReconnectTimer = 0;
+    this._gestureSocketReady = false;
+    const socket = this._gestureSocket;
+    this._gestureSocket = null;
+    try { socket?.close(); } catch {}
   }
 
   async _stopRemote() {
