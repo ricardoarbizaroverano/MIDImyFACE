@@ -8,6 +8,7 @@ assert.doesNotMatch(previewClientSource, /offerToReceiveAudio:\s*false/, 'partic
 assert.match(previewClientSource, /if \(!this\.stream\) this\.stream = new MediaStream\(\)/, 'streamless aiortc tracks must be collected into a playable MediaStream');
 assert.match(previewClientSource, /this\.stream\.addTrack\(track\)/, 'each received audio/video track must be attached to the participant stream');
 assert.match(previewClientSource, /this\._disconnectRemote\(this\.connectionId, this\.token\)/, 'reconnect must close its prior relay peer instead of leaking stale sessions');
+assert.match(previewClientSource, /_scheduleDisconnectedReconnect\(\)/, 'transient WebRTC disconnects must receive a grace period before teardown');
 assert.match(previewClientSource, /const localOffer = this\.pc\.localDescription \|\| offer/, 'the signaled offer must include the current gathered local description');
 const livePageSource = await readFile(new URL('./live.js', import.meta.url), 'utf8');
 assert.match(livePageSource, /cameraFeedEnabled:\s*false/, 'Pi camera feed must default off in the participant client');
@@ -16,6 +17,8 @@ assert.match(livePageSource, /reconcileMediaState\(state\.status\)/, 'relay medi
 assert.match(livePageSource, /Live protocol mismatch/, 'build/protocol mismatches must have a clear diagnostic');
 assert.doesNotMatch(livePageSource, /await ensurePreviewClient\(\);\s*updateProgramFeedVisibility\(\);\s*updateWebRtcUi\(\);\s*await refreshStatus\(\)/, 'WebRTC must not start before camera-feed status is known');
 assert.match(livePageSource, /preview_client\.js\?v=\d{8}-media-\d+/, 'live page must cache-bust the WebRTC preview client');
+assert.match(livePageSource, /state\.previewFeedAvailable = state\.previewHasVideo;/, 'the program background must follow the live video track state');
+assert.match(livePageSource, /onMediaState\([\s\S]*?updateProgramFeedVisibility\(\);/, 'track state changes must immediately refresh program-feed visibility');
 const liveHtmlSource = await readFile(new URL('./index.html', import.meta.url), 'utf8');
 assert.match(liveHtmlSource, /id="webrtcConnectionLabel" class="hidden"/, 'disabled media must not show a reconnect status placeholder');
 assert.match(liveHtmlSource, /id="webrtcSoundBtn" class="hidden"/, 'disabled media must not show sound controls');
@@ -25,7 +28,7 @@ assert.equal(new Set(GRID_TRIGGER_IDS).size, 8, 'the live grid trigger mapping m
 assert.ok(GRID_TRIGGER_IDS.includes('grid8'), 'the live grid includes the dedicated eighth trigger id');
 const syntheticLandmarks = Array.from({ length: 478 }, (_, index) => ({ x: index / 477, y: 1 - index / 477 }));
 const compact = compactTelemetryLandmarks(syntheticLandmarks);
-assert.ok(compact.length >= 100 && compact.length < syntheticLandmarks.length, 'telemetry keeps key face features without all 478 points');
+assert.equal(compact.length, syntheticLandmarks.length, 'telemetry carries all 478 face points to the Pi');
 assert.ok(compact.every((point) => Array.isArray(point) && point.length === 2), 'telemetry uses compact coordinate arrays');
 assert.equal(resolveGridPad({ x: 0.99, y: 0.01 }), 0, 'mirrored top-left nose position selects pad 1');
 assert.equal(resolveGridPad({ x: 0.01, y: 0.01 }), 3, 'mirrored top-right nose position selects pad 4');

@@ -15,6 +15,7 @@ export class PreviewClient {
     this.statsTimer = 0;
     this.closed = false;
     this.reconnectTimer = 0;
+    this.disconnectTimer = 0;
     this.reconnectDelayMs = 600;
     this.lastStatsSnapshot = null;
     this.connectionState = 'connecting';
@@ -31,9 +32,11 @@ export class PreviewClient {
     if (this.pollTimer) clearTimeout(this.pollTimer);
     if (this.statsTimer) clearInterval(this.statsTimer);
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
     this.pollTimer = 0;
     this.statsTimer = 0;
     this.reconnectTimer = 0;
+    this.disconnectTimer = 0;
     this._disconnectRemote().catch(() => {});
     if (this.pc) {
       this.pc.close();
@@ -90,6 +93,8 @@ export class PreviewClient {
       this.pc.onconnectionstatechange = () => {
         const state = String(this.pc?.connectionState || '').toLowerCase();
         if (state === 'connected') {
+          if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
+          this.disconnectTimer = 0;
           this.reconnectDelayMs = 600;
           this._emitConnectionState('connected');
           return;
@@ -98,7 +103,12 @@ export class PreviewClient {
           this._emitConnectionState('connecting');
           return;
         }
-        if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+        if (state === 'disconnected') {
+          this._emitConnectionState('reconnecting');
+          this._scheduleDisconnectedReconnect();
+          return;
+        }
+        if (state === 'failed' || state === 'closed') {
           this._emitConnectionState('reconnecting');
           this._scheduleReconnect();
         }
@@ -121,6 +131,8 @@ export class PreviewClient {
 
   _scheduleReconnect() {
     if (this.closed || this.reconnectTimer) return;
+    if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
+    this.disconnectTimer = 0;
     if (this.pollTimer) clearTimeout(this.pollTimer);
     this.pollTimer = 0;
     if (this.connectionId && this.token) {
@@ -142,6 +154,16 @@ export class PreviewClient {
       this.reconnectTimer = 0;
       if (!this.closed) await this._connect();
     }, delay);
+  }
+
+  _scheduleDisconnectedReconnect() {
+    if (this.closed || this.disconnectTimer || this.reconnectTimer) return;
+    this.disconnectTimer = window.setTimeout(() => {
+      this.disconnectTimer = 0;
+      if (!this.closed && String(this.pc?.connectionState || '').toLowerCase() === 'disconnected') {
+        this._scheduleReconnect();
+      }
+    }, 2500);
   }
 
   async _pollSignals() {

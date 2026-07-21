@@ -4,7 +4,7 @@
  * Landmark indices match the main MIDImyFACE source: src/script.js.
  */
 
-const GESTURE_POST_INTERVAL_MS = 50;  // ~20 Hz; Pi interpolates between network snapshots
+const GESTURE_POST_INTERVAL_MS = 40;  // ~25 Hz; Pi interpolates between network snapshots
 const MEDIAPIPE_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619';
 const PERCUSSION_SENSITIVITY = 5;
 export const WINK_HOLD_MS = 250;
@@ -14,15 +14,6 @@ export const GRID_TRIGGER_IDS = ['mouthOpen', 'smile', 'leftWink', 'rightWink', 
 const MOUTH_GATE_OPEN_PX = 10;
 const MOUTH_GATE_CLOSE_PX = 7;
 const MOUTH_LANDMARKS = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78, 191, 80, 81, 82, 13, 312, 311, 310, 415];
-const TELEMETRY_LANDMARK_INDICES = [...new Set([
-  10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152,
-  148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109,
-  33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159, 158, 157, 173,
-  263, 249, 390, 373, 374, 380, 381, 382, 362, 466, 388, 387, 386, 385, 384, 398,
-  70, 63, 105, 66, 107, 55, 65, 52, 53, 46, 300, 293, 334, 296, 336, 285, 295, 282, 283, 276,
-  168, 6, 197, 195, 5, 4, 1, 19, 94, 2, 98, 327,
-  ...MOUTH_LANDMARKS,
-])];
 const GRID_VISUALS = globalThis.MMFPerformanceGridVisuals || {
   GRID_COLS: 4,
   GRID_ROWS: 2,
@@ -124,8 +115,8 @@ export function smoothLandmarks(raw, cache) {
 
 export function compactTelemetryLandmarks(landmarks) {
   if (!Array.isArray(landmarks)) return [];
-  return TELEMETRY_LANDMARK_INDICES
-    .map((index) => landmarks[index])
+  return landmarks
+    .slice(0, 478)
     .filter((landmark) => Number.isFinite(landmark?.x) && Number.isFinite(landmark?.y))
     .map((landmark) => [
       Math.round(Math.max(0, Math.min(1, landmark.x)) * 10_000) / 10_000,

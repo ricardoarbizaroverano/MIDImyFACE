@@ -1,4 +1,4 @@
-import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-2';
+import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-3';
 
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const STATUS_POLL_MS = 10_000;
@@ -131,15 +131,15 @@ async function ensurePreviewClient() {
   if (state.previewStartPromise) return state.previewStartPromise;
   state.previewStartPromise = (async () => {
   try {
-    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260721-media-2');
+    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260721-media-3');
     state.previewClient = new PreviewClient({
       relayOrigin: state.relayOrigin,
       role: 'waiting_viewer',
       sessionId: '',
       onStream(stream) {
-        state.previewFeedAvailable = Boolean(stream);
         state.previewHasVideo = Boolean(stream?.getVideoTracks?.().some((track) => track.readyState === 'live'));
         state.previewHasAudio = Boolean(stream?.getAudioTracks?.().some((track) => track.readyState === 'live'));
+        state.previewFeedAvailable = state.previewHasVideo;
         updateProgramFeedVisibility();
         attachPreviewStream(elements.previewVideo, stream, { muted: true });
         attachPreviewStream(elements.miniPreviewVideo, stream, { muted: true });
@@ -152,6 +152,8 @@ async function ensurePreviewClient() {
       onMediaState({ hasVideo, hasAudio }) {
         state.previewHasVideo = Boolean(hasVideo);
         state.previewHasAudio = Boolean(hasAudio);
+        state.previewFeedAvailable = state.previewHasVideo;
+        updateProgramFeedVisibility();
         applyWebRtcAudioPreference();
       },
       onStats(stats) {
