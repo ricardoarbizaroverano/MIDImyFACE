@@ -1,4 +1,4 @@
-import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-3';
+import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-4';
 
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const STATUS_POLL_MS = 10_000;
@@ -131,7 +131,7 @@ async function ensurePreviewClient() {
   if (state.previewStartPromise) return state.previewStartPromise;
   state.previewStartPromise = (async () => {
   try {
-    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260721-media-3');
+    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260721-media-4');
     state.previewClient = new PreviewClient({
       relayOrigin: state.relayOrigin,
       role: 'waiting_viewer',
