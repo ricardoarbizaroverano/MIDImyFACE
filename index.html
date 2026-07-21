@@ -135,6 +135,19 @@
         text-transform: uppercase;
     }
 
+    .face-loading-overlay.camera-error {
+        pointer-events: auto;
+    }
+
+    .face-loading-overlay.camera-error .face-loading-spinner {
+        animation: none;
+        border-color: #ff5a5a;
+    }
+
+    .camera-retry-button[hidden] {
+        display: none;
+    }
+
     @keyframes mmfSpinner {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
@@ -682,6 +695,7 @@
     .toggle-button[id$="Disparador"],
     #percussionToggle,
     #thereminToggle,
+    #liveModeLink,
     #performanceToggle,
     #songGameToggle,
     label[for="thereminSynthOption"],
@@ -703,6 +717,7 @@
     .toggle-button[id$="Disparador"][title]::after,
     #percussionToggle[title]::after,
     #thereminToggle[title]::after,
+    #liveModeLink[title]::after,
     #performanceToggle[title]::after,
     #songGameToggle[title]::after,
     label[for="thereminSynthOption"][title]::after,
@@ -739,6 +754,8 @@
     .toggle-button[id$="Disparador"][title]:hover::after,
     #percussionToggle[title]:hover::after,
     #thereminToggle[title]:hover::after,
+    #liveModeLink[title]:hover::after,
+    #liveModeLink[title]:focus-visible::after,
     #performanceToggle[title]:hover::after,
     #songGameToggle[title]:hover::after,
     label[for="thereminSynthOption"][title]:hover::after,
@@ -757,6 +774,8 @@
     .gesture-calibrate-btn[title]:hover,
     #percussionToggle[title]:hover,
     #thereminToggle[title]:hover,
+    #liveModeLink[title]:hover,
+    #liveModeLink[title]:focus-visible,
     #performanceToggle[title]:hover,
     #songGameToggle[title]:hover,
     label[for="thereminSynthOption"][title]:hover {
@@ -2477,6 +2496,7 @@
                 registerButton.disabled = !context || !consent.checked;
                 signInButton.disabled = !context;
                 setApplicationBlocked(true);
+                window.dispatchEvent(new CustomEvent('mmf:auth-signed-out'));
                 signInButton.focus();
             }
 
@@ -2497,8 +2517,8 @@
                 if (!settled) {
                     settled = true;
                     resolveReady(user);
-                    window.dispatchEvent(new CustomEvent('mmf:auth-ready', { detail: { user } }));
                 }
+                window.dispatchEvent(new CustomEvent('mmf:auth-ready', { detail: { user } }));
             }
 
             consent.checked = localStorage.getItem(termsKey) === 'true';
@@ -2688,7 +2708,6 @@
                 },
                 liveModeLink: {
                     label: (language) => language === 'en' ? 'Live Mode' : 'Modo Live',
-                    showLabel: true,
                     // Original MIDImyFACE pixel artwork; no external icon collection is used.
                     svg: `
                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -2922,25 +2941,28 @@
                 <div class="face-loading-title" id="faceLoadingTitle">Looking for your face…</div>
                 <div class="face-loading-subtitle" id="faceLoadingTip">Make sure your face is clearly visible to the camera.</div>
                 <div class="face-loading-dots">camera • face tracking • landmarks</div>
+                <button id="cameraRetryButton" class="toggle-button camera-retry-button" type="button" hidden>RETRY CAMERA</button>
             </div>
         </div>
     </div>
 
     <!-- Controles de Modo -->
     <div class="mode-controls">
-        <a id="liveModeLink" class="mode-button" href="/live/" data-i18n="liveMode">Live Mode</a>
+        <button id="percussionToggle" class="mode-button" data-i18n="percussionToggle">Percussion</button>
+        <button id="thereminToggle" class="mode-button active" data-i18n="thereminToggle">Theremin</button>
+        <a id="liveModeLink" class="mode-button" href="/live/" data-i18n="liveMode" aria-label="Live Mode" title="Live Mode"></a>
         <button id="performanceToggle" class="mode-button" data-i18n="performanceToggle">Performer Mode</button>
     </div>
 
     <!-- Opciones de Percusión -->
-    <div id="percussionOptions" class="percussion-options" hidden>
+    <div id="percussionOptions" class="percussion-options">
         <label for="percussionSensitivitySlider" data-i18n="percussionSensitivity">Sensibilidad</label>
         <input type="range" id="percussionSensitivitySlider" class="slider" min="0" max="10" value="5" step="1">
         <span id="percussionSensitivityValue" class="duration-display">5</span>
     </div>
 
     <!-- Opciones de Theremin -->
-    <div id="thereminModeOptions" class="theremin-mode" hidden>
+    <div id="thereminModeOptions" class="theremin-mode">
         <div class="theremin-option">
             <input type="radio" id="thereminSynthOption" name="thereminOption" value="synth">
             <label for="thereminSynthOption" data-i18n="thereminSynthOption">Synth</label>
@@ -3982,6 +4004,7 @@
     }
 
     function applyCopy(forceTipReset) {
+        if (getEls().overlay?.dataset.cameraState === 'error') return;
         const lang = getLanguage();
         const pack = COPY[lang];
         const { title, tip } = getEls();
@@ -3992,6 +4015,7 @@
     }
 
     function rotateTip() {
+        if (getEls().overlay?.dataset.cameraState === 'error') return;
         const lang = getLanguage();
         const pack = COPY[lang];
         const { tip } = getEls();
@@ -4012,6 +4036,10 @@
     }
 
     function refreshVisibility() {
+        if (getEls().overlay?.dataset.cameraState === 'error') {
+            setOverlayVisible(true);
+            return;
+        }
         const hasRecentFace = lastFaceTs && (Date.now() - lastFaceTs) < NO_FACE_AFTER_MS;
         setOverlayVisible(!hasRecentFace);
     }
