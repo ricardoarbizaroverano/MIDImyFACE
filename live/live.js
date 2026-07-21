@@ -1,4 +1,4 @@
-import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-7';
+import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-8';
 
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const STATUS_POLL_MS = 10_000;
@@ -131,7 +131,7 @@ async function ensurePreviewClient() {
   if (state.previewStartPromise) return state.previewStartPromise;
   state.previewStartPromise = (async () => {
   try {
-    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260721-media-7');
+    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260721-media-8');
     state.previewClient = new PreviewClient({
       relayOrigin: state.relayOrigin,
       role: 'waiting_viewer',
@@ -671,7 +671,7 @@ async function activateReservation(reservation) {
   clearQueue();
   await ensurePreviewClient();
   state.session = { ...reservation.session, token: reservation.token };
-  const { ParticipantSession } = await import('./live_session.js?v=20260721-media-7');
+  const { ParticipantSession } = await import('./live_session.js?v=20260721-media-8');
   state.participantSession = new ParticipantSession({
     relayOrigin: state.relayOrigin,
     token: reservation.token,

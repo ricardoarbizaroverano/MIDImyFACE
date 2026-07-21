@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { WINK_HOLD_MS, compactTelemetryLandmarks, createGestureTriggerState, evaluateGestureTrigger, gestureRange, resolveGridPad, GRID_TRIGGER_IDS } from './live_session.js';
+import { ParticipantSession, PEER_LANDMARK_DOT_RADIUS, WINK_HOLD_MS, compactTelemetryLandmarks, createGestureTriggerState, evaluateGestureTrigger, gestureRange, participantLandmarkDotRadius, resolveGridPad, GRID_TRIGGER_IDS } from './live_session.js';
 
 const previewClientSource = await readFile(new URL('./broadcast/preview_client.js', import.meta.url), 'utf8');
 assert.match(previewClientSource, /offerToReceiveAudio:\s*true/, 'participant WebRTC offers must request Pi audio');
@@ -24,6 +24,7 @@ const participantSource = await readFile(new URL('./live_session.js', import.met
 assert.match(participantSource, /new WebSocket\(socketUrl\.toString\(\)\)/, 'participant telemetry must use a persistent WebSocket');
 assert.match(participantSource, /type: 'live\/participant-auth'/, 'participant WebSocket must authenticate its live session');
 assert.match(participantSource, /this\._gestureSocket\.send\(JSON\.stringify\(\{ type: 'live\/gesture'/, 'landmarks and triggers must use the live socket once ready');
+assert.match(participantSource, /_handleSessionExpired\(\)\s*\{[\s\S]*?this\._stopLocal\(\)/, 'session expiry must use the same local cleanup as an explicit stop');
 const liveHtmlSource = await readFile(new URL('./index.html', import.meta.url), 'utf8');
 assert.match(liveHtmlSource, /id="webrtcConnectionLabel" class="hidden"/, 'disabled media must not show a reconnect status placeholder');
 assert.match(liveHtmlSource, /id="webrtcSoundBtn" class="hidden"/, 'disabled media must not show sound controls');
@@ -37,6 +38,39 @@ const syntheticLandmarks = Array.from({ length: 478 }, (_, index) => ({ x: index
 const compact = compactTelemetryLandmarks(syntheticLandmarks);
 assert.equal(compact.length, syntheticLandmarks.length, 'telemetry carries all 478 face points to the Pi');
 assert.ok(compact.every((point) => Array.isArray(point) && point.length === 2), 'telemetry uses compact coordinate arrays');
+assert.equal(PEER_LANDMARK_DOT_RADIUS, 2.3, 'peer landmarks gain exactly one CSS pixel of radius');
+assert.equal(participantLandmarkDotRadius(100, 100), 2.25, 'small-screen landmarks gain exactly one CSS pixel of radius');
+assert.equal(participantLandmarkDotRadius(1000, 1000), 2.7, 'large-screen landmarks gain exactly one CSS pixel of radius');
+
+const canvasContext = {
+  save() {},
+  setTransform() {},
+  clearRect() {},
+  restore() {},
+};
+const expiryPhases = [];
+const expirySession = new ParticipantSession({
+  relayOrigin: 'https://example.invalid',
+  token: 'test-token',
+  session: {},
+  onStatus: ({ phase }) => expiryPhases.push(phase),
+});
+expirySession.running = true;
+expirySession._ctx = canvasContext;
+expirySession._canvas = {
+  width: 640,
+  height: 480,
+  getBoundingClientRect: () => ({ width: 640, height: 480 }),
+};
+expirySession._video = { srcObject: {} };
+expirySession._latestLandmarks = [{ x: 0.5, y: 0.5 }];
+expirySession._handleSessionExpired();
+assert.equal(expirySession.running, false, 'expired sessions stop all rendering');
+assert.equal(expirySession._canvas.width, 1, 'expiry resets the canvas backing bitmap');
+assert.equal(expirySession._canvas.height, 1, 'expiry resets the canvas backing bitmap height');
+assert.equal(expirySession._latestLandmarks, null, 'expiry removes the final landmark frame');
+assert.equal(expirySession._video.srcObject, null, 'expiry detaches the participant camera stream');
+assert.deepEqual(expiryPhases, ['expired'], 'expiry reports completion after local cleanup');
 assert.equal(resolveGridPad({ x: 0.99, y: 0.01 }), 0, 'mirrored top-left nose position selects pad 1');
 assert.equal(resolveGridPad({ x: 0.01, y: 0.01 }), 3, 'mirrored top-right nose position selects pad 4');
 assert.equal(resolveGridPad({ x: 0.99, y: 0.99 }), 4, 'mirrored bottom-left nose position selects pad 5');

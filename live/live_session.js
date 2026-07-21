@@ -41,6 +41,7 @@ const GRID_VISUALS = globalThis.MMFPerformanceGridVisuals || {
 };
 const GRID_COLS = GRID_VISUALS.GRID_COLS || 4;
 const GRID_ROWS = GRID_VISUALS.GRID_ROWS || 2;
+export const PEER_LANDMARK_DOT_RADIUS = 2.3;
 
 // Landmark indices used in the main script
 const LM = {
@@ -122,6 +123,10 @@ export function compactTelemetryLandmarks(landmarks) {
       Math.round(Math.max(0, Math.min(1, landmark.x)) * 10_000) / 10_000,
       Math.round(Math.max(0, Math.min(1, landmark.y)) * 10_000) / 10_000,
     ]);
+}
+
+export function participantLandmarkDotRadius(width, height) {
+  return 1 + Math.max(1.25, Math.min(1.7, Math.min(width, height) * 0.0019 + 0.5));
 }
 
 // This is the same sudden-movement trigger used by the main page's
@@ -341,8 +346,15 @@ export class ParticipantSession {
   }
 
   async stop({ notifyRelay = true } = {}) {
+    this._stopLocal();
+    if (notifyRelay) await this._stopRemote();
+    this.onStatus({ phase: 'stopped', message: 'Session ended.' });
+  }
+
+  _stopLocal() {
     this.running = false;
     clearTimeout(this._postTimer);
+    this._postTimer = null;
     this._closeGestureSocket();
     if (this._renderFrameHandle) cancelAnimationFrame(this._renderFrameHandle);
     if (this._videoFrameHandle && typeof this._video?.cancelVideoFrameCallback === 'function') {
@@ -352,9 +364,26 @@ export class ParticipantSession {
     this._videoFrameHandle = 0;
     this._stream?.getTracks().forEach((t) => t.stop());
     this._faceMesh?.close?.();
+    this._latestLandmarks = null;
+    this._lastLandmarks = null;
+    this._lastGestures = null;
+    this._latestMouthOpen = 0;
+    this._peerParticipants = [];
+    this._hitEffects = [];
     this._clearCanvas();
-    if (notifyRelay) await this._stopRemote();
-    this.onStatus({ phase: 'stopped', message: 'Session ended.' });
+    if (this._canvas) {
+      // Resetting the backing bitmap prevents a desynchronized canvas from
+      // retaining its final composited frame after the layout returns to Join.
+      this._canvas.width = 1;
+      this._canvas.height = 1;
+      this._canvasMetrics = { cssWidth: 0, cssHeight: 0, dpr: 1 };
+    }
+    if (this._video) this._video.srcObject = null;
+  }
+
+  _handleSessionExpired() {
+    this._stopLocal();
+    this.onStatus({ phase: 'expired', message: 'Your turn is complete.' });
   }
 
   async _loadFaceMesh() {
@@ -435,7 +464,7 @@ export class ParticipantSession {
       for (const landmark of peer.landmarks) {
         if (!Number.isFinite(landmark?.x) || !Number.isFinite(landmark?.y)) continue;
         ctx.beginPath();
-        ctx.arc((1 - landmark.x) * width, landmark.y * height, 1.3, 0, Math.PI * 2);
+        ctx.arc((1 - landmark.x) * width, landmark.y * height, PEER_LANDMARK_DOT_RADIUS, 0, Math.PI * 2);
         ctx.fill();
       }
       const anchor = peer.landmarks[10] || peer.landmarks[1];
@@ -454,7 +483,7 @@ export class ParticipantSession {
     ctx.fillStyle = ownColor;
     ctx.shadowColor = ownColor;
     ctx.shadowBlur = 2;
-    const dotRadius = Math.max(1.25, Math.min(1.7, Math.min(width, height) * 0.0019 + 0.5));
+    const dotRadius = participantLandmarkDotRadius(width, height);
     for (const lm of landmarks) {
       ctx.beginPath();
       ctx.arc((1 - lm.x) * width, lm.y * height, dotRadius, 0, Math.PI * 2);
@@ -544,7 +573,7 @@ export class ParticipantSession {
     ctx.fillStyle = this._mouthGateOpen ? '#ffffff' : '#c8c3ff';
     ctx.shadowColor = '#8e6bff';
     ctx.shadowBlur = 4 + invitation * 14;
-    const mouthRadius = 1.25 + invitation * 1.45;
+    const mouthRadius = 2.25 + invitation * 1.45;
     for (const index of MOUTH_LANDMARKS) {
       const landmark = landmarks[index];
       if (!landmark) continue;
@@ -641,10 +670,7 @@ export class ParticipantSession {
           await this._postGestures(this._lastGestures, this._lastLandmarks || []);
         } catch (error) {
           if (error?.status === 401 || error?.status === 410) {
-            this.running = false;
-            this._stream?.getTracks().forEach((track) => track.stop());
-            this._faceMesh?.close?.();
-            this.onStatus({ phase: 'expired', message: 'Your turn is complete.' });
+            this._handleSessionExpired();
             return;
           }
         }
@@ -710,10 +736,7 @@ export class ParticipantSession {
           return;
         }
         if (message?.type === 'live/error' && (message?.status === 401 || message?.status === 410)) {
-          this.running = false;
-          this._stream?.getTracks().forEach((track) => track.stop());
-          this._faceMesh?.close?.();
-          this.onStatus({ phase: 'expired', message: 'Your turn is complete.' });
+          this._handleSessionExpired();
         }
       };
       socket.onclose = () => {
