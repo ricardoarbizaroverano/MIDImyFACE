@@ -116,9 +116,11 @@
       };
       if (inviteToken) body.invite_token = inviteToken;
 
+      const firebaseToken = await window.MMFAuthGate?.getCurrentIdToken?.(true);
+      if (!firebaseToken) throw new Error('registration_required');
       const res = await fetch(`${apiBase}/api/sessions/join-token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${firebaseToken}` },
         body: JSON.stringify(body)
       });
       const data = await res.json().catch(() => ({ ok: false, error: 'invalid_response' }));

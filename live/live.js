@@ -488,30 +488,11 @@ async function setNotificationPreference(enabled) {
 }
 
 async function ensureUserDocument(user) {
-  if (!user || !state.firestore || !state.firestoreSdk) return;
-  const { doc, getDoc, setDoc, serverTimestamp } = state.firestoreSdk;
-  const ref = doc(state.firestore, USER_PROFILE_COLLECTION, user.uid);
-  const snapshot = await getDoc(ref).catch(() => null);
-  const payload = {
-    email: user.email || '',
-    displayName: user.displayName || null,
-  };
-  if (!snapshot?.exists?.() || typeof snapshot.data()?.notifyInstallationOnline !== 'boolean') {
-    payload.notifyInstallationOnline = false;
-    payload.notificationPreferenceUpdatedAt = serverTimestamp();
-  }
-  await setDoc(ref, payload, { merge: true });
+  return window.MMFAuthGate.ensureUserProfile({ firestore: state.firestore, firestoreSdk: state.firestoreSdk }, user);
 }
 
 async function registeredUserProfileExists(user) {
-  if (!user || !state.firestore || !state.firestoreSdk) return null;
-  const { doc, getDoc } = state.firestoreSdk;
-  try {
-    const snapshot = await getDoc(doc(state.firestore, USER_PROFILE_COLLECTION, user.uid));
-    return snapshot.exists();
-  } catch {
-    return null;
-  }
+  return window.MMFAuthGate.profileExists({ firestore: state.firestore, firestoreSdk: state.firestoreSdk }, user);
 }
 
 function subscribeUserPreference(user) {
@@ -724,14 +705,10 @@ async function setupGoogleRegistration(publicConfig) {
     return;
   }
   try {
-    const [{ initializeApp }, authSdk, firestoreSdk] = await Promise.all([
-      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js'),
-    ]);
-    const app = initializeApp(firebaseConfig);
-    state.firebaseAuth = { auth: authSdk.getAuth(app), authSdk };
-    state.firestore = firestoreSdk.getFirestore(app);
+    const firebaseContext = await window.MMFAuthGate.getFirebaseContext(publicConfig);
+    const { authSdk, firestoreSdk } = firebaseContext;
+    state.firebaseAuth = { auth: firebaseContext.auth, authSdk };
+    state.firestore = firebaseContext.firestore;
     state.firestoreSdk = firestoreSdk;
     state.authReady = Boolean(authConfig.enabled && authConfig.firebaseConfigured);
     restartInstallationStatusListener();

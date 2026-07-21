@@ -23,6 +23,7 @@ function serverEnvironment(port, stateFile, overrides = {}) {
     NODE_ENV: 'test',
     ALLOWED_ORIGINS: originFor(port),
     REQUIRE_JOIN_TOKEN: 'true',
+    CONSOLE_API_ENABLED: 'true',
     RELAY_JOIN_TOKEN_SECRET: 'relay-auth-test-secret-000000000000000000',
     INVITE_TOKEN_SECRET: 'invite-auth-test-secret-00000000000000000',
     AUTH_TOKEN_SECRET: 'console-auth-test-secret-00000000000000000',
@@ -106,6 +107,34 @@ async function startParticipant(port, { token, deviceId, nickname, extraBody = {
   });
 }
 
+async function createConsoleSession(port) {
+  const login = await request(port, '/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: originFor(port) },
+    body: JSON.stringify({ username: 'auth-test-admin', password: 'auth-test-password-long' }),
+  });
+  assert.equal(login.response.status, 200);
+  const created = await request(port, '/api/sessions/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${login.body.token}`, Origin: originFor(port) },
+    body: JSON.stringify({ max_participants: 3 }),
+  });
+  assert.equal(created.response.status, 200);
+  return created.body.session;
+}
+
+async function requestPerformerJoinToken(port, session, token) {
+  return request(port, '/api/sessions/join-token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: originFor(port),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ session_id: session.session_id, invite_token: session.invite_token, name: 'Invitee' }),
+  });
+}
+
 async function configuredAuthTests() {
   const port = 32148;
   const stateFile = path.join('/tmp', `midimyface-live-auth-${process.pid}.json`);
@@ -149,6 +178,18 @@ async function configuredAuthTests() {
       assert.equal(JSON.stringify(bootstrapResult.body).includes(sentinel), false);
       assert.equal(JSON.stringify(statusBefore.body).includes(sentinel), false);
     }
+
+    const consoleSession = await createConsoleSession(port);
+    let inviteJoin = await requestPerformerJoinToken(port, consoleSession);
+    assert.equal(inviteJoin.response.status, 401);
+    assert.equal(inviteJoin.body.error, 'registration_required');
+    inviteJoin = await requestPerformerJoinToken(port, consoleSession, 'malformed-token-not-in-verifier');
+    assert.equal(inviteJoin.response.status, 401);
+    assert.equal(inviteJoin.body.error, 'invalid_firebase_token');
+    inviteJoin = await requestPerformerJoinToken(port, consoleSession, 'token-active');
+    assert.equal(inviteJoin.response.status, 200);
+    const joinClaims = JSON.parse(Buffer.from(inviteJoin.body.join_token.split('.')[1], 'base64url').toString('utf8'));
+    assert.equal(joinClaims.firebase_uid, 'uid-active');
 
     await setInstallationReady(port);
     let result = await startParticipant(port, {

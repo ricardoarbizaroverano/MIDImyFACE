@@ -3,6 +3,7 @@
   const GRID_ROWS = 2;
   const FLASH_DURATION_MS = 240;
   const HIT_EFFECT_DURATION_MS = 620;
+  const PERFORMER_TRIGGER_COOLDOWN_MS = 100;
   const PERFORMER_NOSE_INDEX = 1;
   const PERFORMER_MOUTH_INDICES = Object.freeze([
     61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291,
@@ -90,7 +91,21 @@
   }
 
   function getNosePulse(now = 0) {
-    return 1 + Math.sin(now / 125) * 0.1;
+    return 1 + Math.sin(now / 180) * 0.045;
+  }
+
+  function createPerformerCooldownTracker(cooldownMs = PERFORMER_TRIGGER_COOLDOWN_MS) {
+    const lastTriggerByOutput = new Map();
+    return {
+      allow(output, now = Date.now()) {
+        const key = String(output);
+        const last = lastTriggerByOutput.get(key);
+        if (Number.isFinite(last) && now - last < cooldownMs) return false;
+        lastTriggerByOutput.set(key, now);
+        return true;
+      },
+      reset() { lastTriggerByOutput.clear(); },
+    };
   }
 
   function getPerformerFaceCue(landmarks, width, height, now = 0) {
@@ -111,24 +126,41 @@
     const nose = project(landmarks[PERFORMER_NOSE_INDEX]);
     if (!nose) return null;
 
+    const mouthLeft = project(landmarks[61]);
+    const mouthRight = project(landmarks[291]);
+    const upperLip = project(landmarks[13]);
+    const lowerLip = project(landmarks[14]);
+    const mouthWidth = mouthLeft && mouthRight ? Math.hypot(mouthRight.x - mouthLeft.x, mouthRight.y - mouthLeft.y) : stageScale * 0.1;
+    const mouthOpening = upperLip && lowerLip ? Math.hypot(lowerLip.x - upperLip.x, lowerLip.y - upperLip.y) : 0;
+    const openness = clamp(mouthOpening / Math.max(1, mouthWidth * 0.42), 0, 1);
+    const mouthCenter = mouthLeft && mouthRight
+      ? { x: (mouthLeft.x + mouthRight.x) / 2, y: ((upperLip?.y || mouthLeft.y) + (lowerLip?.y || mouthRight.y)) / 2 }
+      : null;
+
     return {
       nose: {
         ...nose,
-        diameter: Math.max(12, stageScale * 0.034 * getNosePulse(now)),
-        fill: toColor(255, 38, 58, 0.96),
-        glow: toColor(255, 20, 45, 0.96),
-        glowBlur: Math.max(18, stageScale * 0.045),
+        radiusX: Math.max(14, stageScale * 0.036 * getNosePulse(now)),
+        radiusY: Math.max(12, stageScale * 0.032 * getNosePulse(now)),
+        stops: [
+          { offset: 0, color: toColor(255, 70, 86, 0.30) },
+          { offset: 0.24, color: toColor(255, 38, 58, 0.18) },
+          { offset: 0.62, color: toColor(255, 20, 45, 0.07) },
+          { offset: 1, color: toColor(255, 20, 45, 0) },
+        ],
       },
-      mouth: PERFORMER_MOUTH_INDICES
-        .map((index) => project(landmarks[index]))
-        .filter(Boolean)
-        .map((point) => ({
-          ...point,
-          diameter: Math.max(5, stageScale * 0.011),
-          fill: toColor(255, 255, 255, 0.98),
-          glow: toColor(255, 255, 255, 0.94),
-          glowBlur: Math.max(12, stageScale * 0.028),
-        })),
+      mouth: mouthCenter ? {
+        ...mouthCenter,
+        openness,
+        radiusX: Math.max(stageScale * 0.035, mouthWidth * (0.68 + openness * 0.08)),
+        radiusY: Math.max(stageScale * 0.018, mouthWidth * (0.18 + openness * 0.16)),
+        stops: [
+          { offset: 0, color: toColor(255, 255, 255, 0.16 + openness * 0.07) },
+          { offset: 0.30, color: toColor(255, 255, 255, 0.10 + openness * 0.04) },
+          { offset: 0.72, color: toColor(235, 245, 255, 0.035) },
+          { offset: 1, color: toColor(235, 245, 255, 0) },
+        ],
+      } : null,
     };
   }
 
@@ -137,6 +169,7 @@
     GRID_ROWS,
     FLASH_DURATION_MS,
     HIT_EFFECT_DURATION_MS,
+    PERFORMER_TRIGGER_COOLDOWN_MS,
     getCellVisual,
     createHitEffect,
     getHitEffectProgress,
@@ -144,6 +177,7 @@
     isHitEffectActive,
     filterActiveHitEffects,
     getNosePulse,
+    createPerformerCooldownTracker,
     getPerformerFaceCue,
   };
 })(window);

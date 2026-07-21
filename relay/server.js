@@ -1404,10 +1404,11 @@ function createInviteToken({ sessionId, maxParticipants }) {
 function createAuthToken({ username }) {
   return signToken({ type: 'host_auth', sub: username, iat: nowSec(), exp: nowSec() + 43200, jti: randomId(8) }, AUTH_TOKEN_SECRET);
 }
-function createRelayJoinToken({ sessionId, role, name, maxParticipants, clientUuid }) {
+function createRelayJoinToken({ sessionId, role, name, maxParticipants, clientUuid, firebaseUid = '' }) {
   return signToken({
     type: 'relay_join', sid: sessionId, role, name,
     maxp: maxParticipants, client_uuid: clientUuid || null,
+    firebase_uid: cleanString(firebaseUid, 128) || null,
     iat: nowSec(), exp: nowSec() + 1800, jti: randomId(8),
   }, RELAY_JOIN_TOKEN_SECRET);
 }
@@ -2254,6 +2255,13 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
 
     if (req.method === 'POST' && parsed.pathname === '/api/sessions/join-token') {
       try {
+        if (LIVE_REQUIRE_FIREBASE_AUTH && !firebaseVerificationAvailable()) {
+          throw liveAuthError('firebase_admin_unconfigured', 503);
+        }
+        const firebaseIdentity = await verifiedFirebaseIdentity(req);
+        if (LIVE_REQUIRE_FIREBASE_AUTH && !firebaseIdentity.authenticated) {
+          throw liveAuthError('registration_required', 401);
+        }
         const body     = await readBody(req);
         const name     = String(body.name || '').trim().slice(0, 40);
         const cUuid    = String(body.client_uuid || '').trim() || null;
@@ -2270,9 +2278,21 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         if (!invToken && sha256(String(body.password || '')) !== session.passwordHash) {
           return sendJson(res, 401, { ok: false, error: 'bad_session_password' }, c);
         }
-        const joinToken = createRelayJoinToken({ sessionId: sid, role: 'performer', name, maxParticipants: session.maxParticipants, clientUuid: cUuid });
+        const joinToken = createRelayJoinToken({
+          sessionId: sid,
+          role: 'performer',
+          name,
+          maxParticipants: session.maxParticipants,
+          clientUuid: cUuid,
+          firebaseUid: firebaseIdentity.uid,
+        });
         return sendJson(res, 200, { ok: true, join_token: joinToken, session_id: sid, max_participants: session.maxParticipants }, c);
-      } catch { return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c); }
+      } catch (error) {
+        if (error?.code === 'firebase_admin_unconfigured' || error?.code === 'invalid_firebase_token' || error?.code === 'registration_required') {
+          return sendJson(res, error.statusCode || 401, { ok: false, error: error.code }, c);
+        }
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
     }
 
     if (req.method === 'POST' && parsed.pathname === '/api/sessions/host-join-token') {
@@ -2428,6 +2448,11 @@ wss.on('connection', (ws, req) => {
       const effectiveRole = (roleFromToken === 'host' || roleFromToken === 'performer')
         ? roleFromToken
         : ((rawRole === 'host' || rawRole === 'performer') ? rawRole : 'performer');
+
+      if (LIVE_REQUIRE_FIREBASE_AUTH && effectiveRole === 'performer' && !tokenPayload?.firebase_uid) {
+        sendTo(ws, { type: 'error', error: 'registration_required' });
+        return;
+      }
 
       // Create/get session BEFORE using it anywhere
       const createRes = getOrCreateSession(session_id, tokenPayload?.maxp || null);
