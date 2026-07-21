@@ -86,7 +86,9 @@ const LIVE_MASTER_EMAILS_RAW         = configuredEnv('LIVE_MASTER_EMAILS');
 const INSTALLATION_STATUS_COLLECTION = 'installation';
 const INSTALLATION_STATUS_DOCUMENT   = 'status';
 const DEFAULT_LIVE_SESSION_DURATION_SECONDS = 60;
-const LIVE_SESSION_DURATION_SECONDS  = DEFAULT_LIVE_SESSION_DURATION_SECONDS;
+const LIVE_SESSION_DURATION_SECONDS  = process.env.NODE_ENV === 'test'
+  ? Math.max(1, Math.min(Number(process.env.LIVE_SESSION_DURATION_SECONDS || DEFAULT_LIVE_SESSION_DURATION_SECONDS), 180))
+  : DEFAULT_LIVE_SESSION_DURATION_SECONDS;
 const LIVE_COOLDOWN_MINUTES          = Math.max(1, Math.min(Number(process.env.LIVE_COOLDOWN_MINUTES || 30), 240));
 const LIVE_QUEUE_TICKET_TTL_MS       = Math.max(15_000, Math.min(Number(process.env.LIVE_QUEUE_TICKET_TTL_MS || 45_000), 300_000));
 const LIVE_SNAPSHOT_TTL_MS           = Math.max(500, Math.min(Number(process.env.LIVE_SNAPSHOT_TTL_MS || 2500), 10_000));
@@ -802,6 +804,7 @@ function resetLiveRuntime({ installationEpoch, updatedBy = 'raspberry-pi' } = {}
 let liveState = loadLiveState();
 const liveGestureSnapshots = new Map();
 const liveGestureStreamClients = new Set();
+let liveGestureBroadcastPending = false;
 const activeLiveSessions = new Map();
 const liveSessionStartByIp = new Map();
 const liveCooldownByIdentity = new Map();
@@ -1015,15 +1018,19 @@ function liveSessionExpired(session) {
 }
 
 function clearLiveSession(sessionId) {
-  if (!sessionId) return;
-  activeLiveSessions.delete(sessionId);
+  if (!sessionId) return false;
+  const removed = activeLiveSessions.delete(sessionId);
   liveGestureSnapshots.delete(sessionId);
+  if (removed) liveGestureBroadcastPending = true;
+  return removed;
 }
 
 function expireLiveSessionsIfNeeded() {
-  for (const session of activeLiveSessions.values()) {
-    if (liveSessionExpired(session)) clearLiveSession(session.sessionId);
+  let expired = 0;
+  for (const session of [...activeLiveSessions.values()]) {
+    if (liveSessionExpired(session) && clearLiveSession(session.sessionId)) expired += 1;
   }
+  return expired;
 }
 
 function publicLiveSessions() {
@@ -1294,8 +1301,9 @@ function writeLiveGestureStreamEvent(res, payload = liveDeviceGesturePayload()) 
 }
 
 function broadcastLiveGestureSnapshot() {
-  if (!liveGestureStreamClients.size) return;
   const payload = liveDeviceGesturePayload();
+  liveGestureBroadcastPending = false;
+  if (!liveGestureStreamClients.size) return;
   for (const res of [...liveGestureStreamClients]) {
     try {
       writeLiveGestureStreamEvent(res, payload);
@@ -2678,9 +2686,18 @@ const liveGestureStreamHeartbeat = setInterval(() => {
   }
 }, 15_000);
 
+// Session expiry is server-authoritative. Push the inactive snapshot to the Pi
+// even when the participant page has already stopped sending or a status read
+// happened to perform the cleanup first.
+const liveSessionExpiryInterval = setInterval(() => {
+  expireLiveSessionsIfNeeded();
+  if (liveGestureBroadcastPending) broadcastLiveGestureSnapshot();
+}, 250);
+
 server.on('close', () => {
   clearInterval(interval);
   clearInterval(liveGestureStreamHeartbeat);
+  clearInterval(liveSessionExpiryInterval);
 });
 
 server.listen(PORT, '0.0.0.0', () => {

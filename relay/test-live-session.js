@@ -25,7 +25,7 @@ const child = spawn(process.execPath, ['server.js'], {
     CONSOLE_ADMIN_PASSWORD: 'test-password-long',
     RPI_DEVICE_TOKEN: deviceToken,
     LIVE_STATE_FILE: stateFile,
-    LIVE_SESSION_DURATION_SECONDS: '15',
+    LIVE_SESSION_DURATION_SECONDS: '5',
     LIVE_SNAPSHOT_TTL_MS: '1000',
     LIVE_DEVICE_HEARTBEAT_TTL_MS: '500',
     LIVE_REQUIRE_FIREBASE_AUTH: 'false',
@@ -399,6 +399,49 @@ async function run() {
   assert.equal(result.body.active, false);
   assert.deepEqual(result.body.gestures, {});
   assert.deepEqual(result.body.triggerCounts, {});
+
+  // The relay must push an inactive snapshot when the authoritative session
+  // timer expires, even if the browser does not successfully call /stop.
+  result = await request('/api/live/device/status', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${deviceToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ machine: { alive: true, acceptingParticipants: true, mode: 'hybrid' } }),
+  });
+  assert.equal(result.response.status, 200);
+  result = await request('/api/live/session/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({ nickname: 'Expiry', countryCode: 'UY', deviceId: 'test_device_expiry_0000000001' }),
+  });
+  assert.equal(result.response.status, 201);
+  const expiryToken = result.body.token;
+  const expirySessionId = result.body.session.sessionId;
+  result = await request('/api/live/session/gestures', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${expiryToken}`, 'Content-Type': 'application/json', Origin: origin },
+    body: JSON.stringify({
+      installationEpoch: nextInstallationEpoch,
+      participantSessionId: expirySessionId,
+      sequenceNumber: 0,
+      clientTimestamp: Date.now(),
+      gestures: { smile: 12 },
+      triggerCounts: { smile: 1 },
+      landmarks: fullFaceLandmarks,
+    }),
+  });
+  assert.equal(result.response.status, 200);
+  streamAbort = new AbortController();
+  const expiryStreamResponse = await fetch(`${origin}/api/live/session/gestures/stream`, {
+    headers: { Authorization: `Bearer ${deviceToken}` },
+    signal: streamAbort.signal,
+  });
+  const expiryStreamReader = expiryStreamResponse.body.getReader();
+  await readSseSnapshot(expiryStreamReader, (payload) => payload.active === true);
+  const expiredSnapshot = await readSseSnapshot(expiryStreamReader, (payload) => payload.active === false, 7000);
+  assert.equal(expiredSnapshot.participants.length, 0);
+  assert.deepEqual(expiredSnapshot.landmarks, []);
+  streamAbort.abort();
+  streamAbort = null;
 
   result = await request('/api/live/device/status', {
     method: 'POST',
