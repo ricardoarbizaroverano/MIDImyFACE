@@ -60,7 +60,7 @@
     .status-dot.online { background: var(--green); box-shadow: 0 0 14px rgba(99,255,133,.65); }
     #machineStatus, #sessionCountdown { color: var(--green); font-weight: 700; }
     #webrtcConnectionLabel { color: #c8c3ff; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-    #webrtcSoundBtn { min-height: 36px; padding: 6px 10px; font-size: 12px; }
+    #webrtcSoundBtn { min-height: 42px; padding: 8px 12px; font-size: 12px; }
     #machineMessage { display: none; }
     #participantBadge { color: #fff; }
 
@@ -80,6 +80,58 @@
     #previewVideo { z-index: 2; }
     #sessionVideo { opacity: 0; transform: scaleX(-1); pointer-events: none; }
     #sessionCanvas { z-index: 10; }
+
+    .face-loading-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 28;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .45s ease, visibility .45s ease;
+      background: radial-gradient(circle at center, rgba(124,255,79,.12), rgba(0,0,0,.86) 68%);
+      backdrop-filter: blur(2px);
+    }
+    .face-loading-overlay.visible { opacity: 1; visibility: visible; }
+    .face-loading-card {
+      width: min(82%, 520px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 24px 26px;
+      border: 4px solid var(--cyan);
+      color: var(--green-bright);
+      background: #070b14;
+      box-shadow: 6px 6px 0 #000, 0 0 24px rgba(54,246,178,.22);
+      text-align: center;
+      transform: translateY(8px) scale(.985);
+      transition: transform .45s ease, box-shadow .45s ease;
+    }
+    .face-loading-overlay.visible .face-loading-card { transform: translateY(0) scale(1); }
+    .face-loading-spinner {
+      width: 52px;
+      height: 52px;
+      border: 6px solid #1b2d1b;
+      border-top-color: var(--green-bright);
+      border-right-color: var(--amber);
+      animation: mmfSpinner 1s steps(8) infinite;
+    }
+    .face-loading-title { color: var(--green-bright); font-size: 22px; font-weight: 700; text-transform: uppercase; }
+    .face-loading-subtitle {
+      min-height: 38px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      transition: opacity .22s ease, transform .22s ease;
+    }
+    .face-loading-subtitle.tip-swap { opacity: 0; transform: translateY(7px); }
+    .face-loading-dots { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    @keyframes mmfSpinner { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
     .session-intro {
       position: absolute;
@@ -336,6 +388,40 @@
       background: #0d1410;
       object-fit: cover;
     }
+    .mini-preview-controls {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-top: 2px solid rgba(124,255,79,.45);
+      background: #070b08;
+    }
+    .mini-preview-controls #webrtcConnectionLabel { flex: 1; }
+    .mobile-orientation-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 196;
+      display: grid;
+      place-items: center;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      background: rgba(0,0,0,.92);
+    }
+    .mobile-orientation-card {
+      width: min(100%, 430px);
+      display: grid;
+      gap: 14px;
+      padding: 24px;
+      border: 4px solid var(--cyan);
+      background: linear-gradient(180deg,var(--panel),#050705);
+      box-shadow: 0 0 0 4px #000,8px 8px 0 rgba(0,0,0,.72);
+      text-align: center;
+    }
+    .mobile-orientation-icon { color: var(--amber); font-size: 54px; line-height: 1; }
+    .mobile-orientation-card h2 { margin: 0; color: var(--green-bright); font-size: clamp(24px,8vw,36px); }
+    .mobile-orientation-card p { margin: 0; color: #e4e7e5; font-size: 15px; line-height: 1.45; }
+    #mobileOrientationContinueBtn { width: 100%; }
     .donation-card { width:min(100%,480px); padding:24px; border:4px solid var(--green); background:linear-gradient(180deg,var(--panel),#050705); box-shadow:0 0 0 4px #000,8px 8px 0 rgba(0,0,0,.7); }
     .donation-pixel-heart { color:var(--danger); font-size:48px; line-height:1; text-shadow:4px 4px 0 #5e1515; }
     .donation-amounts { grid-template-columns:repeat(4,1fr); }
@@ -354,7 +440,12 @@
       .support-links,.community-links { grid-template-columns:1fr; }
       .session-intro { place-items:start center; padding:12px 10px; }
       .intro-panel { margin:0 auto; padding:16px 13px 20px; }
+      .availability-panel h2, .auth-gate-card h2 { max-width:100%; font-size:clamp(22px,7vw,30px); line-height:1.15; overflow-wrap:anywhere; }
       .donation-amounts { grid-template-columns:repeat(2,1fr); }
+      .face-loading-card { width: 92%; padding: 16px 12px; }
+      .face-loading-title { font-size: 17px; }
+      .face-loading-subtitle { min-height: 34px; font-size: 12px; }
+      .face-loading-spinner { width: 42px; height: 42px; }
     }
   </style>
 </head>
@@ -365,13 +456,21 @@
 
   <div class="installation-status" aria-live="polite">
     <div class="status-left"><span id="statusDot" class="status-dot"></span><span id="machineStatus">Connecting…</span><span id="machineMessage"></span></div>
-    <div class="status-right"><span id="participantBadge"></span><span id="sessionCountdown"></span><span id="webrtcConnectionLabel" class="hidden"></span><button id="webrtcSoundBtn" class="hidden" type="button" aria-pressed="false">Sound Off</button></div>
+    <div class="status-right"><span id="participantBadge"></span><span id="sessionCountdown"></span></div>
   </div>
 
   <main id="videoContainer">
     <video id="previewVideo" class="hidden" autoplay playsinline muted></video>
     <video id="sessionVideo" autoplay playsinline muted></video>
     <canvas id="sessionCanvas"></canvas>
+    <div id="faceLoadingOverlay" class="face-loading-overlay" aria-live="polite" aria-hidden="true">
+      <div class="face-loading-card">
+        <div class="face-loading-spinner" aria-hidden="true"></div>
+        <div id="faceLoadingTitle" class="face-loading-title">Looking for your face…</div>
+        <div id="faceLoadingTip" class="face-loading-subtitle">Make sure your face is clearly visible to the camera.</div>
+        <div class="face-loading-dots">camera • face tracking • landmarks</div>
+      </div>
+    </div>
 
     <section id="sessionIntro" class="session-intro">
       <form id="identityForm" class="intro-panel">
@@ -421,6 +520,10 @@
           </div>
           <div id="miniProgramPreview" class="mini-preview" aria-label="Program feed miniature preview">
             <video id="miniPreviewVideo" autoplay playsinline muted></video>
+            <div class="mini-preview-controls">
+              <span id="webrtcConnectionLabel" class="hidden">Connecting</span>
+              <button id="webrtcSoundBtn" class="hidden" type="button" aria-pressed="false">Sound Off</button>
+            </div>
           </div>
         </div>
       </form>
@@ -450,6 +553,15 @@
 
   <button id="stopSessionBtn" class="hidden" type="button">End session</button>
 
+  <div id="mobileOrientationModal" class="mobile-orientation-modal hidden" role="dialog" aria-modal="true" aria-labelledby="mobileOrientationTitle">
+    <div class="mobile-orientation-card">
+      <div class="mobile-orientation-icon" aria-hidden="true">↻</div>
+      <h2 id="mobileOrientationTitle">TURN YOUR PHONE</h2>
+      <p id="mobileOrientationText">Please rotate your phone to landscape for the best full-screen camera experience.</p>
+      <button id="mobileOrientationContinueBtn" type="button">CONTINUE</button>
+    </div>
+  </div>
+
   <div id="notificationModal" class="notification-modal hidden" role="dialog" aria-modal="true" aria-labelledby="notificationMessage">
     <div class="notification-card">
       <p id="notificationMessage">Would you like to get a notification when the installation is available again?</p>
@@ -474,6 +586,6 @@
     </div>
   </div>
   <script src="../performance_grid_visuals.js"></script>
-  <script type="module" src="./live.js?v=20260721-media-8"></script>
+  <script type="module" src="./live.js?v=20260721-media-9"></script>
 </body>
 </html>

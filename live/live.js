@@ -1,4 +1,4 @@
-import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-8';
+import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-9';
 
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const STATUS_POLL_MS = 10_000;
@@ -15,6 +15,15 @@ const INSTALLATION_STATUS_DOCUMENT = 'status';
 const USER_PROFILE_COLLECTION = 'users';
 const NICKNAME_MIN_LENGTH = 2;
 const NICKNAME_MAX_LENGTH = 10;
+const FACE_MISSING_GRACE_MS = 1_400;
+const FACE_TIP_ROTATE_MS = 3_000;
+const FACE_SEARCH_TIPS = [
+  'Allow camera access in the browser.',
+  'Keep your face clearly visible.',
+  'Avoid strong backlight.',
+  'Stay at a comfortable distance.',
+  'Try changing your position.',
+];
 const BLOCKED_NICKNAME_TERMS = [
   'asshole','bastard','beaner','bitch','chink','coon','cunt','dick','faggot',
   'fuck','gook','hitler','jerkoff','kike','kkk','nazi','nigga','nigger',
@@ -35,7 +44,8 @@ const elements = Object.fromEntries([
   'authPanel','registrationTitle','registrationLead','availabilityPanel','availabilityTitle','availabilityText',
   'availabilityActions','notifyBellBtn','notifyBellLabel','availabilityRetryBtn','joinPanel','notificationModal',
   'notificationMessage','notificationConfirmBtn','notificationCancelBtn',
-  'miniProgramPreview','miniPreviewVideo','previewVideo',
+  'miniProgramPreview','miniPreviewVideo','previewVideo','faceLoadingOverlay','faceLoadingTitle','faceLoadingTip',
+  'mobileOrientationModal','mobileOrientationTitle','mobileOrientationText','mobileOrientationContinueBtn',
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = {
@@ -70,6 +80,15 @@ const state = {
   previewHasAudio: false,
   webrtcSoundEnabled: sessionStorage.getItem(WEBRTC_SOUND_PREF_KEY) === 'true',
   previewStats: { fps: 0, receiveFps: 0, framesDecoded: 0, framesReceived: 0, jitter: 0, frameAgeMs: 0 },
+  faceTipIndex: 0,
+  faceTipTimer: null,
+  faceMissingTimer: null,
+  mobileOrientationShown: false,
+  mobileOrientationPromise: null,
+  mobileOrientationResolve: null,
+  startPending: false,
+  authNotice: '',
+  formMessageLockUntil: 0,
 };
 
 function attachPreviewStream(videoEl, stream, { muted = true } = {}) {
@@ -114,11 +133,26 @@ function updateWebRtcUi() {
 function applyWebRtcAudioPreference() {
   const shouldPlayAudio = Boolean(state.webrtcSoundEnabled && state.previewHasAudio && state.previewFeedAvailable);
   if (elements.previewVideo) {
-    elements.previewVideo.muted = !shouldPlayAudio;
-    if (shouldPlayAudio) elements.previewVideo.play().catch(() => {});
+    const shouldPlaySessionAudio = shouldPlayAudio && Boolean(state.session);
+    elements.previewVideo.muted = !shouldPlaySessionAudio;
+    if (state.session && state.previewFeedAvailable) {
+      elements.previewVideo.play().catch(() => {
+        // Mobile browsers may reject an unmuted autoplay after async session setup.
+        // Keep the video background reliable and fall back to muted playback.
+        elements.previewVideo.muted = true;
+        elements.previewVideo.play().catch(() => {});
+      });
+    }
   }
   if (elements.miniPreviewVideo) {
-    elements.miniPreviewVideo.muted = true;
+    const shouldPlayJoinAudio = shouldPlayAudio && !state.session;
+    elements.miniPreviewVideo.muted = !shouldPlayJoinAudio;
+    if (!state.session && state.previewFeedAvailable) {
+      elements.miniPreviewVideo.play().catch(() => {
+        elements.miniPreviewVideo.muted = true;
+        elements.miniPreviewVideo.play().catch(() => {});
+      });
+    }
   }
   updateWebRtcUi();
 }
@@ -131,7 +165,7 @@ async function ensurePreviewClient() {
   if (state.previewStartPromise) return state.previewStartPromise;
   state.previewStartPromise = (async () => {
   try {
-    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260721-media-8');
+    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260721-media-9');
     state.previewClient = new PreviewClient({
       relayOrigin: state.relayOrigin,
       role: 'waiting_viewer',
@@ -210,6 +244,85 @@ function updateProgramFeedVisibility() {
   setHidden(elements.previewVideo, !hasFeed || !state.session);
   setHidden(elements.miniProgramPreview, !hasFeed || Boolean(state.session));
   applyWebRtcAudioPreference();
+}
+
+function setFaceSearchVisible(visible) {
+  elements.faceLoadingOverlay?.classList.toggle('visible', visible);
+  elements.faceLoadingOverlay?.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  if (!visible) {
+    clearInterval(state.faceTipTimer);
+    state.faceTipTimer = null;
+    elements.faceLoadingTip?.classList.remove('tip-swap');
+  }
+}
+
+function rotateFaceSearchTip() {
+  if (!elements.faceLoadingTip) return;
+  elements.faceLoadingTip.classList.add('tip-swap');
+  window.setTimeout(() => {
+    state.faceTipIndex = (state.faceTipIndex + 1) % FACE_SEARCH_TIPS.length;
+    elements.faceLoadingTip.textContent = FACE_SEARCH_TIPS[state.faceTipIndex];
+    elements.faceLoadingTip.classList.remove('tip-swap');
+  }, 220);
+}
+
+function showFaceSearch() {
+  clearTimeout(state.faceMissingTimer);
+  state.faceMissingTimer = null;
+  state.faceTipIndex = 0;
+  if (elements.faceLoadingTitle) elements.faceLoadingTitle.textContent = 'Looking for your face…';
+  if (elements.faceLoadingTip) elements.faceLoadingTip.textContent = FACE_SEARCH_TIPS[0];
+  setFaceSearchVisible(true);
+  if (!state.faceTipTimer) state.faceTipTimer = window.setInterval(rotateFaceSearchTip, FACE_TIP_ROTATE_MS);
+}
+
+function hideFaceSearch() {
+  clearTimeout(state.faceMissingTimer);
+  state.faceMissingTimer = null;
+  setFaceSearchVisible(false);
+}
+
+function scheduleFaceSearch() {
+  clearTimeout(state.faceMissingTimer);
+  state.faceMissingTimer = window.setTimeout(showFaceSearch, FACE_MISSING_GRACE_MS);
+}
+
+function isMobileBrowser() {
+  if (navigator.userAgentData?.mobile === true) return true;
+  if (/Android|iPhone|iPod|Mobile/i.test(navigator.userAgent || '')) return true;
+  return window.matchMedia?.('(max-width: 900px) and (pointer: coarse)').matches === true;
+}
+
+function updateMobileOrientationCopy() {
+  const landscape = window.innerWidth > window.innerHeight;
+  if (elements.mobileOrientationTitle) {
+    elements.mobileOrientationTitle.textContent = landscape ? 'LANDSCAPE READY' : 'TURN YOUR PHONE';
+  }
+  if (elements.mobileOrientationText) {
+    elements.mobileOrientationText.textContent = landscape
+      ? 'Your phone is ready for the full-screen camera experience.'
+      : 'Please rotate your phone to landscape for the best full-screen camera experience.';
+  }
+}
+
+function showMobileOrientationGuidance() {
+  if (!isMobileBrowser() || state.mobileOrientationShown) return Promise.resolve();
+  if (state.mobileOrientationPromise) return state.mobileOrientationPromise;
+  updateMobileOrientationCopy();
+  setHidden(elements.mobileOrientationModal, false);
+  state.mobileOrientationPromise = new Promise((resolve) => {
+    state.mobileOrientationResolve = resolve;
+  });
+  return state.mobileOrientationPromise;
+}
+
+function finishMobileOrientationGuidance() {
+  setHidden(elements.mobileOrientationModal, true);
+  state.mobileOrientationShown = true;
+  const resolve = state.mobileOrientationResolve;
+  state.mobileOrientationResolve = null;
+  state.mobileOrientationPromise = null;
+  resolve?.();
 }
 
 function resolveRelayOrigin() {
@@ -390,6 +503,17 @@ async function ensureUserDocument(user) {
   await setDoc(ref, payload, { merge: true });
 }
 
+async function registeredUserProfileExists(user) {
+  if (!user || !state.firestore || !state.firestoreSdk) return null;
+  const { doc, getDoc } = state.firestoreSdk;
+  try {
+    const snapshot = await getDoc(doc(state.firestore, USER_PROFILE_COLLECTION, user.uid));
+    return snapshot.exists();
+  } catch {
+    return null;
+  }
+}
+
 function subscribeUserPreference(user) {
   state.userPreferenceUnsubscribe?.();
   state.userPreferenceUnsubscribe = null;
@@ -491,9 +615,10 @@ function hideDonationPrompt() {
   setHidden(elements.donationModal, true);
 }
 
-function setFormMessage(message, error = false) {
+function setFormMessage(message, error = false, lockMs = 0) {
   elements.formMessage.textContent = message;
   elements.formMessage.classList.toggle('error', error);
+  if (lockMs > 0) state.formMessageLockUntil = Date.now() + lockMs;
 }
 
 function buildCountryOptions() {
@@ -592,6 +717,7 @@ async function setupGoogleRegistration(publicConfig) {
   if (!validConfig) {
     state.authReady = false;
     elements.googleAuthBtn.disabled = true;
+    elements.googleSignInBtn.disabled = true;
     elements.authMessage.textContent = 'Secure registration is temporarily unavailable. Please try again later.';
     setRegistrationGate(null);
     setAvailabilityState('error', 'Please try again.');
@@ -610,11 +736,22 @@ async function setupGoogleRegistration(publicConfig) {
     state.authReady = Boolean(authConfig.enabled && authConfig.firebaseConfigured);
     restartInstallationStatusListener();
     authSdk.onAuthStateChanged(state.firebaseAuth.auth, async (user) => {
-      if (user && localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) !== 'true') {
-        await authSdk.signOut(state.firebaseAuth.auth);
-        elements.authMessage.textContent = 'Accept the Participation Terms and Privacy Notice before signing in.';
-        setRegistrationGate(null);
-        return;
+      if (user) {
+        const termsAcceptedHere = localStorage.getItem(TERMS_ACCEPTED_STORAGE_KEY) === 'true';
+        const registeredProfile = await registeredUserProfileExists(user);
+        if (!termsAcceptedHere && registeredProfile !== true) {
+          state.authNotice = registeredProfile === false
+            ? 'This Google account is not registered yet. Accept the terms and use REGISTER FREE.'
+            : 'Your registration could not be verified. Check the connection and try SIGN IN again.';
+          await authSdk.signOut(state.firebaseAuth.auth);
+          return;
+        }
+        if (registeredProfile === true && !termsAcceptedHere) {
+          // A profile is written only after the registration terms were accepted.
+          // Restore that acknowledgement in private/incognito browser storage.
+          localStorage.setItem(TERMS_ACCEPTED_STORAGE_KEY, 'true');
+          elements.termsConsent.checked = true;
+        }
       }
       state.authUser = user || null;
       state.authToken = user ? await user.getIdToken() : null;
@@ -626,61 +763,82 @@ async function setupGoogleRegistration(publicConfig) {
       }
       elements.googleAuthLabel.textContent = user ? `SIGN OUT · ${user.displayName || user.email}` : 'REGISTER FREE';
       elements.googleAuthBtn.disabled = user ? false : !state.authReady || !elements.termsConsent.checked;
-      elements.googleSignInBtn.disabled = user ? true : !state.authReady || !elements.termsConsent.checked;
+      elements.googleSignInBtn.disabled = user ? true : !state.authReady;
       elements.authMessage.textContent = user
         ? 'Account recognized on this device.'
-        : 'Create an account to save your place and future sessions.';
+        : (state.authNotice || 'Create an account to save your place and future sessions.');
+      state.authNotice = '';
       setRegistrationGate(user);
     });
   } catch {
     state.authReady = false;
     elements.googleAuthBtn.disabled = true;
+    elements.googleSignInBtn.disabled = true;
     elements.authMessage.textContent = 'Secure registration is temporarily unavailable. Please try again later.';
     setRegistrationGate(null);
     setAvailabilityState('error', 'Please try again.');
   }
 }
 
-async function registerWithGoogle() {
+async function authenticateWithGoogle({ existingOnly = false } = {}) {
   if (state.authUser && state.firebaseAuth) {
     await state.firebaseAuth.authSdk.signOut(state.firebaseAuth.auth);
     state.authUser = null;
     state.authToken = null;
     return;
   }
-  if (!elements.termsConsent.checked) return;
+  if (!existingOnly && !elements.termsConsent.checked) {
+    elements.authMessage.textContent = 'Accept the Terms and Conditions before registering.';
+    return;
+  }
   if (!state.firebaseAuth) {
     elements.authMessage.textContent = 'Firebase is not connected yet. Ask the project owner to finish the free setup.';
     return;
   }
   try {
     elements.googleAuthBtn.disabled = true;
+    elements.googleSignInBtn.disabled = true;
     const provider = new state.firebaseAuth.authSdk.GoogleAuthProvider();
-    const result = await state.firebaseAuth.authSdk.signInWithPopup(state.firebaseAuth.auth, provider);
-    state.authUser = result.user;
-    state.authToken = await result.user.getIdToken();
-    setRegistrationGate(result.user);
+    await state.firebaseAuth.authSdk.signInWithPopup(state.firebaseAuth.auth, provider);
   } catch (error) {
     if (error?.code !== 'auth/popup-closed-by-user') elements.authMessage.textContent = 'Google sign-in did not complete. Please try again.';
   } finally {
-    elements.googleAuthBtn.disabled = !state.authReady || !elements.termsConsent.checked;
+    elements.googleAuthBtn.disabled = state.authUser ? false : !state.authReady || !elements.termsConsent.checked;
+    elements.googleSignInBtn.disabled = Boolean(state.authUser) || !state.authReady;
   }
+}
+
+function registerWithGoogle() {
+  return authenticateWithGoogle({ existingOnly: false });
+}
+
+function signInWithGoogle() {
+  return authenticateWithGoogle({ existingOnly: true });
 }
 
 async function activateReservation(reservation) {
   clearQueue();
   await ensurePreviewClient();
   state.session = { ...reservation.session, token: reservation.token };
-  const { ParticipantSession } = await import('./live_session.js?v=20260721-media-8');
+  const { ParticipantSession } = await import('./live_session.js?v=20260721-media-9');
   state.participantSession = new ParticipantSession({
     relayOrigin: state.relayOrigin,
     token: reservation.token,
     session: reservation.session,
     onStatus({ phase, message }) {
       elements.sessionStatus.textContent = message;
-      if (phase === 'active') enterActiveUi(reservation.session);
+      if (phase === 'active') {
+        enterActiveUi(reservation.session);
+        showFaceSearch();
+      }
+      if (phase === 'face-found') hideFaceSearch();
+      if (phase === 'searching-face') scheduleFaceSearch();
       if (phase === 'expired') resetUi('Your turn is complete. Thank you for playing.', true);
-      if (phase === 'error') resetUi(message || 'The camera session could not start.');
+      if (phase === 'error') {
+        const cameraMessage = message || 'The camera session could not start.';
+        resetUi(cameraMessage);
+        setFormMessage(cameraMessage, true, 15_000);
+      }
     },
     onTrigger: flashGestureTrigger,
   });
@@ -745,17 +903,22 @@ function renderStatus(payload) {
   if (!state.session && !state.queueToken) {
     const activeSessions = Array.isArray(payload.sessions) ? payload.sessions : (payload.session ? [payload.session] : []);
     const available = Number.isFinite(payload.capacity?.available) ? payload.capacity.available : Math.max(0, 3 - activeSessions.length);
+    const canReplaceFormMessage = Date.now() >= state.formMessageLockUntil;
     if (activeSessions.length) {
       elements.participantBadge.textContent = `${activeSessions.length}/3 playing`;
       const waiting = Number(payload.queue?.waiting || 0);
-      setFormMessage(waiting
-        ? `${waiting} participant${waiting === 1 ? '' : 's'} waiting. Press START to join the queue.`
-        : available > 0 ? `${available} live place${available === 1 ? '' : 's'} available.` : 'All three live places are active. Press START to join the queue.');
+      if (canReplaceFormMessage) {
+        setFormMessage(waiting
+          ? `${waiting} participant${waiting === 1 ? '' : 's'} waiting. Press START to join the queue.`
+          : available > 0 ? `${available} live place${available === 1 ? '' : 's'} available.` : 'All three live places are active. Press START to join the queue.');
+      }
       elements.startSessionBtn.disabled = !accepting || !state.authUser;
     } else {
       elements.participantBadge.textContent = '';
       elements.startSessionBtn.disabled = !accepting || !state.authUser;
-      setFormMessage(accepting ? `Ready for a ${formatTurnDuration(liveTurnDurationSeconds())} turn.` : 'Come back later.', !accepting);
+      if (canReplaceFormMessage) {
+        setFormMessage(accepting ? `Ready for a ${formatTurnDuration(liveTurnDurationSeconds())} turn.` : 'Come back later.', !accepting);
+      }
     }
   }
 
@@ -782,6 +945,7 @@ function enterActiveUi(session) {
 
 function resetUi(message = 'Session ended. You can start another turn when the installation is ready.', offerDonation = false) {
   document.body.classList.remove('session-active');
+  hideFaceSearch();
   setHidden(elements.sessionIntro, false);
   setHidden(elements.sessionStatus, true);
   setHidden(elements.closeSessionBtn, true);
@@ -834,7 +998,7 @@ function friendlyStartError(error) {
 
 async function startSession(event) {
   event.preventDefault();
-  if (state.participantSession) return;
+  if (state.participantSession || state.startPending) return;
   if (state.availabilityState !== 'online') {
     setAvailabilityState('offline');
     return;
@@ -844,6 +1008,7 @@ async function startSession(event) {
     elements.authMessage.textContent = 'Register with Google before joining the instrument.';
     return;
   }
+  state.formMessageLockUntil = 0;
   hideDonationPrompt();
   const nicknameValidation = validateNickname(elements.nicknameInput.value);
   const countryCode = elements.countrySelect.value.trim().toUpperCase();
@@ -862,7 +1027,9 @@ async function startSession(event) {
   elements.nicknameInput.value = nickname;
   elements.nicknameInput.setCustomValidity('');
 
+  state.startPending = true;
   elements.startSessionBtn.disabled = true;
+  await showMobileOrientationGuidance();
   elements.startSessionBtn.textContent = 'WAIT…';
   setFormMessage('Reserving your turn…');
   localStorage.setItem('mmf_live_nickname', nickname);
@@ -896,6 +1063,8 @@ async function startSession(event) {
     }
     resetUi(friendlyStartError(error));
     setFormMessage(friendlyStartError(error), true);
+  } finally {
+    state.startPending = false;
   }
 }
 
@@ -937,9 +1106,13 @@ async function initialize() {
       if (state.authUser && state.firebaseAuth) await state.firebaseAuth.authSdk.signOut(state.firebaseAuth.auth);
     }
     elements.googleAuthBtn.disabled = state.authUser ? false : !state.authReady || !elements.termsConsent.checked;
+    elements.googleSignInBtn.disabled = Boolean(state.authUser) || !state.authReady;
   });
   elements.googleAuthBtn.addEventListener('click', registerWithGoogle);
-  elements.googleSignInBtn.addEventListener('click', registerWithGoogle);
+  elements.googleSignInBtn.addEventListener('click', signInWithGoogle);
+  elements.mobileOrientationContinueBtn.addEventListener('click', finishMobileOrientationGuidance);
+  window.addEventListener('resize', updateMobileOrientationCopy);
+  window.addEventListener('orientationchange', updateMobileOrientationCopy);
   elements.notifyBellBtn.addEventListener('click', async () => {
     if (!state.authUser) return;
     if (state.notifyInstallationOnline) {

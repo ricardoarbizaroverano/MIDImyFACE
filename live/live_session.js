@@ -43,6 +43,20 @@ const GRID_COLS = GRID_VISUALS.GRID_COLS || 4;
 const GRID_ROWS = GRID_VISUALS.GRID_ROWS || 2;
 export const PEER_LANDMARK_DOT_RADIUS = 2.3;
 
+export function cameraAccessMessage(error) {
+  const name = String(error?.name || '');
+  if (name === 'NotAllowedError' || name === 'SecurityError') {
+    return 'Camera access is blocked. Allow camera access in your browser settings, then press START again.';
+  }
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+    return 'No camera was found. Connect or enable a camera, then press START again.';
+  }
+  if (name === 'NotReadableError' || name === 'TrackStartError') {
+    return 'Your camera is being used by another app. Close it there, then press START again.';
+  }
+  return 'The camera could not start. Check browser camera permission, then press START again.';
+}
+
 // Landmark indices used in the main script
 const LM = {
   topLip:     13,
@@ -303,6 +317,7 @@ export class ParticipantSession {
     this._lastProcessedVideoTime = -1;
     this._latestLandmarks = null;
     this._latestMouthOpen = 0;
+    this._facePresent = null;
     this._canvasMetrics = { cssWidth: 0, cssHeight: 0, dpr: 1 };
     this._installationEpoch = Number.isSafeInteger(Number(session?.installationEpoch)) ? Number(session.installationEpoch) : 0;
     this._sequenceNumber = 0;
@@ -315,9 +330,18 @@ export class ParticipantSession {
 
     this.onStatus({ phase: 'camera', message: 'Requesting camera…' });
     try {
-      this._stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+      this._stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          aspectRatio: { ideal: 16 / 9 },
+          facingMode: { ideal: 'user' },
+        },
+      });
     } catch (err) {
-      this.onStatus({ phase: 'error', message: `Camera denied: ${err.message}` });
+      this._stopLocal();
+      this.onStatus({ phase: 'error', message: cameraAccessMessage(err) });
       await this._stopRemote();
       return;
     }
@@ -368,6 +392,7 @@ export class ParticipantSession {
     this._lastLandmarks = null;
     this._lastGestures = null;
     this._latestMouthOpen = 0;
+    this._facePresent = null;
     this._peerParticipants = [];
     this._hitEffects = [];
     this._clearCanvas();
@@ -403,8 +428,20 @@ export class ParticipantSession {
     const lms = results?.multiFaceLandmarks?.[0];
     if (!lms || lms.length === 0) {
       this._latestLandmarks = null;
+      this._lastLandmarks = null;
+      this._lastGestures = null;
       this._latestMouthOpen = 0;
+      this._mouthGateOpen = false;
+      if (this._facePresent !== false) {
+        this._facePresent = false;
+        this.onStatus({ phase: 'searching-face', message: 'Looking for your face…' });
+      }
       return;
+    }
+
+    if (this._facePresent !== true) {
+      this._facePresent = true;
+      this.onStatus({ phase: 'face-found', message: 'Face tracking ready.' });
     }
 
     const smoothed = smoothLandmarks(lms, this._lmCache);
