@@ -95,13 +95,15 @@ const LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_AGE_MS = Math.max(5_000, Math.min(Number
 const LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_FUTURE_MS = Math.max(1_000, Math.min(Number(process.env.LIVE_GESTURE_CLIENT_TIMESTAMP_MAX_FUTURE_MS || 10_000), 30_000));
 const LIVE_PREVIEW_TTL_MS            = Math.max(15_000, Math.min(Number(process.env.LIVE_PREVIEW_TTL_MS || 120_000), 900_000));
 const LIVE_PREVIEW_TOKEN_TTL_SEC     = Math.max(20, Math.min(Number(process.env.LIVE_PREVIEW_TOKEN_TTL_SEC || 90), 600));
-const LIVE_PREVIEW_MAX_VIEWERS       = Math.max(1, Math.min(Number(process.env.LIVE_PREVIEW_MAX_VIEWERS || 1), 4));
+const LIVE_PREVIEW_MAX_VIEWERS       = Math.max(1, Math.min(Number(process.env.LIVE_PREVIEW_MAX_VIEWERS || 3), 4));
 const LIVE_PREVIEW_MAX_PER_CLIENT    = Math.max(1, Math.min(Number(process.env.LIVE_PREVIEW_MAX_PER_CLIENT || 2), 8));
 const LIVE_PREVIEW_STALE_TIMEOUT_MS  = Math.max(10_000, Math.min(Number(process.env.LIVE_PREVIEW_STALE_TIMEOUT_MS || 30_000), 600_000));
 const LIVE_PREVIEW_MAX_ICE_PER_QUEUE = Math.max(4, Math.min(Number(process.env.LIVE_PREVIEW_MAX_ICE_PER_QUEUE || 48), 256));
 const LIVE_PREVIEW_MAX_NON_ICE_QUEUE = Math.max(4, Math.min(Number(process.env.LIVE_PREVIEW_MAX_NON_ICE_QUEUE || 24), 128));
 const LIVE_PREVIEW_RATE_LIMIT_WINDOW_MS = Math.max(5_000, Math.min(Number(process.env.LIVE_PREVIEW_RATE_LIMIT_WINDOW_MS || 60_000), 300_000));
 const LIVE_PREVIEW_RATE_LIMIT_MAX_REQ = Math.max(20, Math.min(Number(process.env.LIVE_PREVIEW_RATE_LIMIT_MAX_REQ || 360), 5000));
+const LIVE_PROTOCOL_VERSION           = 'midimyface-live-v2';
+const RELAY_BUILD_COMMIT              = cleanString(process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '', 64) || 'unknown';
 const LIVE_PREVIEW_TOKEN_SECRET      = configuredEnv('LIVE_PREVIEW_TOKEN_SECRET')
   || AUTH_TOKEN_SECRET
   || RELAY_JOIN_TOKEN_SECRET
@@ -569,6 +571,8 @@ function buildLivePublicConfigPayload() {
 
 function createDefaultLiveState() {
   return {
+    protocolVersion: LIVE_PROTOCOL_VERSION,
+    builds: { relayCommit: RELAY_BUILD_COMMIT, piCommit: 'unknown', liveCommit: 'unknown' },
     installationEpoch: Date.now(),
     updatedAt: null,
     updatedBy: 'defaults',
@@ -580,6 +584,13 @@ function createDefaultLiveState() {
       statusLabel: 'offline',
       message: 'Come back later or check our latest socials and live archives.',
       offlineReason: 'No live data yet.',
+    },
+    media: {
+      cameraFeedEnabled: false,
+      state: 'DISABLED',
+    },
+    youtube: {
+      state: 'DISABLED',
     },
     venue: {
       name: '',
@@ -638,6 +649,12 @@ function sanitizeLiveStatePatch(input) {
     Number.isSafeInteger(Number(liveState?.installationEpoch)) ? Number(liveState.installationEpoch) : Date.now(),
   );
   return {
+    protocolVersion: cleanString(patch.protocolVersion || LIVE_PROTOCOL_VERSION, 64) || LIVE_PROTOCOL_VERSION,
+    builds: {
+      relayCommit: RELAY_BUILD_COMMIT,
+      piCommit: cleanString(patch.builds?.piCommit || 'unknown', 64) || 'unknown',
+      liveCommit: cleanString(patch.builds?.liveCommit || 'unknown', 64) || 'unknown',
+    },
     installationEpoch,
     updatedAt: cleanString(patch.updatedAt || new Date().toISOString(), 64),
     updatedBy: cleanString(patch.updatedBy || 'raspberry-pi', 80),
@@ -649,6 +666,13 @@ function sanitizeLiveStatePatch(input) {
       statusLabel: cleanString(patch.machine?.statusLabel || patch.machine?.mode || 'offline', 48) || 'offline',
       message: cleanString(patch.machine?.message || '', 240),
       offlineReason: cleanString(patch.machine?.offlineReason || '', 240),
+    },
+    media: {
+      cameraFeedEnabled: asBoolean(patch.media?.cameraFeedEnabled, false),
+      state: cleanString(patch.media?.state || (patch.media?.cameraFeedEnabled ? 'CONNECTING' : 'DISABLED'), 32).toUpperCase(),
+    },
+    youtube: {
+      state: cleanString(patch.youtube?.state || 'DISABLED', 32).toUpperCase(),
     },
     venue: {
       name: cleanString(patch.venue?.name || '', 120),
@@ -1196,6 +1220,8 @@ function buildLiveBootstrapPayload() {
   const installationEpoch = currentInstallationEpoch();
   return {
     ok: true,
+    protocolVersion: LIVE_PROTOCOL_VERSION,
+    builds: { relayCommit: RELAY_BUILD_COMMIT },
     route: LIVE_ROUTE_PATH,
     relayOrigin: PUBLIC_BASE_URL,
     installationEpoch,
@@ -1492,7 +1518,13 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (parsed.pathname === '/health' || parsed.pathname === '/.well-known/health') {
-    return sendJson(res, 200, { ok: true, time: new Date().toISOString(), ws_path: WS_PATH }, { ...base, ...cors });
+    return sendJson(res, 200, {
+      ok: true,
+      time: new Date().toISOString(),
+      ws_path: WS_PATH,
+      protocolVersion: LIVE_PROTOCOL_VERSION,
+      buildCommit: RELAY_BUILD_COMMIT,
+    }, { ...base, ...cors });
   }
 
   /* ─── Boot key endpoint — serves AES key to legitimate origins only ─── */

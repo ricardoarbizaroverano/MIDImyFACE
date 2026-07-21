@@ -64,7 +64,13 @@ export class PreviewClient {
       });
 
       this.pc.ontrack = (event) => {
-        this.stream = event.streams?.[0] || null;
+        if (!this.stream) this.stream = new MediaStream();
+        const incomingTracks = event.streams?.[0]?.getTracks?.() || [];
+        for (const track of [...incomingTracks, event.track].filter(Boolean)) {
+          if (!this.stream.getTracks().some((existing) => existing.id === track.id)) {
+            this.stream.addTrack(track);
+          }
+        }
         const tracks = this.stream?.getTracks?.() || [];
         const hasVideo = tracks.some((track) => track.kind === 'video' && track.enabled !== false);
         const hasAudio = tracks.some((track) => track.kind === 'audio' && track.enabled !== false);
@@ -100,9 +106,10 @@ export class PreviewClient {
 
       const offer = await this.pc.createOffer({ offerToReceiveVideo: true, offerToReceiveAudio: true });
       await this.pc.setLocalDescription(offer);
+      const localOffer = this.pc.localDescription || offer;
       await this._sendSignal('pi', 'offer', {
-        type: offer.type,
-        sdp: offer.sdp,
+        type: localOffer.type,
+        sdp: localOffer.sdp,
       });
       this._pollSignals();
       this._startStatsLoop();
@@ -116,6 +123,9 @@ export class PreviewClient {
     if (this.closed || this.reconnectTimer) return;
     if (this.pollTimer) clearTimeout(this.pollTimer);
     this.pollTimer = 0;
+    if (this.connectionId && this.token) {
+      this._disconnectRemote(this.connectionId, this.token).catch(() => {});
+    }
     if (this.pc) {
       this.pc.close();
       this.pc = null;
@@ -196,12 +206,12 @@ export class PreviewClient {
     });
   }
 
-  async _disconnectRemote() {
-    if (!this.connectionId || !this.token) return;
+  async _disconnectRemote(connectionId = this.connectionId, token = this.token) {
+    if (!connectionId || !token) return;
     await this._api('/api/live/preview/disconnect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ connectionId: this.connectionId, token: this.token }),
+      body: JSON.stringify({ connectionId, token }),
     });
   }
 

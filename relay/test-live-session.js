@@ -57,6 +57,9 @@ async function run() {
   });
   assert.equal(result.response.status, 200);
   assert.equal(result.body.installationStatus.online, true);
+  assert.equal(result.body.status.protocolVersion, 'midimyface-live-v2');
+  assert.equal(result.body.status.media.cameraFeedEnabled, false);
+  assert.equal(result.body.status.media.state, 'DISABLED');
   assert.equal(typeof result.body.installationStatus.notificationId, 'string');
   const installationEpoch = Number(result.body.status?.installationEpoch);
   assert.ok(Number.isSafeInteger(installationEpoch) && installationEpoch > 0);
@@ -78,6 +81,7 @@ async function run() {
     body: JSON.stringify({ machine: { alive: true, acceptingParticipants: true, mode: 'hybrid' } }),
   });
   assert.equal(result.response.status, 200);
+  assert.equal(result.body.status.media.cameraFeedEnabled, false);
 
   result = await request('/api/live/session/start', {
     method: 'POST',

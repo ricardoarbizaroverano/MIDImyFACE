@@ -45,6 +45,10 @@ async function waitForServer() {
 async function run() {
   await waitForServer();
 
+  let health = await request('/health');
+  assert.equal(health.body.protocolVersion, 'midimyface-live-v2');
+  assert.equal(typeof health.body.buildCommit, 'string');
+
   let result = await request('/api/live/preview/connect', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: origin },

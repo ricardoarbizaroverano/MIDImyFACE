@@ -5,8 +5,20 @@ import { WINK_HOLD_MS, compactTelemetryLandmarks, createGestureTriggerState, eva
 const previewClientSource = await readFile(new URL('./broadcast/preview_client.js', import.meta.url), 'utf8');
 assert.match(previewClientSource, /offerToReceiveAudio:\s*true/, 'participant WebRTC offers must request Pi audio');
 assert.doesNotMatch(previewClientSource, /offerToReceiveAudio:\s*false/, 'participant WebRTC offers must not disable Pi audio');
+assert.match(previewClientSource, /if \(!this\.stream\) this\.stream = new MediaStream\(\)/, 'streamless aiortc tracks must be collected into a playable MediaStream');
+assert.match(previewClientSource, /this\.stream\.addTrack\(track\)/, 'each received audio/video track must be attached to the participant stream');
+assert.match(previewClientSource, /this\._disconnectRemote\(this\.connectionId, this\.token\)/, 'reconnect must close its prior relay peer instead of leaking stale sessions');
+assert.match(previewClientSource, /const localOffer = this\.pc\.localDescription \|\| offer/, 'the signaled offer must include the current gathered local description');
 const livePageSource = await readFile(new URL('./live.js', import.meta.url), 'utf8');
+assert.match(livePageSource, /cameraFeedEnabled:\s*false/, 'Pi camera feed must default off in the participant client');
+assert.match(livePageSource, /if \(!state\.cameraFeedEnabled\) return null;/, 'disabled media must not create a WebRTC client');
+assert.match(livePageSource, /reconcileMediaState\(state\.status\)/, 'relay media state must control WebRTC independently');
+assert.match(livePageSource, /Live protocol mismatch/, 'build/protocol mismatches must have a clear diagnostic');
+assert.doesNotMatch(livePageSource, /await ensurePreviewClient\(\);\s*updateProgramFeedVisibility\(\);\s*updateWebRtcUi\(\);\s*await refreshStatus\(\)/, 'WebRTC must not start before camera-feed status is known');
 assert.match(livePageSource, /preview_client\.js\?v=\d{8}-media-\d+/, 'live page must cache-bust the WebRTC preview client');
+const liveHtmlSource = await readFile(new URL('./index.html', import.meta.url), 'utf8');
+assert.match(liveHtmlSource, /id="webrtcConnectionLabel" class="hidden"/, 'disabled media must not show a reconnect status placeholder');
+assert.match(liveHtmlSource, /id="webrtcSoundBtn" class="hidden"/, 'disabled media must not show sound controls');
 
 assert.equal(GRID_TRIGGER_IDS.length, 8, 'the live grid exposes eight playable pads');
 assert.equal(new Set(GRID_TRIGGER_IDS).size, 8, 'the live grid trigger mapping must be eight unique IDs');

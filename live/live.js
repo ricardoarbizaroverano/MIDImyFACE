@@ -1,3 +1,5 @@
+import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-2';
+
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
 const STATUS_POLL_MS = 10_000;
 const DEFAULT_PAYPAL_URL = 'https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download';
@@ -6,6 +8,7 @@ const DEFAULT_YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/channel/UCequCs51Hu
 const DEFAULT_YOUTUBE_VIDEOS_URL = `${DEFAULT_YOUTUBE_CHANNEL_URL}/videos`;
 const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/midimyface/';
 const WEBRTC_SOUND_PREF_KEY = 'mmf_live_webrtc_sound_on';
+const LIVE_PROTOCOL_VERSION = 'midimyface-live-v2';
 const TERMS_ACCEPTED_STORAGE_KEY = 'mmf_live_terms_accepted_v1';
 const INSTALLATION_STATUS_COLLECTION = 'installation';
 const INSTALLATION_STATUS_DOCUMENT = 'status';
@@ -58,8 +61,11 @@ const state = {
   authReady: false,
   notifyInstallationOnline: false,
   previewClient: null,
+  previewStartPromise: null,
+  cameraFeedEnabled: false,
+  mediaState: 'DISABLED',
   previewFeedAvailable: false,
-  previewConnectionState: 'connecting',
+  previewConnectionState: 'disabled',
   previewHasVideo: false,
   previewHasAudio: false,
   webrtcSoundEnabled: sessionStorage.getItem(WEBRTC_SOUND_PREF_KEY) === 'true',
@@ -78,6 +84,10 @@ function attachPreviewStream(videoEl, stream, { muted = true } = {}) {
 
 function updateWebRtcUi() {
   const stateLabel = elements.webrtcConnectionLabel;
+  const mediaEnabled = state.cameraFeedEnabled;
+  setHidden(stateLabel, !mediaEnabled);
+  setHidden(elements.webrtcSoundBtn, !mediaEnabled);
+  if (!mediaEnabled) return;
   if (stateLabel) {
     let label = 'Connecting';
     if (state.previewConnectionState === 'reconnecting') label = 'Reconnecting';
@@ -114,11 +124,14 @@ function applyWebRtcAudioPreference() {
 }
 
 async function ensurePreviewClient() {
+  if (!state.cameraFeedEnabled) return null;
   if (state.previewClient) {
     return state.previewClient;
   }
+  if (state.previewStartPromise) return state.previewStartPromise;
+  state.previewStartPromise = (async () => {
   try {
-    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260720-media-1');
+    const { PreviewClient } = await import('./broadcast/preview_client.js?v=20260721-media-2');
     state.previewClient = new PreviewClient({
       relayOrigin: state.relayOrigin,
       role: 'waiting_viewer',
@@ -156,10 +169,41 @@ async function ensurePreviewClient() {
     updateWebRtcUi();
   }
   return state.previewClient;
+  })();
+  try {
+    return await state.previewStartPromise;
+  } finally {
+    state.previewStartPromise = null;
+  }
+}
+
+function disablePreviewClient() {
+  state.previewClient?.stop?.();
+  state.previewClient = null;
+  state.previewFeedAvailable = false;
+  state.previewHasVideo = false;
+  state.previewHasAudio = false;
+  state.previewConnectionState = 'disabled';
+  state.mediaState = 'DISABLED';
+  if (elements.previewVideo) elements.previewVideo.srcObject = null;
+  if (elements.miniPreviewVideo) elements.miniPreviewVideo.srcObject = null;
+}
+
+function reconcileMediaState(status) {
+  const enabled = status?.media?.cameraFeedEnabled === true;
+  state.cameraFeedEnabled = enabled;
+  state.mediaState = enabled ? String(status?.media?.state || 'CONNECTING').toUpperCase() : 'DISABLED';
+  if (!enabled) {
+    disablePreviewClient();
+  } else {
+    ensurePreviewClient();
+  }
+  updateProgramFeedVisibility();
+  updateWebRtcUi();
 }
 
 function updateProgramFeedVisibility() {
-  const hasFeed = Boolean(state.previewFeedAvailable);
+  const hasFeed = Boolean(state.cameraFeedEnabled && state.previewFeedAvailable);
   document.body.classList.toggle('no-program-feed', !hasFeed);
   setHidden(elements.previewVideo, !hasFeed || !state.session);
   setHidden(elements.miniProgramPreview, !hasFeed || Boolean(state.session));
@@ -672,6 +716,17 @@ async function pollQueue() {
 
 function renderStatus(payload) {
   state.status = payload.status || null;
+  reconcileMediaState(state.status);
+  const remoteProtocol = String(payload.status?.protocolVersion || state.bootstrap?.protocolVersion || 'unknown');
+  if (remoteProtocol !== LIVE_PROTOCOL_VERSION) {
+    console.error('[MIDImyFACE] Live protocol mismatch', {
+      liveBuildCommit: LIVE_BUILD_COMMIT,
+      liveProtocolVersion: LIVE_PROTOCOL_VERSION,
+      relayProtocolVersion: remoteProtocol,
+      relayBuildCommit: state.bootstrap?.builds?.relayCommit || 'unknown',
+      piBuildCommit: payload.status?.builds?.piCommit || 'unknown',
+    });
+  }
   const machine = payload.status?.machine || {};
   const accepting = Boolean(machine.alive && machine.acceptingParticipants);
   renderDonationAmounts(payload.status?.donations?.suggestedAmounts);
@@ -921,6 +976,12 @@ async function initialize() {
   try {
     state.bootstrap = await api('/api/live/bootstrap');
     configurePublicLinks(state.bootstrap);
+    console.info('[MIDImyFACE] Build diagnostic', {
+      liveBuildCommit: LIVE_BUILD_COMMIT,
+      liveProtocolVersion: LIVE_PROTOCOL_VERSION,
+      relayBuildCommit: state.bootstrap?.builds?.relayCommit || 'unknown',
+      relayProtocolVersion: state.bootstrap?.protocolVersion || 'unknown',
+    });
   } catch {
     configurePublicLinks({});
   }
@@ -929,10 +990,9 @@ async function initialize() {
   } catch {
     await setupGoogleRegistration({});
   }
-  await ensurePreviewClient();
+  await refreshStatus();
   updateProgramFeedVisibility();
   updateWebRtcUi();
-  await refreshStatus();
   window.setInterval(refreshStatus, STATUS_POLL_MS);
 }
 
