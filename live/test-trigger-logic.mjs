@@ -27,6 +27,8 @@ assert.match(participantSource, /this\._gestureSocket\.send\(JSON\.stringify\(\{
 const liveHtmlSource = await readFile(new URL('./index.html', import.meta.url), 'utf8');
 assert.match(liveHtmlSource, /id="webrtcConnectionLabel" class="hidden"/, 'disabled media must not show a reconnect status placeholder');
 assert.match(liveHtmlSource, /id="webrtcSoundBtn" class="hidden"/, 'disabled media must not show sound controls');
+assert.match(liveHtmlSource, /body:not\(\.session-active\) #videoContainer\s*\{[\s\S]*?min-height:0;[\s\S]*?overflow:visible;[\s\S]*?border:0;/, 'the pre-session join form must not be trapped inside the outer stage box');
+assert.match(liveHtmlSource, /body:not\(\.session-active\) \.session-intro\s*\{[\s\S]*?position:relative;[\s\S]*?overflow:visible;/, 'the join form must use natural page flow instead of an inner scroll viewport');
 
 assert.equal(GRID_TRIGGER_IDS.length, 8, 'the live grid exposes eight playable pads');
 assert.equal(new Set(GRID_TRIGGER_IDS).size, 8, 'the live grid trigger mapping must be eight unique IDs');
