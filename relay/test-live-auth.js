@@ -26,9 +26,6 @@ function serverEnvironment(port, stateFile, overrides = {}) {
     CONSOLE_API_ENABLED: 'true',
     RELAY_JOIN_TOKEN_SECRET: 'relay-auth-test-secret-000000000000000000',
     INVITE_TOKEN_SECRET: 'invite-auth-test-secret-00000000000000000',
-    AUTH_TOKEN_SECRET: 'console-auth-test-secret-00000000000000000',
-    TEST_ADMIN_USERNAME: 'auth-test-admin',
-    TEST_ADMIN_PASSWORD: 'auth-test-password-long',
     RPI_DEVICE_TOKEN: deviceToken,
     LIVE_STATE_FILE: stateFile,
     LIVE_SESSION_DURATION_SECONDS: '15',
@@ -107,17 +104,11 @@ async function startParticipant(port, { token, deviceId, nickname, extraBody = {
   });
 }
 
-async function createConsoleSession(port) {
-  const login = await request(port, '/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Origin: originFor(port) },
-    body: JSON.stringify({ username: 'auth-test-admin', password: 'auth-test-password-long' }),
-  });
-  assert.equal(login.response.status, 200);
+async function createConsoleSession(port, token = 'token-active') {
   const created = await request(port, '/api/sessions/create', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${login.body.token}`, Origin: originFor(port) },
-    body: JSON.stringify({ max_participants: 3 }),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, Origin: originFor(port) },
+    body: JSON.stringify({ max_participants: 25, session_password: 'optional-session-password' }),
   });
   assert.equal(created.response.status, 200);
   return created.body.session;
@@ -179,7 +170,34 @@ async function configuredAuthTests() {
       assert.equal(JSON.stringify(statusBefore.body).includes(sentinel), false);
     }
 
+    let consoleCreate = await request(port, '/api/sessions/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: originFor(port) },
+      body: JSON.stringify({ max_participants: 10 }),
+    });
+    assert.equal(consoleCreate.response.status, 401);
+    assert.equal(consoleCreate.body.error, 'registration_required');
+    consoleCreate = await request(port, '/api/sessions/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer malformed-token-not-in-verifier', Origin: originFor(port) },
+      body: JSON.stringify({ max_participants: 10 }),
+    });
+    assert.equal(consoleCreate.response.status, 401);
+    assert.equal(consoleCreate.body.error, 'invalid_firebase_token');
+
+    const obsoleteLogin = await request(port, '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: originFor(port) },
+      body: JSON.stringify({ username: 'auth-test-admin', password: 'auth-test-password-long' }),
+    });
+    assert.equal(obsoleteLogin.response.status, 404);
+
     const consoleSession = await createConsoleSession(port);
+    assert.equal(consoleSession.max_participants, 10);
+    assert.equal(consoleSession.session_password, 'optional-session-password');
+    const hostClaims = JSON.parse(Buffer.from(consoleSession.host_join_token.split('.')[1], 'base64url').toString('utf8'));
+    assert.equal(hostClaims.firebase_uid, 'uid-active');
+    assert.equal(hostClaims.name, consoleSession.host_name);
     let inviteJoin = await requestPerformerJoinToken(port, consoleSession);
     assert.equal(inviteJoin.response.status, 401);
     assert.equal(inviteJoin.body.error, 'registration_required');
@@ -272,11 +290,6 @@ async function missingConfigurationTests() {
     REQUIRE_JOIN_TOKEN: 'false',
     RELAY_JOIN_TOKEN_SECRET: '',
     INVITE_TOKEN_SECRET: '',
-    AUTH_TOKEN_SECRET: '',
-    CONSOLE_ADMIN_USERNAME: '',
-    CONSOLE_ADMIN_PASSWORD: '',
-    TEST_ADMIN_USERNAME: '',
-    TEST_ADMIN_PASSWORD: '',
   });
   try {
     await waitForServer(port, processInfo);

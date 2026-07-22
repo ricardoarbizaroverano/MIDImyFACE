@@ -337,6 +337,10 @@
       disconnect(true);
     });
 
+    window.addEventListener('mmf:auth-signed-out', () => {
+      disconnect(true);
+    });
+
     // Bridge app-level events -> relay frames (supports obfuscated/legacy emitters)
     window.addEventListener('gesture/update', (evt) => {
       if (!MMFRelay.isConnected()) return;

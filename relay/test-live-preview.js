@@ -19,7 +19,6 @@ const child = spawn(process.execPath, ['server.js'], {
     LIVE_PREVIEW_MAX_PER_CLIENT: '1',
     LIVE_PREVIEW_TOKEN_TTL_SEC: '120',
     LIVE_PREVIEW_MAX_ICE_PER_QUEUE: '8',
-    AUTH_TOKEN_SECRET: 'preview-test-auth-secret-1234567890',
     RELAY_JOIN_TOKEN_SECRET: 'preview-test-relay-secret-1234567890',
   },
   stdio: ['ignore', 'pipe', 'pipe'],

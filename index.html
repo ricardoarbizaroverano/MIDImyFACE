@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title data-i18n="title">MIDImyFACE - Gesture Interface</title>
+<title data-i18n="title">MIDImyFACE - A Musical Gesture Interface</title>
 <style>
     *,
     *::before,
@@ -144,8 +144,15 @@
         border-color: #ff5a5a;
     }
 
-    .camera-retry-button[hidden] {
+    .camera-retry-button[hidden],
+    .midi-retry-button[hidden] {
         display: none;
+    }
+
+    .midi-retry-button {
+        min-width: auto;
+        padding: 7px 10px;
+        font-size: 12px;
     }
 
     @keyframes mmfSpinner {
@@ -336,7 +343,11 @@
         background: radial-gradient(circle at 50% 25%, rgba(85,72,200,.32), transparent 34%), rgba(2,3,4,.98);
     }
     .homepage-auth-gate[hidden] { display: none; }
+    .homepage-auth-gate[data-auth-state="loading"] .homepage-auth-terms,
+    .homepage-auth-gate[data-auth-state="loading"] .homepage-auth-button,
+    .homepage-auth-gate[data-auth-state="loading"] .homepage-auth-alt { display: none; }
     .homepage-auth-card {
+        position: relative;
         width: min(100%, 460px);
         margin: auto;
         display: grid;
@@ -355,6 +366,27 @@
     .homepage-auth-button { width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; }
     .homepage-auth-button svg { width: 24px; height: 24px; background: #fff; }
     #homepageAuthMessage, .homepage-auth-alt { margin: 0; color: #87a987; font-size: 12px; line-height: 1.35; text-align: center; }
+    .homepage-auth-close { position: absolute; top: 8px; right: 8px; width: 34px; min-height: 34px; padding: 0; }
+    .homepage-account-control { position: fixed; top: 10px; right: 10px; z-index: 15000; }
+    .homepage-account-button { min-width: 76px; min-height: 38px; padding: 6px 10px; }
+    .homepage-account-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        width: min(280px, calc(100vw - 20px));
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border: 2px solid #36f6b2;
+        background: #050705;
+        box-shadow: 4px 4px 0 rgba(0,0,0,.72);
+    }
+    .homepage-account-menu[hidden], .homepage-account-panel[hidden] { display: none; }
+    .homepage-account-action { width: 100%; min-height: 36px; }
+    .homepage-account-identity { color: #e4e7e5; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+    .homepage-account-name { color: #b9ff6a; font-weight: 700; }
+    .homepage-account-access { color: #87a987; }
+    .homepage-account-panel { padding: 8px; border: 1px solid #245f49; background: #07130e; }
 
     #percussionOptions[hidden],
     #thereminModeOptions[hidden],
@@ -2444,12 +2476,13 @@
 
 </head>
 
-<body class="auth-required auth-loading">
+<body>
 
-    <section id="homepageAuthGate" class="homepage-auth-gate" role="dialog" aria-modal="true" aria-labelledby="homepageAuthTitle" aria-describedby="homepageAuthLead" data-auth-state="loading">
+    <section id="homepageAuthGate" class="homepage-auth-gate" role="dialog" aria-modal="true" aria-labelledby="homepageAuthTitle" aria-describedby="homepageAuthLead" data-auth-state="signed-out" hidden>
         <div class="homepage-auth-card">
+            <button id="homepageAuthClose" class="toggle-button homepage-auth-close" type="button" aria-label="Close account dialog">×</button>
             <h2 id="homepageAuthTitle">Welcome to MIDImyFACE</h2>
-            <p id="homepageAuthLead">Sign in or create a free account to use the interactive instrument.</p>
+            <p id="homepageAuthLead">Sign in or create a free account to continue.</p>
             <label class="homepage-auth-terms">
                 <input id="homepageTermsConsent" type="checkbox">
                 <span>I accept the <a class="homepage-auth-link" href="/live/terms.html" target="_blank" rel="noopener">Terms and Privacy Notice</a>.</span>
@@ -2463,48 +2496,117 @@
             <p id="homepageAuthMessage" aria-live="polite">Connecting to secure registration…</p>
         </div>
     </section>
+    <div id="homepageAccountControl" class="homepage-account-control">
+        <button id="homepageAccountButton" class="toggle-button homepage-account-button" type="button" aria-haspopup="menu" aria-expanded="false">Sign in</button>
+        <div id="homepageAccountMenu" class="homepage-account-menu" role="menu" hidden>
+            <div id="homepageSignedOutActions">
+                <button id="homepageMenuSignIn" class="toggle-button homepage-account-action" type="button" role="menuitem">Sign in</button>
+                <button id="homepageMenuRegister" class="toggle-button homepage-account-action" type="button" role="menuitem">Register free</button>
+            </div>
+            <div id="homepageSignedInActions" hidden>
+                <div class="homepage-account-identity">
+                    <div id="homepageAccountName" class="homepage-account-name"></div>
+                    <div id="homepageAccountEmail"></div>
+                    <div id="homepageAccountAccess" class="homepage-account-access">Access: Regular</div>
+                </div>
+                <button id="homepageProfileButton" class="toggle-button homepage-account-action" type="button" role="menuitem" aria-expanded="false">Profile</button>
+                <div id="homepageAccountPanel" class="homepage-account-panel homepage-account-identity" hidden></div>
+                <button id="homepageSignOutButton" class="toggle-button homepage-account-action" type="button" role="menuitem">Sign out</button>
+            </div>
+        </div>
+    </div>
     <script src="auth_gate.js"></script>
     <script>
         (function initializeHomepageAuthentication() {
             const gate = document.getElementById('homepageAuthGate');
+            const closeGateButton = document.getElementById('homepageAuthClose');
             const consent = document.getElementById('homepageTermsConsent');
             const registerButton = document.getElementById('homepageRegisterButton');
             const signInButton = document.getElementById('homepageSignInButton');
             const message = document.getElementById('homepageAuthMessage');
+            const accountControl = document.getElementById('homepageAccountControl');
+            const accountButton = document.getElementById('homepageAccountButton');
+            const accountMenu = document.getElementById('homepageAccountMenu');
+            const signedOutActions = document.getElementById('homepageSignedOutActions');
+            const signedInActions = document.getElementById('homepageSignedInActions');
+            const menuSignIn = document.getElementById('homepageMenuSignIn');
+            const menuRegister = document.getElementById('homepageMenuRegister');
+            const accountName = document.getElementById('homepageAccountName');
+            const accountEmail = document.getElementById('homepageAccountEmail');
+            const accountAccess = document.getElementById('homepageAccountAccess');
+            const profileButton = document.getElementById('homepageProfileButton');
+            const accountPanel = document.getElementById('homepageAccountPanel');
+            const signOutButton = document.getElementById('homepageSignOutButton');
             const termsKey = 'mmf_live_terms_accepted_v1';
+            const parameters = new URLSearchParams(window.location.search);
+            const requiresImmediateAuthentication = parameters.has('session_id') || parameters.has('invite_token');
             let context = null;
             let intent = '';
-            let settled = false;
+            let currentUser = null;
+            let currentProfile = null;
+            let authResolved = false;
+            let trialExpired = false;
+            let gateRequired = false;
             let resolveReady;
             window.__MMF_AUTH_READY__ = new Promise((resolve) => { resolveReady = resolve; });
+            const trial = window.MMFAuthGate.createAnonymousTrialController({
+                onExpire() {
+                    trialExpired = true;
+                    if (!currentUser) showRequiredGate('Your 60-second trial is complete. Sign in or register to continue.');
+                },
+            });
 
             function setApplicationBlocked(blocked) {
                 document.body.classList.toggle('auth-required', blocked);
-                document.body.classList.toggle('auth-loading', blocked && gate.dataset.authState === 'loading');
                 for (const child of document.body.children) {
-                    if (child === gate || child.tagName === 'SCRIPT') continue;
+                    if (child === gate || child === accountControl || child.tagName === 'SCRIPT') continue;
                     child.inert = blocked;
                     if (blocked) child.setAttribute('aria-hidden', 'true');
                     else child.removeAttribute('aria-hidden');
                 }
+                window.dispatchEvent(new CustomEvent('mmf:interaction-lock', { detail: { locked: blocked } }));
             }
 
-            function showSignedOut(copy) {
+            function closeAccountMenu() {
+                accountMenu.hidden = true;
+                accountButton.setAttribute('aria-expanded', 'false');
+                accountPanel.hidden = true;
+                profileButton.setAttribute('aria-expanded', 'false');
+            }
+
+            function showRequiredGate(copy, loading = false) {
+                gateRequired = true;
                 gate.hidden = false;
-                gate.dataset.authState = 'signed-out';
-                message.textContent = copy || 'Create an account to save your settings and future sessions.';
+                gate.dataset.authState = loading ? 'loading' : 'signed-out';
+                closeGateButton.hidden = true;
+                document.getElementById('homepageAuthTitle').textContent = loading ? 'Restoring your session…' : 'Welcome to MIDImyFACE';
+                message.textContent = copy || 'Sign in or register to continue.';
                 registerButton.disabled = !context || !consent.checked;
                 signInButton.disabled = !context;
                 setApplicationBlocked(true);
-                window.dispatchEvent(new CustomEvent('mmf:auth-signed-out'));
-                signInButton.focus();
+                closeAccountMenu();
+                if (!loading) queueMicrotask(() => gate.querySelector('button:not([disabled]):not([hidden]), input:not([disabled])')?.focus());
             }
 
-            function allowApplication(user) {
-                gate.dataset.authState = 'signed-in';
+            function showOptionalRegistrationGate(copy) {
+                gateRequired = false;
+                gate.hidden = false;
+                gate.dataset.authState = 'signed-out';
+                closeGateButton.hidden = false;
+                document.getElementById('homepageAuthTitle').textContent = 'Register for MIDImyFACE';
+                message.textContent = copy || 'Accept the terms, then register with Google.';
+                registerButton.disabled = !context || !consent.checked;
+                signInButton.disabled = !context;
+                setApplicationBlocked(true);
+                trial.setAuthenticationInProgress(true);
+                closeAccountMenu();
+                queueMicrotask(() => gate.querySelector('button:not([disabled]):not([hidden]), input:not([disabled])')?.focus());
+            }
+
+            function allowApplication(user, profile = null) {
+                gateRequired = false;
                 gate.hidden = true;
                 setApplicationBlocked(false);
-                const parameters = new URLSearchParams(window.location.search);
                 const requestedReturn = parameters.get('returnTo') || parameters.get('return_to');
                 if (requestedReturn) {
                     const destination = window.MMFAuthGate.validateReturnDestination(requestedReturn);
@@ -2514,11 +2616,43 @@
                         return;
                     }
                 }
-                if (!settled) {
-                    settled = true;
-                    resolveReady(user);
-                }
+                resolveReady(user || null);
+                trial.setAuthenticated(user);
+                updateAccountMenu(user, profile);
                 window.dispatchEvent(new CustomEvent('mmf:auth-ready', { detail: { user } }));
+            }
+
+            function allowAnonymousApplication() {
+                if (requiresImmediateAuthentication || trialExpired) {
+                    showRequiredGate(requiresImmediateAuthentication
+                        ? 'Sign in or register before joining a networked session.'
+                        : 'Your 60-second trial is complete. Sign in or register to continue.');
+                    return;
+                }
+                gateRequired = false;
+                gate.hidden = true;
+                setApplicationBlocked(false);
+                trial.setAuthenticated(null);
+                updateAccountMenu(null, null);
+            }
+
+            function updateAccountMenu(user, profile) {
+                const signedIn = Boolean(user);
+                signedOutActions.hidden = signedIn;
+                signedInActions.hidden = !signedIn;
+                accountButton.textContent = signedIn
+                    ? (user.photoURL ? 'Account' : String(user.displayName || user.email || 'A').trim().charAt(0).toUpperCase())
+                    : 'Sign in';
+                accountButton.setAttribute('aria-label', signedIn ? 'Open account menu' : 'Open sign in menu');
+                menuSignIn.disabled = !context;
+                menuRegister.disabled = !context;
+                if (!signedIn) return;
+                const accessLevel = window.MMFAuthGate.getAccessLevel(profile);
+                const accessLabel = accessLevel === 'premium' ? 'Premium' : 'Regular';
+                accountName.textContent = user.displayName || 'MIDImyFACE account';
+                accountEmail.textContent = user.email || '';
+                accountAccess.textContent = `Access: ${accessLabel}`;
+                accountPanel.textContent = `${user.displayName || 'MIDImyFACE account'}${user.email ? ` · ${user.email}` : ''} · Access: ${accessLabel}`;
             }
 
             consent.checked = localStorage.getItem(termsKey) === 'true';
@@ -2533,22 +2667,64 @@
                     return;
                 }
                 intent = nextIntent;
+                closeAccountMenu();
                 registerButton.disabled = true;
                 signInButton.disabled = true;
                 message.textContent = nextIntent === 'register' ? 'Opening secure registration…' : 'Opening secure sign in…';
+                trial.setAuthenticationInProgress(true);
                 try {
                     await window.MMFAuthGate.signInWithGoogle(context);
                 } catch (error) {
                     intent = '';
+                    trial.setAuthenticationInProgress(false);
                     if (error?.code !== 'auth/popup-closed-by-user') message.textContent = 'Google sign-in did not complete. Please try again.';
-                    showSignedOut(message.textContent);
+                    if (gateRequired) showRequiredGate(message.textContent);
+                    else allowAnonymousApplication();
                 }
             }
 
             registerButton.addEventListener('click', () => beginAuthentication('register'));
             signInButton.addEventListener('click', () => beginAuthentication('signin'));
+            closeGateButton.addEventListener('click', () => {
+                if (gateRequired) return;
+                trial.setAuthenticationInProgress(false);
+                allowAnonymousApplication();
+            });
+            accountButton.addEventListener('click', () => {
+                const nextOpen = accountMenu.hidden;
+                accountMenu.hidden = !nextOpen;
+                accountButton.setAttribute('aria-expanded', String(nextOpen));
+            });
+            menuSignIn.addEventListener('click', () => beginAuthentication('signin'));
+            menuRegister.addEventListener('click', () => showOptionalRegistrationGate());
+            profileButton.addEventListener('click', () => {
+                const nextOpen = accountPanel.hidden;
+                accountPanel.hidden = !nextOpen;
+                profileButton.setAttribute('aria-expanded', String(nextOpen));
+            });
+            signOutButton.addEventListener('click', async () => {
+                closeAccountMenu();
+                window.MMFRelay?.disconnect?.();
+                currentUser = null;
+                currentProfile = null;
+                updateAccountMenu(null, null);
+                trial.setAuthenticated(null);
+                window.dispatchEvent(new CustomEvent('mmf:auth-signed-out'));
+                allowAnonymousApplication();
+                if (context) await window.MMFAuthGate.signOut(context);
+            });
+            document.addEventListener('click', (event) => {
+                if (!accountControl.contains(event.target)) closeAccountMenu();
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') closeAccountMenu();
+            });
             gate.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape') { event.preventDefault(); return; }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    if (!gateRequired) closeGateButton.click();
+                    return;
+                }
                 if (event.key !== 'Tab') return;
                 const focusable = [...gate.querySelectorAll('a[href], button:not([disabled]), input:not([disabled])')];
                 if (!focusable.length) return;
@@ -2557,52 +2733,81 @@
                 if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
                 else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
             });
+            window.addEventListener('mmf:homepage-interactive', () => {
+                const state = trial.start();
+                trialExpired = state.expired;
+                if (authResolved && !currentUser && (requiresImmediateAuthentication || trialExpired)) allowAnonymousApplication();
+            });
 
             (async () => {
-                setApplicationBlocked(true);
+                updateAccountMenu(null, null);
+                if (requiresImmediateAuthentication) showRequiredGate('Checking this browser for an existing account…', true);
                 try {
                     const response = await fetch('https://midimyface-relay.onrender.com/api/live/config');
                     if (!response.ok) throw new Error('auth_config_unavailable');
                     const publicConfig = await response.json();
                     context = await window.MMFAuthGate.getFirebaseContext(publicConfig);
+                    updateAccountMenu(null, null);
                     window.MMFAuthGate.observe(context, async (user) => {
                         try {
-                            if (!user) { showSignedOut(); return; }
-                            const profile = await window.MMFAuthGate.profileExists(context, user);
-                            if (intent === 'register' && consent.checked) {
-                                await window.MMFAuthGate.ensureUserProfile(context, user);
-                                localStorage.setItem(termsKey, 'true');
-                                intent = '';
-                                allowApplication(user);
+                            authResolved = true;
+                            currentUser = user || null;
+                            if (!user) {
+                                currentProfile = null;
+                                resolveReady(null);
+                                trial.setAuthenticated(null);
+                                updateAccountMenu(null, null);
+                                window.dispatchEvent(new CustomEvent('mmf:auth-signed-out'));
+                                allowAnonymousApplication();
                                 return;
                             }
-                            if (profile !== true) {
+                            let profileRecord = await window.MMFAuthGate.readUserProfile(context, user);
+                            if (intent === 'register' && consent.checked) {
+                                await window.MMFAuthGate.ensureUserProfile(context, user);
+                                profileRecord = await window.MMFAuthGate.readUserProfile(context, user);
+                                localStorage.setItem(termsKey, 'true');
+                                intent = '';
+                                currentProfile = profileRecord?.data || {};
+                                allowApplication(user, currentProfile);
+                                return;
+                            }
+                            if (profileRecord?.exists !== true) {
                                 await window.MMFAuthGate.signOut(context);
                                 intent = '';
-                                showSignedOut(profile === false
+                                const profileMessage = profileRecord?.exists === false
                                     ? 'This Google account is not registered yet. Accept the terms and use REGISTER FREE.'
-                                    : 'Your registration could not be verified. Check the connection and try again.');
+                                    : 'Your registration could not be verified. Check the connection and try again.';
+                                if (requiresImmediateAuthentication || trialExpired) showRequiredGate(profileMessage);
+                                else showOptionalRegistrationGate(profileMessage);
                                 return;
                             }
                             localStorage.setItem(termsKey, 'true');
                             consent.checked = true;
                             intent = '';
-                            allowApplication(user);
+                            currentProfile = profileRecord.data || {};
+                            allowApplication(user, currentProfile);
                         } catch {
                             intent = '';
                             await window.MMFAuthGate.signOut(context).catch(() => {});
-                            message.textContent = 'Authentication could not be verified. Check the connection and try again.';
-                            registerButton.disabled = !consent.checked;
-                            signInButton.disabled = false;
-                            setApplicationBlocked(true);
+                            if (requiresImmediateAuthentication || trialExpired) {
+                                showRequiredGate('Authentication could not be verified. Check the connection and try again.');
+                            } else {
+                                allowAnonymousApplication();
+                            }
                         }
                     });
                 } catch {
-                    gate.dataset.authState = 'error';
-                    message.textContent = 'Secure registration is temporarily unavailable. Please try again later.';
+                    authResolved = true;
+                    resolveReady(null);
                     registerButton.disabled = true;
                     signInButton.disabled = true;
-                    setApplicationBlocked(true);
+                    menuSignIn.disabled = true;
+                    menuRegister.disabled = true;
+                    if (requiresImmediateAuthentication || trialExpired) {
+                        showRequiredGate('Secure registration is temporarily unavailable. Please try again later.');
+                    } else {
+                        allowAnonymousApplication();
+                    }
                 }
             })();
         })();
@@ -3235,6 +3440,7 @@
             <option value="" data-i18n="midi_select_placeholder">Selecciona la salida MIDI...</option>
         </select>
         <div class="status-indicator" id="midiStatusIndicator" title="MIDI"></div>
+        <button id="midiRetryButton" class="toggle-button midi-retry-button" type="button" hidden>RETRY MIDI</button>
 
         <a id="networkConsoleBtn" class="toggle-button" href="https://midimyface.com/console/" target="_blank" rel="noopener noreferrer" data-i18n="connectToSession">Connect to session</a>
     </div>
@@ -3936,22 +4142,20 @@
         loaderScript.after(legacyScript);
     }
 
-    Promise.resolve(window.__MMF_AUTH_READY__).then(() => {
-        if (useReadableRuntime) {
-            setRuntimeMode('readable');
-            const runtimeScript = document.createElement('script');
-            runtimeScript.src = 'src/script.js';
-            runtimeScript.type = 'module';
-            runtimeScript.onerror = function () {
-                console.warn('[MMF] Readable runtime unavailable; falling back to legacy runtime.');
-                appendLegacyRuntime();
-            };
-            console.info('[MMF] Loading readable runtime from src/script.js');
-            loaderScript.after(runtimeScript);
-        } else {
+    if (useReadableRuntime) {
+        setRuntimeMode('readable');
+        const runtimeScript = document.createElement('script');
+        runtimeScript.src = 'src/script.js';
+        runtimeScript.type = 'module';
+        runtimeScript.onerror = function () {
+            console.warn('[MMF] Readable runtime unavailable; falling back to legacy runtime.');
             appendLegacyRuntime();
-        }
-    });
+        };
+        console.info('[MMF] Loading readable runtime from src/script.js');
+        loaderScript.after(runtimeScript);
+    } else {
+        appendLegacyRuntime();
+    }
 })();
     </script>
      <script src="ws-bridge.js"></script>

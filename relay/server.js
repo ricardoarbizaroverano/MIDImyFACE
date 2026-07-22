@@ -54,15 +54,7 @@ const RELAY_JOIN_TOKEN_SECRET = configuredEnv('RELAY_JOIN_TOKEN_SECRET');
 // Console API (served from this same process)
 const CONSOLE_API_ENABLED            = String(process.env.CONSOLE_API_ENABLED || 'true').toLowerCase() !== 'false';
 const INVITE_TOKEN_SECRET            = configuredEnv('INVITE_TOKEN_SECRET');
-const AUTH_TOKEN_SECRET              = configuredEnv('AUTH_TOKEN_SECRET');
-// TEST_ADMIN_* used to be the only names for the real console administrator.
-// Prefer the accurately named CONSOLE_ADMIN_* variables in deployed services,
-// while retaining the old names as a compatibility fallback and for tests.
-const DEFAULT_ADMIN_USERNAME         = configuredEnv('CONSOLE_ADMIN_USERNAME') || configuredEnv('TEST_ADMIN_USERNAME');
-const DEFAULT_ADMIN_PASSWORD         = configuredEnv('CONSOLE_ADMIN_PASSWORD') || configuredEnv('TEST_ADMIN_PASSWORD');
-const DEFAULT_ADMIN_MAX_PARTICIPANTS = Number(
-  process.env.CONSOLE_ADMIN_MAX_PARTICIPANTS || process.env.TEST_ADMIN_MAX_PARTICIPANTS || 50
-);
+const NETWORK_CONSOLE_MAX_PARTICIPANTS = 10;
 const MIDIMYFACE_JOIN_URL            = process.env.MIDIMYFACE_JOIN_URL             || 'https://midimyface.com';
 const PUBLIC_BASE_URL                = process.env.PUBLIC_BASE_URL                 || 'https://midimyface-relay.onrender.com';
 const LIVE_ROUTE_PATH                = process.env.LIVE_ROUTE_PATH                 || '/live';
@@ -107,7 +99,6 @@ const LIVE_PREVIEW_RATE_LIMIT_MAX_REQ = Math.max(20, Math.min(Number(process.env
 const LIVE_PROTOCOL_VERSION           = 'midimyface-live-v2';
 const RELAY_BUILD_COMMIT              = cleanString(process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || '', 64) || 'unknown';
 const LIVE_PREVIEW_TOKEN_SECRET      = configuredEnv('LIVE_PREVIEW_TOKEN_SECRET')
-  || AUTH_TOKEN_SECRET
   || RELAY_JOIN_TOKEN_SECRET
   || 'dev-preview-token-secret-change-me';
 const LIVE_PREVIEW_ICE_STUN          = String(process.env.LIVE_PREVIEW_ICE_STUN || 'stun:stun.l.google.com:19302')
@@ -123,7 +114,9 @@ const LIVE_MAX_PARTICIPANTS          = 3;
 const LIVE_NICKNAME_MIN_LENGTH       = 2;
 const LIVE_NICKNAME_MAX_LENGTH       = 10;
 const LIVE_PARTICIPANT_COLORS        = ['#67ff9e', '#8e6bff', '#ffb44c'];
-const LIVE_REQUIRE_FIREBASE_AUTH     = asBoolean(process.env.LIVE_REQUIRE_FIREBASE_AUTH, true);
+const LIVE_REQUIRE_FIREBASE_AUTH     = String(process.env.NODE_ENV || '').toLowerCase() === 'test'
+  ? asBoolean(process.env.LIVE_REQUIRE_FIREBASE_AUTH, true)
+  : true;
 const LIVE_BLOCKED_NICKNAME_TERMS    = [
   'asshole','bastard','beaner','bitch','chink','coon','cunt','dick','faggot',
   'fuck','gook','hitler','jerkoff','kike','kkk','nazi','nigga','nigger',
@@ -157,9 +150,6 @@ function ensureSecureConfig() {
   if (REQUIRE_JOIN_TOKEN && !RELAY_JOIN_TOKEN_SECRET) missing.push('RELAY_JOIN_TOKEN_SECRET');
   if (CONSOLE_API_ENABLED) {
     if (!INVITE_TOKEN_SECRET) missing.push('INVITE_TOKEN_SECRET');
-    if (!AUTH_TOKEN_SECRET) missing.push('AUTH_TOKEN_SECRET');
-    if (!DEFAULT_ADMIN_USERNAME) missing.push('CONSOLE_ADMIN_USERNAME');
-    if (!DEFAULT_ADMIN_PASSWORD) missing.push('CONSOLE_ADMIN_PASSWORD');
   }
   if (missing.length > 0) {
     throw new Error(`[security] missing required env vars: ${missing.join(', ')}`);
@@ -180,8 +170,6 @@ function ensureSecureConfig() {
     }
     if (CONSOLE_API_ENABLED) {
       if (insecureDefaults.has(INVITE_TOKEN_SECRET) || INVITE_TOKEN_SECRET.length < 24) weak.push('INVITE_TOKEN_SECRET');
-      if (insecureDefaults.has(AUTH_TOKEN_SECRET) || AUTH_TOKEN_SECRET.length < 24) weak.push('AUTH_TOKEN_SECRET');
-      if (insecureDefaults.has(DEFAULT_ADMIN_PASSWORD) || DEFAULT_ADMIN_PASSWORD.length < 12) weak.push('CONSOLE_ADMIN_PASSWORD');
     }
     if (ALLOWED_ORIGINS.includes('*')) weak.push('ALLOWED_ORIGINS (wildcard not allowed in production)');
 
@@ -553,7 +541,17 @@ async function verifiedFirebaseIdentity(req) {
     authenticated: true,
     master: Boolean(emailVerified && email && LIVE_MASTER_EMAIL_SET.has(email)),
     uid,
+    email,
   };
+}
+
+async function verifiedNetworkConsoleIdentity(req) {
+  if (!firebaseVerificationAvailable()) throw liveAuthError('firebase_admin_unconfigured', 503);
+  const identity = await verifiedFirebaseIdentity(req);
+  if (!identity.authenticated) throw liveAuthError('registration_required', 401);
+  // TODO: Restrict network-session hosting according to Regular/Premium
+  // entitlement when the Premium access model is implemented.
+  return identity;
 }
 
 function buildLivePublicConfigPayload() {
@@ -1401,9 +1399,6 @@ const randomPassword = ()       => crypto.randomBytes(6).toString('base64url').s
 function createInviteToken({ sessionId, maxParticipants }) {
   return signToken({ type: 'invite', sid: sessionId, maxp: maxParticipants, iat: nowSec(), exp: nowSec() + 86400, jti: randomId(8) }, INVITE_TOKEN_SECRET);
 }
-function createAuthToken({ username }) {
-  return signToken({ type: 'host_auth', sub: username, iat: nowSec(), exp: nowSec() + 43200, jti: randomId(8) }, AUTH_TOKEN_SECRET);
-}
 function createRelayJoinToken({ sessionId, role, name, maxParticipants, clientUuid, firebaseUid = '' }) {
   return signToken({
     type: 'relay_join', sid: sessionId, role, name,
@@ -1413,29 +1408,7 @@ function createRelayJoinToken({ sessionId, role, name, maxParticipants, clientUu
   }, RELAY_JOIN_TOKEN_SECRET);
 }
 
-const consoleUsers    = new Map();
 const consoleSessions = new Map();
-
-function ensureDefaultAdmin() {
-  if (!CONSOLE_API_ENABLED) return;
-  if (!consoleUsers.has(DEFAULT_ADMIN_USERNAME)) {
-    consoleUsers.set(DEFAULT_ADMIN_USERNAME, {
-      username: DEFAULT_ADMIN_USERNAME,
-      passwordHash: sha256(DEFAULT_ADMIN_PASSWORD),
-      tierMaxParticipants: DEFAULT_ADMIN_MAX_PARTICIPANTS,
-      isAdmin: true,
-    });
-  }
-}
-ensureDefaultAdmin();
-
-function parseConsoleAuth(req) {
-  const auth  = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  const pl    = verifySignedToken(token, AUTH_TOKEN_SECRET);
-  if (!pl || pl.type !== 'host_auth' || !pl.sub) return null;
-  return consoleUsers.get(pl.sub) || null;
-}
 
 function readBody(req, maxBytes = 1_000_000) {
   return new Promise((resolve, reject) => {
@@ -2226,40 +2199,37 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
     const c = apiCors(origin);
     if (req.method === 'OPTIONS') { res.writeHead(204, c); res.end(); return; }
 
-    if (req.method === 'POST' && parsed.pathname === '/api/auth/login') {
-      try {
-        const body = await readBody(req);
-        const user = consoleUsers.get(String(body.username || '').trim());
-        if (!user || user.passwordHash !== sha256(String(body.password || ''))) {
-          return sendJson(res, 401, { ok: false, error: 'invalid_credentials' }, c);
-        }
-        return sendJson(res, 200, { ok: true, token: createAuthToken({ username: user.username }), user: { username: user.username, tierMaxParticipants: user.tierMaxParticipants, isAdmin: user.isAdmin } }, c);
-      } catch { return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c); }
-    }
-
     if (req.method === 'POST' && parsed.pathname === '/api/sessions/create') {
-      const authUser = parseConsoleAuth(req);
-      if (!authUser) return sendJson(res, 401, { ok: false, error: 'unauthorized' }, c);
       try {
+        const firebaseIdentity = await verifiedNetworkConsoleIdentity(req);
         const body = await readBody(req);
-        const maxp = Math.max(1, Math.min(Number(body.max_participants || 10), authUser.tierMaxParticipants));
+        const requestedMax = Number(body.max_participants);
+        const maxp = Number.isFinite(requestedMax)
+          ? Math.max(1, Math.min(Math.floor(requestedMax), NETWORK_CONSOLE_MAX_PARTICIPANTS))
+          : NETWORK_CONSOLE_MAX_PARTICIPANTS;
         const sid  = randomSid();
         const pwd  = String(body.session_password || '').trim() || randomPassword();
-        consoleSessions.set(sid, { sessionId: sid, passwordHash: sha256(pwd), maxParticipants: maxp, createdBy: authUser.username, createdAt: Date.now() });
+        const hostName = cleanString(firebaseIdentity.email || firebaseIdentity.uid, 40);
+        consoleSessions.set(sid, { sessionId: sid, passwordHash: sha256(pwd), maxParticipants: maxp, createdByUid: firebaseIdentity.uid, createdAt: Date.now() });
         const invToken      = createInviteToken({ sessionId: sid, maxParticipants: maxp });
-        const hostJoinToken = createRelayJoinToken({ sessionId: sid, role: 'host', name: `Host:${authUser.username}`, maxParticipants: maxp });
+        const hostJoinToken = createRelayJoinToken({ sessionId: sid, role: 'host', name: `Host:${hostName}`, maxParticipants: maxp, firebaseUid: firebaseIdentity.uid });
         const inviteUrl     = `${MIDIMYFACE_JOIN_URL}?session_id=${encodeURIComponent(sid)}&invite_token=${encodeURIComponent(invToken)}&console_api=${encodeURIComponent(PUBLIC_BASE_URL)}`;
-        return sendJson(res, 200, { ok: true, session: { session_id: sid, session_password: pwd, max_participants: maxp, invite_token: invToken, invite_url: inviteUrl, host_join_token: hostJoinToken } }, c);
-      } catch { return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c); }
+        return sendJson(res, 200, { ok: true, session: { session_id: sid, session_password: pwd, max_participants: maxp, invite_token: invToken, invite_url: inviteUrl, host_join_token: hostJoinToken, host_name: `Host:${hostName}` } }, c);
+      } catch (error) {
+        if (error?.code === 'firebase_admin_unconfigured' || error?.code === 'invalid_firebase_token' || error?.code === 'registration_required') {
+          return sendJson(res, error.statusCode || 401, { ok: false, error: error.code }, c);
+        }
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
     }
 
     if (req.method === 'POST' && parsed.pathname === '/api/sessions/join-token') {
       try {
-        if (LIVE_REQUIRE_FIREBASE_AUTH && !firebaseVerificationAvailable()) {
+        if (!firebaseVerificationAvailable()) {
           throw liveAuthError('firebase_admin_unconfigured', 503);
         }
         const firebaseIdentity = await verifiedFirebaseIdentity(req);
-        if (LIVE_REQUIRE_FIREBASE_AUTH && !firebaseIdentity.authenticated) {
+        if (!firebaseIdentity.authenticated) {
           throw liveAuthError('registration_required', 401);
         }
         const body     = await readBody(req);
@@ -2296,15 +2266,20 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
     }
 
     if (req.method === 'POST' && parsed.pathname === '/api/sessions/host-join-token') {
-      const authUser = parseConsoleAuth(req);
-      if (!authUser) return sendJson(res, 401, { ok: false, error: 'unauthorized' }, c);
       try {
+        const firebaseIdentity = await verifiedNetworkConsoleIdentity(req);
         const body    = await readBody(req);
         const session = consoleSessions.get(String(body.session_id || ''));
         if (!session) return sendJson(res, 404, { ok: false, error: 'session_not_found' }, c);
-        if (session.createdBy !== authUser.username && !authUser.isAdmin) return sendJson(res, 403, { ok: false, error: 'forbidden' }, c);
-        return sendJson(res, 200, { ok: true, host_join_token: createRelayJoinToken({ sessionId: session.sessionId, role: 'host', name: `Host:${authUser.username}`, maxParticipants: session.maxParticipants }) }, c);
-      } catch { return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c); }
+        if (session.createdByUid !== firebaseIdentity.uid) return sendJson(res, 403, { ok: false, error: 'forbidden' }, c);
+        const hostName = cleanString(firebaseIdentity.email || firebaseIdentity.uid, 40);
+        return sendJson(res, 200, { ok: true, host_join_token: createRelayJoinToken({ sessionId: session.sessionId, role: 'host', name: `Host:${hostName}`, maxParticipants: session.maxParticipants, firebaseUid: firebaseIdentity.uid }), host_name: `Host:${hostName}` }, c);
+      } catch (error) {
+        if (error?.code === 'firebase_admin_unconfigured' || error?.code === 'invalid_firebase_token' || error?.code === 'registration_required') {
+          return sendJson(res, error.statusCode || 401, { ok: false, error: error.code }, c);
+        }
+        return sendJson(res, 400, { ok: false, error: 'invalid_json' }, c);
+      }
     }
 
     return sendJson(res, 404, { ok: false, error: 'not_found' }, c);
@@ -2449,7 +2424,7 @@ wss.on('connection', (ws, req) => {
         ? roleFromToken
         : ((rawRole === 'host' || rawRole === 'performer') ? rawRole : 'performer');
 
-      if (LIVE_REQUIRE_FIREBASE_AUTH && effectiveRole === 'performer' && !tokenPayload?.firebase_uid) {
+      if ((effectiveRole === 'host' || effectiveRole === 'performer') && !tokenPayload?.firebase_uid) {
         sendTo(ws, { type: 'error', error: 'registration_required' });
         return;
       }

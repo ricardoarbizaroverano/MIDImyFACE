@@ -60,6 +60,11 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
 .loading-text{color:var(--fg);font-size:12px}
 .loading-track{margin-top:8px;height:4px;background:#12386f;overflow:hidden}
 .loading-bar{height:100%;width:30%;background:linear-gradient(90deg,var(--hi),#23ff8a);animation:slide 1.2s ease-in-out infinite}
+.auth-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+.auth-terms{display:grid;grid-template-columns:24px 1fr;gap:8px;align-items:start;margin-top:10px;font-size:12px;color:var(--dim)}
+.auth-terms input{width:20px;height:20px;margin:0;accent-color:var(--hi)}
+.auth-link{color:var(--hi)}
+.restoring .auth-terms,.restoring .auth-actions{display:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes slide{0%{transform:translateX(-140%)}100%{transform:translateX(360%)}}
 </style>
@@ -70,19 +75,21 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
   <div class="grow"></div>
   <div class="kv"><span class="k">WS</span><span id="kvWS" class="v small">disconnected</span><span id="ledWS" class="led"></span></div>
   <div class="kv"><span class="k">RTT</span><span id="kvRTT" class="v small">—</span></div>
+  <button id="signOutBtn" class="btn mini hidden" type="button">SIGN OUT</button>
 </header>
 
-<!-- HOST LOGIN + SESSION SETUP -->
+<!-- FIREBASE ACCOUNT + SESSION SETUP -->
 <section id="auth" class="wrap center box" style="padding:12px">
-  <div id="loginBox">
-    <div class="k" style="margin-bottom:8px">Host Sign In</div>
-    <div class="grid" style="grid-template-columns:1fr 1fr">
-      <div><div class="k">Username</div><input id="hostUser" placeholder="admin" /></div>
-      <div><div class="k">Password</div><input id="hostPass" type="password" placeholder="••••••••" /></div>
-    </div>
-    <div id="authStatus" class="small" style="margin-top:8px">ready</div>
-    <div class="row" style="margin-top:10px">
-      <div class="grow"></div><button id="loginHostBtn" class="btn">SIGN IN</button>
+  <div id="loginBox" class="restoring">
+    <div class="k" style="margin-bottom:8px">MIDImyFACE Account</div>
+    <div id="authStatus" class="small" aria-live="polite">Restoring your session…</div>
+    <label class="auth-terms">
+      <input id="authConsent" type="checkbox" />
+      <span>I accept the <a class="auth-link" href="/live/terms.html" target="_blank" rel="noopener noreferrer">Terms and Privacy Notice</a>.</span>
+    </label>
+    <div class="auth-actions">
+      <button id="registerBtn" class="btn" type="button">REGISTER FREE</button>
+      <button id="signInBtn" class="btn" type="button">SIGN IN</button>
     </div>
     <div id="loadingAuth" class="loading-wrap hidden" aria-live="polite">
       <div class="loading-row">
@@ -103,10 +110,7 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
       <div>
         <div class="k">Participant Limit (tier)</div>
         <select id="newSessionMax">
-          <option value="5">Up to 5</option>
           <option value="10" selected>Up to 10</option>
-          <option value="25">Up to 25</option>
-          <option value="50">Up to 50</option>
         </select>
       </div>
     </div>
@@ -200,6 +204,7 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
 
 <!-- Tone.js for local monitor -->
 <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.min.js" defer></script>
+<script src="../auth_gate.js"></script>
 
 <script>
 /* ===== Relay URL (hard-coded, not shown in UI) ===== */
@@ -267,12 +272,12 @@ function randomLandmarkColor(){
 }
 
 let ws=null, wsConnected=false, pingTimer=null, lastPing=0;
-let sessionId="", password="", hostJoinToken="", reconnectTimer=null, reconnectAttempts=0, shouldStayConnected=false;
+let sessionId="", password="", hostJoinToken="", hostRelayName="Console", reconnectTimer=null, reconnectAttempts=0, shouldStayConnected=false;
 let participants = new Map();
 let midi=null;
 let notesOutId=null, ccOutId=null;
 let tpIn=0, tpOut=0;
-let hostAuthToken = localStorage.getItem('mmf_console_host_auth') || "";
+let firebaseContext = null;
 let hostProfile = null;
 let createdInviteLink = "";
 let performanceViewWindow = null;
@@ -601,10 +606,12 @@ function clearLoading(){
   if(box) box.classList.add('hidden');
 }
 function setButtonsBusy(isBusy){
-  const loginBtn = el('loginHostBtn');
+  const loginBtn = el('signInBtn');
+  const registerBtn = el('registerBtn');
   const createBtn = el('createSessionBtn');
   const connectBtn = el('connectHostBtn');
   if(loginBtn) loginBtn.disabled = !!isBusy;
+  if(registerBtn) registerBtn.disabled = !!isBusy;
   if(createBtn) createBtn.disabled = !!isBusy;
   if(connectBtn) connectBtn.disabled = !!isBusy;
 }
@@ -616,7 +623,11 @@ function updateCount(){
 
 async function apiPost(path, payload, useAuth = false){
   const headers = { 'Content-Type': 'application/json' };
-  if(useAuth && hostAuthToken) headers.Authorization = `Bearer ${hostAuthToken}`;
+  if(useAuth){
+    const firebaseToken = await window.MMFAuthGate.getCurrentIdToken(true);
+    if(!firebaseToken) throw new Error('registration_required');
+    headers.Authorization = `Bearer ${firebaseToken}`;
+  }
   const res = await fetch(`${CONSOLE_API_BASE}${path}`, {
     method: 'POST',
     headers,
@@ -636,6 +647,7 @@ function showCreatedSession(session){
   sessionId = session.session_id;
   password = session.session_password;
   hostJoinToken = session.host_join_token || '';
+  hostRelayName = session.host_name || "Console";
   createdInviteLink = session.invite_url || '';
   el('createdSid').textContent = session.session_id || '—';
   el('createdPwd').textContent = session.session_password || '—';
@@ -685,30 +697,110 @@ function toggleInviteQr(which){
   wrap.classList.toggle('hidden');
 }
 
-async function loginHost(){
-  const username = (el('hostUser').value || '').trim();
-  const userPass = el('hostPass').value || '';
-  if(!username || !userPass){ setStatus('username/password required'); return; }
+let authIntent = '';
+
+function disconnectConsoleAccess(){
+  shouldStayConnected = false;
+  clearTimeout(reconnectTimer);
+  clearInterval(pingTimer);
+  reconnectTimer = null;
+  pingTimer = null;
+  if(ws){
+    try{ ws.close(); }catch{}
+    ws = null;
+  }
+  setWS('disconnected');
+  setRTT(null);
+  sessionId = '';
+  password = '';
+  hostJoinToken = '';
+  hostRelayName = 'Console';
+  createdInviteLink = '';
+  el('createdSessionBox')?.classList.add('hidden');
+  if(el('kvSession')) el('kvSession').textContent = '—';
+  if(el('inviteLinkOutput')) el('inviteLinkOutput').value = '';
+  if(el('inviteLinkMainOutput')) el('inviteLinkMainOutput').value = '';
+}
+
+function showFirebaseGate(message = 'Sign in or register to open the console.'){
+  disconnectConsoleAccess();
+  hostProfile = null;
+  el('loginBox').classList.remove('restoring');
+  el('loginBox').classList.remove('hidden');
+  el('sessionSetupBox').classList.add('hidden');
+  $auth.classList.remove('hidden');
+  $main.classList.add('hidden');
+  el('signOutBtn').classList.add('hidden');
+  setStatus(message);
+}
+
+async function beginFirebaseAuthentication(intent){
+  if(!firebaseContext) return;
+  if(intent === 'register' && !el('authConsent').checked){
+    setStatus('Accept the Terms and Privacy Notice to register.');
+    return;
+  }
+  authIntent = intent;
   setButtonsBusy(true);
-  setLoading('Checking credentials…');
+  setLoading(intent === 'register' ? 'Opening Google registration…' : 'Opening Google sign-in…');
   try{
-    const result = await apiPost('/api/auth/login', { username, password: userPass }, false);
-    setLoading('Credentials verified. Loading session setup…');
-    hostAuthToken = result.token;
-    hostProfile = result.user;
-    localStorage.setItem('mmf_console_host_auth', hostAuthToken);
-    showSessionSetup();
-    setStatus(`signed in as ${hostProfile.username}`);
-  }catch(err){
-    setStatus(`login failed: ${err.message}`);
+    await window.MMFAuthGate.signInWithGoogle(firebaseContext);
+  }catch(error){
+    authIntent = '';
+    setStatus(error?.code === 'auth/popup-closed-by-user' ? 'Sign-in was cancelled.' : 'Google sign-in failed. Try again.');
   }finally{
     clearLoading();
     setButtonsBusy(false);
   }
 }
 
+async function initializeConsoleAuthentication(){
+  setStatus('Restoring your session…');
+  try{
+    const response = await fetch(`${CONSOLE_API_BASE}/api/live/config`);
+    if(!response.ok) throw new Error('auth_config_unavailable');
+    firebaseContext = await window.MMFAuthGate.getFirebaseContext(await response.json());
+    window.MMFAuthGate.observe(firebaseContext, async (user)=>{
+      if(!user){
+        showFirebaseGate('Sign in or register to open the console.');
+        return;
+      }
+      try{
+        let profileRecord = await window.MMFAuthGate.readUserProfile(firebaseContext, user);
+        if(authIntent === 'register' && el('authConsent').checked){
+          await window.MMFAuthGate.ensureUserProfile(firebaseContext, user);
+          profileRecord = await window.MMFAuthGate.readUserProfile(firebaseContext, user);
+        }
+        authIntent = '';
+        if(profileRecord?.exists !== true){
+          await window.MMFAuthGate.signOut(firebaseContext);
+          showFirebaseGate(profileRecord?.exists === false
+            ? 'This Google account is not registered yet. Accept the terms and choose REGISTER FREE.'
+            : 'Your registration could not be verified. Check the connection and try again.');
+          return;
+        }
+        hostProfile = {
+          uid: user.uid,
+          email: user.email || '',
+          username: user.displayName || user.email || user.uid,
+        };
+        el('signOutBtn').classList.remove('hidden');
+        showSessionSetup();
+        setStatus(`signed in as ${hostProfile.username}`);
+      }catch{
+        authIntent = '';
+        await window.MMFAuthGate.signOut(firebaseContext).catch(()=>{});
+        showFirebaseGate('Your registration could not be verified. Check the connection and try again.');
+      }
+    });
+  }catch{
+    showFirebaseGate('Account service is unavailable. Check the connection and retry this page.');
+    setButtonsBusy(true);
+  }
+}
+
 async function createSession(){
-  if(!hostAuthToken){ setStatus('sign in first'); return; }
+  if(!hostProfile){ setStatus('sign in first'); return; }
   const maxParticipants = Number(el('newSessionMax').value || 10);
   const sessionPassword = (el('newSessionPassword').value || '').trim();
   setButtonsBusy(true);
@@ -1170,7 +1262,7 @@ function connectWS(){
       type:"hello",
       session_id:sessionId,
       role:"host",
-      name: hostProfile?.username ? `Host:${hostProfile.username}` : "Console",
+      name: hostRelayName,
       client_uuid:null,
       join_token: hostJoinToken || ""
     }));
@@ -1244,7 +1336,13 @@ el('openPerformanceViewBtn').onclick = ()=>{
 };
 
 /* ===== Wire-up ===== */
-el('loginHostBtn').onclick = loginHost;
+el('signInBtn').onclick = ()=> beginFirebaseAuthentication('signin');
+el('registerBtn').onclick = ()=> beginFirebaseAuthentication('register');
+el('signOutBtn').onclick = async ()=>{
+  disconnectConsoleAccess();
+  showFirebaseGate('Signing out…');
+  if(firebaseContext) await window.MMFAuthGate.signOut(firebaseContext);
+};
 el('createSessionBtn').onclick = createSession;
 
 el('copyInviteBtn').onclick = ()=>{
@@ -1279,12 +1377,8 @@ el('connectHostBtn').onclick = ()=>{
   connectWS();
 };
 
-if(hostAuthToken){
-  showSessionSetup();
-  setStatus('restored host sign-in token');
-}
-
 midiInit();
+initializeConsoleAuthentication();
 </script>
 </body>
 </html>
