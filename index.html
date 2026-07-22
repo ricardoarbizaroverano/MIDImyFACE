@@ -714,54 +714,13 @@
         font-size: 14px;
     }
 
-    /* Custom tooltip for icon-only action buttons */
-    .calibration-actions .cal-action-btn,
-    .calibration-actions #soundControlsToggle,
-    #instructionButton,
-    #presentationModeButton,
-    #networkConsoleBtn,
-    .gesture-calibrate-btn,
-    .toggle-button[id$="Mute"],
-    .toggle-button[id$="Solo"],
-    .toggle-button[id$="Control"],
-    .toggle-button[id$="Notas"],
-    .toggle-button[id$="Disparador"],
-    #percussionToggle,
-    #thereminToggle,
-    #liveModeLink,
-    #performanceToggle,
-    #songGameToggle,
-    label[for="thereminSynthOption"],
-    label[for="thereminNotesOption"],
-    #dynamicsWithMouthButton,
-    #dynamicsWithWinkButton {
-        position: relative;
-    }
-    .calibration-actions .cal-action-btn[title]::after,
-    .calibration-actions #soundControlsToggle[title]::after,
-    #instructionButton[title]::after,
-    #presentationModeButton[title]::after,
-    #networkConsoleBtn[title]::after,
-    .gesture-calibrate-btn[title]::after,
-    .toggle-button[id$="Mute"][title]::after,
-    .toggle-button[id$="Solo"][title]::after,
-    .toggle-button[id$="Control"][title]::after,
-    .toggle-button[id$="Notas"][title]::after,
-    .toggle-button[id$="Disparador"][title]::after,
-    #percussionToggle[title]::after,
-    #thereminToggle[title]::after,
-    #liveModeLink[title]::after,
-    #performanceToggle[title]::after,
-    #songGameToggle[title]::after,
-    label[for="thereminSynthOption"][title]::after,
-    label[for="thereminNotesOption"][title]::after,
-    #dynamicsWithMouthButton[title]::after,
-    #dynamicsWithWinkButton[title]::after {
-        content: attr(title);
-        position: absolute;
-        bottom: calc(100% + 6px);
-        left: 50%;
-        transform: translateX(-50%);
+    /* One body-level tooltip portal avoids gesture-row overflow clipping. */
+    #mmfTooltipPortal {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 12000;
+        max-width: calc(100vw - 16px);
         white-space: nowrap;
         background: #111;
         color: lime;
@@ -771,52 +730,13 @@
         font-family: 'Courier New', Courier, monospace;
         pointer-events: none;
         opacity: 0;
+        visibility: hidden;
         transition: opacity 0.15s;
-        z-index: 9999;
     }
-    .calibration-actions .cal-action-btn[title]:hover::after,
-    .calibration-actions #soundControlsToggle[title]:hover::after,
-    #instructionButton[title]:hover::after,
-    #presentationModeButton[title]:hover::after,
-    #networkConsoleBtn[title]:hover::after,
-    .gesture-calibrate-btn[title]:hover::after,
-    .toggle-button[id$="Mute"][title]:hover::after,
-    .toggle-button[id$="Solo"][title]:hover::after,
-    .toggle-button[id$="Control"][title]:hover::after,
-    .toggle-button[id$="Notas"][title]:hover::after,
-    .toggle-button[id$="Disparador"][title]:hover::after,
-    #percussionToggle[title]:hover::after,
-    #thereminToggle[title]:hover::after,
-    #liveModeLink[title]:hover::after,
-    #liveModeLink[title]:focus-visible::after,
-    #performanceToggle[title]:hover::after,
-    #songGameToggle[title]:hover::after,
-    label[for="thereminSynthOption"][title]:hover::after,
-    label[for="thereminNotesOption"][title]:hover::after,
-    #dynamicsWithMouthButton[title]:hover::after,
-    #dynamicsWithWinkButton[title]:hover::after {
+
+    #mmfTooltipPortal[data-visible="true"] {
         opacity: 1;
-        z-index: 10002;
-    }
-
-    .toggle-button[id$="Mute"][title]:hover,
-    .toggle-button[id$="Solo"][title]:hover,
-    .toggle-button[id$="Control"][title]:hover,
-    .toggle-button[id$="Notas"][title]:hover,
-    .toggle-button[id$="Disparador"][title]:hover,
-    .gesture-calibrate-btn[title]:hover,
-    #percussionToggle[title]:hover,
-    #thereminToggle[title]:hover,
-    #liveModeLink[title]:hover,
-    #liveModeLink[title]:focus-visible,
-    #performanceToggle[title]:hover,
-    #songGameToggle[title]:hover,
-    label[for="thereminSynthOption"][title]:hover {
-        z-index: 10001;
-    }
-
-    label[for="thereminNotesOption"][title]:hover {
-        z-index: 10001;
+        visibility: visible;
     }
 
     #instructionModal {
@@ -935,6 +855,12 @@
     .gesture-summary-row.mmf-flash {
         animation: mmfGestureRowFlash 0.38s ease-out;
     }
+    .gesture-summary-row[data-synth-role="dynamics"] {
+        box-shadow: inset 0 0 0 1px rgba(185, 255, 106, 0.42);
+    }
+    .gesture-summary-row[data-synth-role^="waveform-"] {
+        box-shadow: inset 0 0 0 1px rgba(54, 246, 178, 0.34);
+    }
     .gesture-summary-name {
         width: 100px;
         text-align: right;
@@ -983,10 +909,16 @@
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
-    .gesture-summary-header .h-name { width: 100px; text-align: right; }
-    .gesture-summary-header .h-raw  { width: 55px;  text-align: left; }
-    .gesture-summary-header .h-midi { width: 46px;  text-align: center; }
-    .gesture-summary-header .h-note { min-width: 32px; margin-left: 3px; }
+    .gesture-summary-header .h-name { flex: 0 0 100px; text-align: right; }
+    .gesture-summary-header .h-raw  { flex: 0 0 55px; text-align: left; }
+    .gesture-summary-header .h-midi { flex: 0 0 46px; text-align: center; }
+    .gesture-summary-header .h-note { flex: 0 0 32px; margin-left: 3px; }
+    .gesture-summary-header .h-calibration { flex: 0 0 84px; }
+    .gesture-summary-header .h-mute,
+    .gesture-summary-header .h-solo,
+    .gesture-summary-header .h-cc,
+    .gesture-summary-header .h-notes { flex: 0 0 74px; }
+    .gesture-summary-header .h-sample { flex: 0 0 112px; }
     .gesture-summary-row .toggle-button {
         padding: 3px 7px;
         font-size: 12px;
@@ -1815,6 +1747,18 @@
         flex-basis: 100%;
         margin-left: 0;
         text-align: center;
+    }
+
+    .instrument-load-status {
+        display: inline-block;
+        margin-left: 8px;
+        color: #ff8f8f;
+        font-size: 11px;
+        line-height: 1.3;
+    }
+
+    .instrument-load-status[data-state="loading"] {
+        color: var(--mmf-lime-bright);
     }
 
     .gesture-summary {
@@ -3203,6 +3147,7 @@
                     <option value="synthesizer" data-i18n="midiInstrumentSelect.synthesizer">Sintetizador (Full C-1–G9)</option>
                     <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Armónico (B3–B5)</option>
                 </select>
+                <span id="instrumentLoadStatus" class="instrument-load-status" role="status" aria-live="polite" hidden></span>
             </div>
         </div>
     </div>
@@ -3311,10 +3256,16 @@
     <div class="gesture-summary">
 
         <div class="gesture-summary-header">
-            <div class="h-name">Gesture</div>
-            <div class="h-raw">Raw</div>
-            <div class="h-midi">MIDI#</div>
-            <div class="h-note">Note</div>
+            <div class="h-name" data-i18n="gestureHeaderGesture">Gesture</div>
+            <div class="h-raw" data-i18n="gestureHeaderRaw">Raw</div>
+            <div class="h-midi" data-i18n="gestureHeaderMidi">MIDI#</div>
+            <div class="h-note" data-i18n="gestureHeaderNote">Note</div>
+            <div class="h-calibration" data-i18n="gestureHeaderCalibration">Calibration</div>
+            <div class="h-mute" data-i18n="gestureHeaderMute">Mute</div>
+            <div class="h-solo" data-i18n="gestureHeaderSolo">Solo</div>
+            <div class="h-cc" data-i18n="gestureHeaderCc">CC</div>
+            <div class="h-notes" data-i18n="gestureHeaderNotes">Notes</div>
+            <div class="h-sample" data-i18n="gestureHeaderSample">Sample</div>
         </div>
 
         <!-- Boca / Mouth -->
