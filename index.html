@@ -239,11 +239,24 @@
         min-width: 42px;
         font-size: 22px;
         line-height: 1;
-        cursor: default;
+        cursor: pointer;
     }
 
     .mouth-vibrato-indicator.active {
         box-shadow: 0 0 14px rgba(185, 255, 106, 0.85);
+    }
+
+    .performance-output-icon {
+        min-width: 46px !important;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .performance-sensitivity-control {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
     }
 
     .dropdown {
@@ -516,6 +529,13 @@
         border-color: #a99cff;
     }
 
+    .performance-keyboard-map kbd.pressed {
+        color: #03140c;
+        background: #b9ff6a;
+        border-color: #fff;
+        box-shadow: 0 0 12px rgba(185, 255, 106, .9);
+    }
+
     .performance-capture-status {
         min-height: 16px;
         color: #c9ffe8;
@@ -698,6 +718,13 @@
         border-color: rgba(255, 239, 180, 0.96);
     }
 
+    .performance-range-key.pressed.white,
+    .performance-range-key.pressed.black {
+        background: #ffcf58;
+        border-color: #fff7cf;
+        box-shadow: 0 0 12px rgba(255, 207, 88, .9);
+    }
+
     .performance-range-key.c-mark {
         font-weight: bold;
     }
@@ -725,6 +752,18 @@
 
     .performance-range-key-spacer {
         visibility: hidden;
+    }
+
+    body.session-beat #videoContainer canvas {
+        filter: brightness(1.13) saturate(1.08);
+        outline: 3px solid rgba(185, 255, 106, .72);
+        outline-offset: -3px;
+    }
+
+    body.session-downbeat #videoContainer canvas {
+        filter: brightness(1.18) saturate(1.12);
+        outline-color: rgba(64, 160, 255, .95);
+        outline-width: 5px;
     }
 
     .theremin-option {
@@ -3281,9 +3320,6 @@
 
     <!-- Opciones de Theremin -->
     <div id="thereminModeOptions" class="theremin-mode">
-        <div class="performance-options-row">
-            <button id="thereminVibratoToggle" class="toggle-button mouth-vibrato-indicator" type="button" aria-disabled="true" aria-label="Motion vibrato" title="Subtle repeated mouth movement adds vibrato; stopping the movement stops vibrato">〰</button>
-        </div>
         <div class="theremin-option">
             <input type="radio" id="thereminSynthOption" name="thereminOption" value="synth">
             <label for="thereminSynthOption" data-i18n="thereminSynthOption">Synth</label>
@@ -3345,9 +3381,9 @@
                 <button id="performanceInputMidi" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceInputMidi" title="Capture MIDI keyboard pitches">MIDI</button>
             </span>
             <span data-i18n="performanceOutputDestination">Output</span>
-            <span class="performance-segmented-control" role="group" aria-label="Performer output destination">
-                <button id="performanceOutputBrowser" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceOutputBrowser" title="Selected browser instrument">Browser Audio</button>
-                <button id="performanceOutputMidi" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceOutputMidi" title="Selected MIDI output device">MIDI Out</button>
+            <span class="performance-segmented-control" role="group" aria-label="Independent performer outputs">
+                <button id="performanceOutputBrowser" class="toggle-button active performance-output-icon" type="button" aria-pressed="true" aria-label="Browser sound" title="Browser sound"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M0 0h24v24H0z" fill="none" /><g fill="currentColor"><path d="M2 12h8v2H2zm0 2h2v4H2zm0 4h8v2H2z" /><path d="M8 6h2v12H8zm10 0h2v12h-2zm-6 8h2v4h-2z" /><path d="M12 12h8v2h-8zm0 6h8v2h-8zM8 4h12v2H8z" /></g></svg></button>
+                <button id="performanceOutputMidi" class="toggle-button performance-output-icon" type="button" aria-pressed="false" aria-label="MIDI out" title="MIDI out"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="M0 0h512v512H0z" fill="none" /><path fill="currentColor" d="M16 128h416c8.84 0 16-7.16 16-16V48c0-8.84-7.16-16-16-16H16C7.16 32 0 39.16 0 48v64c0 8.84 7.16 16 16 16m480 80H80c-8.84 0-16 7.16-16 16v64c0 8.84 7.16 16 16 16h416c8.84 0 16-7.16 16-16v-64c0-8.84-7.16-16-16-16m-64 176H16c-8.84 0-16 7.16-16 16v64c0 8.84 7.16 16 16 16h416c8.84 0 16-7.16 16-16v-64c0-8.84-7.16-16-16-16" /></svg></button>
             </span>
         </div>
 
@@ -3389,7 +3425,7 @@
             </span>
             <span id="performanceChordStatus" class="performance-capture-status" role="status" aria-live="polite"></span>
             <button id="performancePatternToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="performancePatternToggle">Pattern</button>
-            <button id="performanceVibratoToggle" class="toggle-button mouth-vibrato-indicator" type="button" aria-disabled="true" aria-label="Motion vibrato" title="Subtle repeated mouth movement adds vibrato; stopping the movement stops vibrato">〰</button>
+            <button id="performanceVibratoToggle" class="toggle-button mouth-vibrato-indicator" type="button" aria-pressed="false" aria-label="Mouth-motion vibrato" title="Mouth-motion vibrato: movement amplitude controls depth and movement speed controls rate">〰</button>
         </div>
 
         <div id="performancePatternPanel" class="performance-pattern-panel" hidden>
@@ -3520,15 +3556,20 @@
             </select>
         </div>
 
-        <div class="performance-options-row">
+        <div class="performance-options-row performance-gate-controls">
             <label for="performanceGateSource" data-i18n="performanceGateSource">Gate Source</label>
             <select id="performanceGateSource" class="dropdown">
                 <option value="mouth" data-i18n="performanceGateMouth">Mouth Open</option>
                 <option value="wink" data-i18n="performanceGateWink">Wink Close</option>
+                <option value="smile">Smile</option>
+                <option value="noseX">Nose X</option>
+                <option value="noseY">Nose Y</option>
             </select>
 
-            <label for="performanceTriggerSensitivity" data-i18n="performanceTriggerSensitivity">Sensitivity</label>
-            <input id="performanceTriggerSensitivity" class="slider" type="range" min="0" max="10" step="1" value="5" />
+            <span class="performance-sensitivity-control">
+                <input id="performanceTriggerSensitivity" class="slider" type="range" min="0" max="10" step="1" value="5" aria-label="Sensitivity" />
+                <label for="performanceTriggerSensitivity" data-i18n="performanceTriggerSensitivity">Sensitivity</label>
+            </span>
         </div>
 
         <div id="performanceRangeContext" class="performance-range-piano-wrap performance-context performance-grid-only">

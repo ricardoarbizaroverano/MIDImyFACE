@@ -11,21 +11,22 @@
   --bar-on-start: var(--hi); --bar-on-end:#23ff8a; --bar-off:#20406f;
 }
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.2px;-webkit-font-smoothing:antialiased}
+*,*::before,*::after{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.2px;-webkit-font-smoothing:antialiased;font-size:clamp(16px,1.2vw,19px)}
 header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
-.hbrand{color:var(--hi);font-weight:700}
+.hbrand{color:var(--hi);font-weight:700;font-size:clamp(20px,2vw,30px)}
 .box{border:1px solid var(--line)}
-.btn,select,input{background:#07224a;color:var(--fg);border:1px solid var(--line);padding:8px 10px;font-family:inherit;font-size:14px}
+.btn,select,input{background:#07224a;color:var(--fg);border:1px solid var(--line);padding:9px 11px;font-family:inherit;font-size:clamp(15px,1vw,17px)}
 .btn{cursor:pointer}
 .btn:focus,input:focus,select:focus{outline:1px solid var(--hi)}
 .kv{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line)}
-.k{color:var(--dim);font-size:12px}
+.k{color:var(--dim);font-size:clamp(14px,1vw,16px)}
 .v{font-weight:700}
 .grid{display:grid;gap:10px}
 .card .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .hidden{display:none !important}
-.wrap{max-width:1100px;margin:0 auto;padding:12px}
-.center{max-width:520px;margin:40px auto}
+.wrap{max-width:1440px;margin:0 auto;padding:clamp(12px,1.4vw,22px)}
+.center{max-width:760px;margin:clamp(18px,5vh,58px) auto}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .grow{flex:1}
 .led{width:10px;height:10px;border-radius:50%;background:#2b4b87;display:inline-block}
@@ -35,7 +36,7 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
 .card{padding:12px; min-width:360px}
 .ct{display:flex;align-items:center;gap:8px;margin-bottom:8px; flex-wrap:wrap}
 .ct .nm{font-weight:700; max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.small{font-size:12px;color:var(--dim)}
+.small{font-size:clamp(13px,.95vw,15px);color:var(--dim)}
 .badge{border:1px solid var(--line);padding:2px 6px;font-size:12px}
 .mini{font-size:12px}
 .rowx{display:flex;gap:6px;align-items:center}
@@ -61,10 +62,26 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
 .loading-track{margin-top:8px;height:4px;background:#12386f;overflow:hidden}
 .loading-bar{height:100%;width:30%;background:linear-gradient(90deg,var(--hi),#23ff8a);animation:slide 1.2s ease-in-out infinite}
 .auth-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+.auth-actions .btn{flex:1 1 150px}
 .auth-terms{display:grid;grid-template-columns:24px 1fr;gap:8px;align-items:start;margin-top:10px;font-size:12px;color:var(--dim)}
 .auth-terms input{width:20px;height:20px;margin:0;accent-color:var(--hi)}
 .auth-link{color:var(--hi)}
 .restoring .auth-terms,.restoring .auth-actions{display:none}
+#auth{padding:clamp(18px,2vw,28px)!important}
+.master-grid{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:10px;align-items:end}
+.master-control{display:flex;flex-direction:column;gap:5px;min-width:0}
+.master-control select,.master-control input{width:100%;min-height:42px}
+.master-toggle.active{background:var(--hi);color:#02152f;border-color:#d8fff7}
+.participant-config{display:grid;grid-template-columns:repeat(3,minmax(110px,1fr));gap:6px;margin:0 0 8px}
+@media(max-width:900px){
+  header{align-items:flex-start;flex-wrap:wrap}.hbrand{width:100%}.master-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rack{grid-template-columns:1fr}.card{min-width:0}.card .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:520px){
+  .wrap{padding:10px}.center{margin:14px 10px}.master-grid,.participant-config{grid-template-columns:1fr}
+  .btn,select,input{font-size:16px;min-height:44px}.kv{width:100%;justify-content:space-between}.card .grid{grid-template-columns:1fr}
+  .auth-actions .btn{flex-basis:100%}#loginBox{overflow-wrap:anywhere}
+}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes slide{0%{transform:translateX(-140%)}100%{transform:translateX(360%)}}
 </style>
@@ -170,6 +187,20 @@ header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-
       <button id="ping" class="btn mini">PING</button>
       <button id="panic" class="btn mini">PANIC</button>
       <button id="openPerformanceViewBtn" class="btn mini">PERFORMANCE VIEW</button>
+    </div>
+  </div>
+
+  <div class="box" style="padding:12px; margin-top:10px">
+    <div class="k" style="margin-bottom:10px">ENSEMBLE MASTER</div>
+    <div class="master-grid">
+      <button id="masterAudioMute" class="btn master-toggle" type="button" aria-pressed="false">AUDIO ON</button>
+      <label class="master-control"><span class="k">Key</span><select id="masterKey"></select></label>
+      <label class="master-control"><span class="k">Scale / pitch set</span><select id="masterScale"></select></label>
+      <button id="masterGrid" class="btn master-toggle" type="button" aria-pressed="false">GRID OFF</button>
+      <label class="master-control"><span class="k">Quantization</span><select id="masterQuantization"><option value="off">Off</option><option value="1/4">1/4</option><option value="1/8">1/8</option><option value="1/8T">1/8T</option><option value="1/16">1/16</option><option value="1/16T">1/16T</option><option value="1/32">1/32</option></select></label>
+      <label class="master-control"><span class="k">Tempo</span><input id="masterTempo" type="number" min="40" max="240" value="120" /></label>
+      <label class="master-control"><span class="k">Host MIDI input</span><select id="masterMidiIn"><option value="">Select input…</option></select></label>
+      <div class="master-control"><span class="k">Host keyboard</span><span id="hostKeyboardStatus" class="v">A–K · octave 4</span></div>
     </div>
   </div>
 
@@ -283,7 +314,76 @@ let createdInviteLink = "";
 let performanceViewWindow = null;
 let performanceFocusedParticipantId = null;
 let performanceSingleClickFocus = false;
+const MASTER_KEYS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const MASTER_SCALES = ['major','minor','dorian','phrygian','lydian','mixolydian','aeolian','locrian','pentatonic','blues','bebop','harmonic_minor','melodic_minor','chromatic'];
+let ensembleConfig = { audioMuted:false, key:'C', scale:'major', gridEnabled:false, quantization:'off', tempo:120, clockStartedAt:Date.now() };
+let masterMidiInput = null;
+let hostKeyboardOctave = 4;
+const hostHeldKeys = new Map();
+const pendingQuantizedNotes = new Map();
+const landmarkRenderQueue = new Set();
+let landmarkRenderFrame = 0;
 setInterval(()=>{ el('tpIn').textContent=tpIn; el('tpOut').textContent=tpOut; tpIn=0; tpOut=0; },1000);
+
+function sendHostFrame(type, data={}, to=''){
+  if(!ws || ws.readyState !== WebSocket.OPEN){ setStatus('Connect as host before sending ensemble controls'); return false; }
+  ws.send(JSON.stringify({type,data,...(to?{to}:{})}));
+  return true;
+}
+function sendEnsembleConfig(restartClock=false){
+  if(restartClock) ensembleConfig.clockStartedAt=Date.now();
+  sendHostFrame('session/config', ensembleConfig);
+}
+function syncEnsembleControls(){
+  const audio=el('masterAudioMute'), grid=el('masterGrid');
+  audio.textContent=ensembleConfig.audioMuted?'AUDIO OFF':'AUDIO ON'; audio.classList.toggle('active',ensembleConfig.audioMuted); audio.setAttribute('aria-pressed',String(ensembleConfig.audioMuted));
+  grid.textContent=ensembleConfig.gridEnabled?'GRID ON':'GRID OFF'; grid.classList.toggle('active',ensembleConfig.gridEnabled); grid.setAttribute('aria-pressed',String(ensembleConfig.gridEnabled));
+  el('masterKey').value=ensembleConfig.key; el('masterScale').value=ensembleConfig.scale; el('masterQuantization').value=ensembleConfig.quantization; el('masterTempo').value=String(ensembleConfig.tempo);
+}
+function setupEnsembleControls(){
+  el('masterKey').innerHTML=MASTER_KEYS.map(key=>`<option value="${key}">${key}</option>`).join('');
+  el('masterScale').innerHTML=MASTER_SCALES.map(scale=>`<option value="${scale}">${scale.replaceAll('_',' ')}</option>`).join('');
+  el('masterAudioMute').onclick=()=>{ ensembleConfig.audioMuted=!ensembleConfig.audioMuted; syncEnsembleControls(); sendEnsembleConfig(); };
+  el('masterGrid').onclick=()=>{ ensembleConfig.gridEnabled=!ensembleConfig.gridEnabled; syncEnsembleControls(); sendEnsembleConfig(); };
+  el('masterKey').onchange=()=>{ ensembleConfig.key=el('masterKey').value; sendEnsembleConfig(); };
+  el('masterScale').onchange=()=>{ ensembleConfig.scale=el('masterScale').value; sendEnsembleConfig(); };
+  el('masterQuantization').onchange=()=>{ ensembleConfig.quantization=el('masterQuantization').value; sendEnsembleConfig(true); };
+  el('masterTempo').onchange=()=>{ ensembleConfig.tempo=clamp(Math.round(Number(el('masterTempo').value)||120),40,240); syncEnsembleControls(); sendEnsembleConfig(true); };
+  syncEnsembleControls();
+}
+
+function quantizationMs(){
+  const beat=60000/ensembleConfig.tempo;
+  return {'1/4':beat,'1/8':beat/2,'1/8T':beat/3,'1/16':beat/4,'1/16T':beat/6,'1/32':beat/8}[ensembleConfig.quantization]||0;
+}
+function routeParticipantNote(callback,on,key){
+  const quantum=quantizationMs();
+  const pending=key?pendingQuantizedNotes.get(key):null;
+  if(!on){
+    if(pending && !pending.fired){ pending.release=callback; return; }
+    callback(); if(key)pendingQuantizedNotes.delete(key); return;
+  }
+  if(!quantum){ callback(); return; }
+  const elapsed=Math.max(0,Date.now()-ensembleConfig.clockStartedAt);
+  const wait=Math.max(0,quantum-(elapsed%quantum));
+  if(pending?.timer)clearTimeout(pending.timer);
+  const entry={fired:false,release:null,timer:null}; pendingQuantizedNotes.set(key,entry);
+  entry.timer=setTimeout(()=>{
+    entry.fired=true; callback();
+    if(entry.release)setTimeout(()=>{entry.release();pendingQuantizedNotes.delete(key);},Math.min(110,quantum*.35));
+  },wait < 5 ? 0 : wait);
+}
+function sendHostNote(note,on,velocity=100){ sendHostFrame('session/host-note',{note,on,velocity}); }
+function scheduleLandmarkRender(id){
+  landmarkRenderQueue.add(id);
+  if(landmarkRenderFrame)return;
+  landmarkRenderFrame=requestAnimationFrame(()=>{
+    landmarkRenderFrame=0;
+    for(const participantId of landmarkRenderQueue)drawLandmarkCanvas(participantId);
+    landmarkRenderQueue.clear();
+    if(performanceViewWindow && !performanceViewWindow.closed)renderPerformanceView();
+  });
+}
 
 function drawLandmarkDots(ctx, w, h, pts, sourceAspect = 16 / 9, pointColor = '#00ffd5'){
   ctx.clearRect(0,0,w,h);
@@ -835,6 +935,7 @@ function makePerformer(id, name){
   return {
     id, name, connected:true,
     assignedOutChannel:1, mute:false, solo:false, notesRoute:true,
+    performerConfig:{role:'note',gesture:'mouthOpen',chordDisplay:'wheel'},
     noteSource:"mouth", velocitySource:"fixed", velocityFixed:100,
     ccFallbackSource:"noseX",
     lastCCNumber: DEFAULT_CC_FOR_GESTURE["noseX"],
@@ -1019,6 +1120,12 @@ function renderCard(p, fresh=false){
         <input type="range" min="0" max="1" step="0.01" value="${p.audio?.volume ?? 0.8}" class="mini" style="width:110px" data-vol />
       </div>
 
+      <div class="participant-config" aria-label="Participant musical assignment">
+        <label class="master-control"><span class="k">Role</span><select data-role><option value="note">Note</option><option value="chord">Chord</option><option value="percussion">Percussion</option></select></label>
+        <label class="master-control"><span class="k">Gesture</span><select data-gesture-map><option value="mouthOpen">Mouth</option><option value="smile">Smile</option><option value="leftWink">Left Wink</option><option value="rightWink">Right Wink</option><option value="noseX">Nose X</option><option value="noseY">Nose Y</option></select></label>
+        <label class="master-control"><span class="k">Chord display</span><select data-chord-display><option value="wheel">Wheel</option><option value="pitch">Pitch</option><option value="degree">Degree</option></select></label>
+      </div>
+
       <div class="landbox" style="margin-bottom:6px">
         <div class="gname"><span>Face Landmarks</span><span class="small" data-lmstate>no frame</span></div>
         <canvas class="landcanvas" data-landmarks width="340" height="191"></canvas>
@@ -1050,6 +1157,9 @@ function renderCard(p, fresh=false){
     const btnAudio= card.querySelector('[data-audio]');
     const selIns  = card.querySelector('[data-ins]');
     const vol     = card.querySelector('[data-vol]');
+    const roleSel = card.querySelector('[data-role]');
+    const gestureSel = card.querySelector('[data-gesture-map]');
+    const chordDisplaySel = card.querySelector('[data-chord-display]');
 
     chSel.value = p.assignedOutChannel;
     btnNotes.classList.toggle('active', p.notesRoute);
@@ -1058,6 +1168,16 @@ function renderCard(p, fresh=false){
     btnAudio.textContent = p.audio.on ? "ON" : "OFF";
     btnAudio.classList.toggle('active', p.audio.on);
     selIns.value = p.audio.instrument;
+    roleSel.value = p.performerConfig.role;
+    gestureSel.value = p.performerConfig.gesture;
+    chordDisplaySel.value = p.performerConfig.chordDisplay;
+    const sendPerformerConfig = ()=>{
+      p.performerConfig={role:roleSel.value,gesture:gestureSel.value,chordDisplay:chordDisplaySel.value};
+      chordDisplaySel.disabled=p.performerConfig.role!=='chord';
+      sendHostFrame('server/performer-config',p.performerConfig,p.id);
+    };
+    roleSel.onchange=sendPerformerConfig; gestureSel.onchange=sendPerformerConfig; chordDisplaySel.onchange=sendPerformerConfig;
+    chordDisplaySel.disabled=p.performerConfig.role!=='chord';
 
     chSel.onchange   = ()=>{ p.assignedOutChannel = parseInt(chSel.value,10)||1; };
     btnNotes.onclick = ()=>{ p.notesRoute=!p.notesRoute; btnNotes.classList.toggle('active',p.notesRoute); };
@@ -1103,6 +1223,9 @@ function renderCard(p, fresh=false){
   }
   card.querySelector('[data-led]').className = 'led ' + (p.connected?'ok':'');
   const last = card.querySelector('[data-lastg]'); if(last) last.textContent = p.lastGesture || '—';
+  const role=card.querySelector('[data-role]'), gesture=card.querySelector('[data-gesture-map]'), display=card.querySelector('[data-chord-display]');
+  if(role) role.value=p.performerConfig.role; if(gesture) gesture.value=p.performerConfig.gesture;
+  if(display){ display.value=p.performerConfig.chordDisplay; display.disabled=p.performerConfig.role!=='chord'; }
   drawLandmarkCanvas(p.id);
 }
 
@@ -1138,7 +1261,12 @@ function updateGestureUI(id,g,value){
 /* ===== Message handling (host side) ===== */
 function handleRelayMessage(m){
   switch(m.type){
-    case "joined": return;
+    case "joined": sendEnsembleConfig(true); return;
+    case "session/config-ack":
+      ensembleConfig={...ensembleConfig,...(m.data||{})}; syncEnsembleControls(); setStatus('ensemble settings synced'); return;
+    case "server/performer-config": {
+      const d=m.data||{}; const p=participants.get(d.participant_id); if(p){ p.performerConfig={role:d.role,gesture:d.gesture,chordDisplay:d.chordDisplay}; renderCard(p); } return;
+    }
 
     case "session/roster": {
       (m.data||[]).forEach(row=>{
@@ -1209,8 +1337,10 @@ function handleRelayMessage(m){
       p.gestures[gkey].signalMode = 'NOTE';
       p.gestures[gkey].lastNoteName = midiToNoteName(note);
       updateGestureMetaUI(p.id,gkey);
-      if(notesRoutable(p)) sendNote(true,note,vel,p.assignedOutChannel);
-      if(p.audio.on){ ensureAudioNodes(p).then(()=> playLocal(p,note,vel,true)); }
+      routeParticipantNote(()=>{
+        if(notesRoutable(p)) sendNote(true,note,vel,p.assignedOutChannel);
+        if(p.audio.on){ ensureAudioNodes(p).then(()=> playLocal(p,note,vel,true)); }
+      },true,`${p.id}:${note}`);
       return;
     }
     case "midi/note_off": {
@@ -1221,8 +1351,10 @@ function handleRelayMessage(m){
       p.gestures[gkey].signalMode = 'NOTE';
       p.gestures[gkey].lastNoteName = midiToNoteName(note);
       updateGestureMetaUI(p.id,gkey);
-      if(notesRoutable(p)) sendNote(false,note,vel,p.assignedOutChannel);
-      if(p.audio.on){ playLocal(p,note,vel,false); }
+      routeParticipantNote(()=>{
+        if(notesRoutable(p)) sendNote(false,note,vel,p.assignedOutChannel);
+        if(p.audio.on){ playLocal(p,note,vel,false); }
+      },false,`${p.id}:${note}`);
       return;
     }
 
@@ -1234,8 +1366,7 @@ function handleRelayMessage(m){
       p.landmarks.points = points;
       if(!p.landmarks.color || p.landmarks.color === '#000000') p.landmarks.color = randomLandmarkColor();
       p.landmarks.ts = Number(d.ts) || Date.now();
-      drawLandmarkCanvas(p.id);
-      if(performanceViewWindow && !performanceViewWindow.closed) renderPerformanceView();
+      scheduleLandmarkRender(p.id);
       return;
     }
 
@@ -1288,8 +1419,23 @@ function connectWS(){
 function midiInit(){
   if(!('requestMIDIAccess' in navigator)){ el('warn').classList.remove('hidden'); return; }
   navigator.requestMIDIAccess({sysex:false,software:true})
-    .then(access=>{ midi=access; midi.onstatechange=buildOuts; buildOuts(); })
+    .then(access=>{ midi=access; midi.onstatechange=()=>{buildOuts();buildMasterMidiInputs();}; buildOuts(); buildMasterMidiInputs(); })
     .catch(()=> el('warn').classList.remove('hidden'));
+}
+function buildMasterMidiInputs(){
+  const select=el('masterMidiIn'); if(!select||!midi)return;
+  const previous=select.value; select.innerHTML='<option value="">Select input…</option>';
+  for(const input of midi.inputs.values()) if(input.state==='connected') select.add(new Option(input.name,input.id));
+  if(previous && midi.inputs.has(previous)) select.value=previous;
+  select.onchange=()=>{
+    if(masterMidiInput) masterMidiInput.onmidimessage=null;
+    masterMidiInput=midi.inputs.get(select.value)||null;
+    if(masterMidiInput) masterMidiInput.onmidimessage=(event)=>{
+      const [status,note,velocity]=event.data||[]; const command=status&0xF0;
+      if(command===0x90&&velocity>0)sendHostNote(note,true,velocity);
+      else if(command===0x80||(command===0x90&&velocity===0))sendHostNote(note,false,0);
+    };
+  };
 }
 function buildOuts(){
   const selNotes=el('midiOutNotes'); const selCC=el('midiOutCC');
@@ -1335,6 +1481,22 @@ el('openPerformanceViewBtn').onclick = ()=>{
   setStatus('performance view opened');
 };
 
+const HOST_KEY_OFFSETS={A:0,W:1,S:2,E:3,D:4,F:5,T:6,G:7,Y:8,H:9,U:10,J:11,K:12};
+document.addEventListener('keydown',(event)=>{
+  const tag=String(event.target?.tagName||'').toLowerCase(); if(['input','select','textarea','button'].includes(tag)||event.repeat)return;
+  const key=String(event.key||'').toUpperCase();
+  if(key==='Z'||key==='X'){
+    hostKeyboardOctave=clamp(hostKeyboardOctave+(key==='Z'?-1:1),-1,8);
+    el('hostKeyboardStatus').textContent=`A–K · octave ${hostKeyboardOctave}`; event.preventDefault(); return;
+  }
+  if(HOST_KEY_OFFSETS[key]===undefined)return;
+  const note=((hostKeyboardOctave+1)*12)+HOST_KEY_OFFSETS[key]; hostHeldKeys.set(key,note); sendHostNote(note,true,100); event.preventDefault();
+});
+document.addEventListener('keyup',(event)=>{
+  const key=String(event.key||'').toUpperCase(); if(!hostHeldKeys.has(key))return;
+  sendHostNote(hostHeldKeys.get(key),false,0); hostHeldKeys.delete(key); event.preventDefault();
+});
+
 /* ===== Wire-up ===== */
 el('signInBtn').onclick = ()=> beginFirebaseAuthentication('signin');
 el('registerBtn').onclick = ()=> beginFirebaseAuthentication('register');
@@ -1377,6 +1539,7 @@ el('connectHostBtn').onclick = ()=>{
   connectWS();
 };
 
+setupEnsembleControls();
 midiInit();
 initializeConsoleAuthentication();
 </script>

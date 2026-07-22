@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { WebSocket } = require('ws');
 
 const originFor = (port) => `http://127.0.0.1:${port}`;
 const deviceToken = 'auth-test-device-token-000000000000000000';
@@ -76,6 +77,30 @@ async function waitForServer(port, processInfo) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error(`relay did not start: ${processInfo.diagnostics()}`);
+}
+
+function waitForWsMessage(socket, predicate, timeoutMs = 3000) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('websocket message timeout')), timeoutMs);
+    const handler = (raw) => {
+      let message;
+      try { message = JSON.parse(String(raw)); } catch { return; }
+      if (!predicate(message)) return;
+      clearTimeout(timeout);
+      socket.off('message', handler);
+      resolve(message);
+    };
+    socket.on('message', handler);
+  });
+}
+
+async function openSessionSocket(port, hello) {
+  const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: { Origin: originFor(port) } });
+  await new Promise((resolve, reject) => { socket.once('open', resolve); socket.once('error', reject); });
+  const joined = waitForWsMessage(socket, (message) => message.type === 'joined');
+  socket.send(JSON.stringify({ type: 'hello', ...hello }));
+  socket.joinedData = (await joined).data;
+  return socket;
 }
 
 async function setInstallationReady(port) {
@@ -208,6 +233,27 @@ async function configuredAuthTests() {
     assert.equal(inviteJoin.response.status, 200);
     const joinClaims = JSON.parse(Buffer.from(inviteJoin.body.join_token.split('.')[1], 'base64url').toString('utf8'));
     assert.equal(joinClaims.firebase_uid, 'uid-active');
+
+    const hostSocket = await openSessionSocket(port, {
+      session_id: consoleSession.session_id, role: 'host', name: consoleSession.host_name,
+      client_uuid: 'auth-host-client', join_token: consoleSession.host_join_token,
+    });
+    const performerSocket = await openSessionSocket(port, {
+      session_id: consoleSession.session_id, role: 'performer', name: 'Invitee',
+      client_uuid: 'auth-performer-client', join_token: inviteJoin.body.join_token,
+    });
+    const ensembleUpdate = waitForWsMessage(performerSocket, (message) => message.type === 'session/config' && message.data?.tempo === 137);
+    hostSocket.send(JSON.stringify({ type: 'session/config', data: { audioMuted: true, key: 'D', scale: 'dorian', gridEnabled: true, quantization: '1/16', tempo: 137, ignored: 'drop-me' } }));
+    const ensembleMessage = await ensembleUpdate;
+    assert.deepEqual(ensembleMessage.data, { audioMuted: true, key: 'D', scale: 'dorian', gridEnabled: true, quantization: '1/16', tempo: 137, clockStartedAt: ensembleMessage.data.clockStartedAt });
+    assert.equal(Number.isFinite(ensembleMessage.data.clockStartedAt), true);
+    const performerConfigUpdate = waitForWsMessage(performerSocket, (message) => message.type === 'server/performer-config');
+    hostSocket.send(JSON.stringify({ type: 'server/performer-config', to: performerSocket.joinedData.participant_id, data: { role: 'chord', gesture: 'noseX', chordDisplay: 'pitch' } }));
+    assert.deepEqual((await performerConfigUpdate).data, { role: 'chord', gesture: 'noseX', chordDisplay: 'pitch' });
+    const hostNoteUpdate = waitForWsMessage(performerSocket, (message) => message.type === 'session/host-note');
+    hostSocket.send(JSON.stringify({ type: 'session/host-note', data: { note: 64, on: true, velocity: 111 } }));
+    assert.deepEqual((await hostNoteUpdate).data, { note: 64, on: true, velocity: 111 });
+    hostSocket.close(); performerSocket.close();
 
     await setInstallationReady(port);
     let result = await startParticipant(port, {

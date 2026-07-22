@@ -22,6 +22,7 @@
     let reconnectTimer = null;
     let reconnectAttempts = 0;
     let ackTimer = null;              // NEW: wait for hello/ack
+    let ensembleBeatTimer = null;
   
     const MAX_BACKOFF  = 15000; // ms
     const HEARTBEAT_MS = 25000; // ms
@@ -171,6 +172,26 @@
     function readDetail(evt) {
       return asObj(evt?.detail || evt?.data || evt);
     }
+
+    function startEnsembleClock(config = {}) {
+      if (ensembleBeatTimer) { clearTimeout(ensembleBeatTimer); ensembleBeatTimer = null; }
+      const tempo = Math.max(40, Math.min(240, Number(config.tempo) || 120));
+      const beatMs = 60000 / tempo;
+      const origin = Number(config.clockStartedAt) || Date.now();
+      const tick = () => {
+        const elapsed = Math.max(0, Date.now() - origin);
+        const beatIndex = Math.floor(elapsed / beatMs);
+        const beatInBar = (beatIndex % 4) + 1;
+        document.body?.classList.add('session-beat');
+        document.body?.classList.toggle('session-downbeat', beatInBar === 1);
+        document.body?.setAttribute('data-session-beat', String(beatInBar));
+        window.dispatchEvent(new CustomEvent('session:beat', { detail: { beat: beatInBar, tempo } }));
+        setTimeout(() => document.body?.classList.remove('session-beat', 'session-downbeat'), Math.min(130, beatMs * 0.28));
+        const nextDelay = Math.max(12, beatMs - (elapsed % beatMs));
+        ensembleBeatTimer = setTimeout(tick, nextDelay);
+      };
+      tick();
+    }
   
     async function connect(cfg) {
       if (!cfg || !cfg.session_id || !cfg.name) {
@@ -240,6 +261,19 @@
         
           case 'system/pong':
             break;
+
+          case 'session/config':
+            window.dispatchEvent(new CustomEvent('session:config', { detail: data.data || {} }));
+            startEnsembleClock(data.data || {});
+            break;
+
+          case 'session/host-note':
+            window.dispatchEvent(new CustomEvent('session:host-note', { detail: data.data || {} }));
+            break;
+
+          case 'server/performer-config':
+            window.dispatchEvent(new CustomEvent('session:performer-config', { detail: data.data || {} }));
+            break;
         
           case 'error':
           case 'server/reject':
@@ -284,6 +318,8 @@
       clearTimers();
       if (socket) { try { socket.close(1000, 'client disconnect'); } catch {} socket = null; }
       if (explicit) lastCfg = null;
+      if (ensembleBeatTimer) { clearTimeout(ensembleBeatTimer); ensembleBeatTimer = null; }
+      document.body?.classList.remove('session-beat', 'session-downbeat');
       wsDispatchState('disconnected');
     }
   

@@ -1487,6 +1487,44 @@ function sendText(res, status, body, headers = {}) {
  */
 const sessions = Object.create(null);
 
+const DEFAULT_ENSEMBLE_CONFIG = Object.freeze({
+  audioMuted: false,
+  key: 'C',
+  scale: 'major',
+  gridEnabled: false,
+  quantization: 'off',
+  tempo: 120,
+  clockStartedAt: 0,
+});
+
+function sanitizeEnsembleConfig(input = {}, previous = DEFAULT_ENSEMBLE_CONFIG) {
+  const keys = new Set(['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']);
+  const scales = new Set(['major','minor','dorian','phrygian','lydian','mixolydian','aeolian','locrian','pentatonic','blues','bebop','harmonic_minor','melodic_minor','chromatic']);
+  const quantizations = new Set(['off','1/4','1/8','1/8T','1/16','1/16T','1/32']);
+  return {
+    audioMuted: input.audioMuted === undefined ? Boolean(previous.audioMuted) : Boolean(input.audioMuted),
+    key: keys.has(input.key) ? input.key : previous.key,
+    scale: scales.has(input.scale) ? input.scale : previous.scale,
+    gridEnabled: input.gridEnabled === undefined ? Boolean(previous.gridEnabled) : Boolean(input.gridEnabled),
+    quantization: quantizations.has(input.quantization) ? input.quantization : previous.quantization,
+    tempo: Math.max(40, Math.min(240, Math.round(Number(input.tempo) || previous.tempo || 120))),
+    clockStartedAt: Number(input.clockStartedAt) > 0 ? Number(input.clockStartedAt) : (Number(previous.clockStartedAt) || nowMs()),
+  };
+}
+
+function sanitizePerformerConfig(input = {}) {
+  const role = ['note','chord','percussion'].includes(input.role) ? input.role : 'note';
+  const gesture = ['mouth','mouthOpen','smile','leftWink','rightWink','noseX','noseY'].includes(input.gesture) ? input.gesture : 'mouthOpen';
+  const chordDisplay = ['wheel','pitch','degree'].includes(input.chordDisplay) ? input.chordDisplay : 'wheel';
+  return { role, gesture: gesture === 'mouth' ? 'mouthOpen' : gesture, chordDisplay };
+}
+
+function broadcastPerformers(session, payload) {
+  for (const participant of session.participants.values()) {
+    if (participant.role === 'performer') sendTo(participant.ws, payload);
+  }
+}
+
 function getOrCreateSession(session_id, maxParticipantsHint) {
   if (!sessions[session_id]) {
     sessions[session_id] = {
@@ -1497,6 +1535,8 @@ function getOrCreateSession(session_id, maxParticipantsHint) {
       clientMap: new Map(),
       channelMap: new Map(),
       stickyByClient: new Map(),
+      ensembleConfig: { ...DEFAULT_ENSEMBLE_CONFIG, clockStartedAt: nowMs() },
+      performerConfigs: new Map(),
     };
     return { session: sessions[session_id], created: true };
   }
@@ -2464,6 +2504,11 @@ wss.on('connection', (ws, req) => {
                   },
                   ts_server: nowMs(),
                 });
+                if (prev.role === 'performer') {
+                  sendTo(ws, { type: 'session/config', data: session.ensembleConfig, ts_server: nowMs() });
+                  const performerConfig = session.performerConfigs.get(existingId);
+                  if (performerConfig) sendTo(ws, { type: 'server/performer-config', data: performerConfig, ts_server: nowMs() });
+                }
       
                 // Tell host (using same event shape your console already handles)
                 notifyHost(session, 'session/joined', {
@@ -2564,6 +2609,7 @@ wss.on('connection', (ws, req) => {
         },
         ts_server: nowMs(),
       });
+      sendTo(ws, { type: 'session/config', data: session.ensembleConfig, ts_server: nowMs() });
 
       // Notify host of new performer
       notifyHost(session, 'session/joined', {
@@ -2584,6 +2630,21 @@ wss.on('connection', (ws, req) => {
     // Heartbeat from client
     if (t === 'system/ping') {
       sendTo(ws, { type: 'system/pong', ts_server: nowMs(), echo: msg?.data || null });
+      return;
+    }
+
+    if (participant.role === 'host' && t === 'session/config') {
+      session.ensembleConfig = sanitizeEnsembleConfig(msg?.data || {}, session.ensembleConfig);
+      broadcastPerformers(session, { type: 'session/config', data: session.ensembleConfig, ts_server: nowMs() });
+      sendTo(ws, { type: 'session/config-ack', data: session.ensembleConfig, ts_server: nowMs() });
+      return;
+    }
+
+    if (participant.role === 'host' && t === 'session/host-note') {
+      const note = Math.max(0, Math.min(127, Math.round(Number(msg?.data?.note))));
+      const on = Boolean(msg?.data?.on);
+      if (!Number.isFinite(note)) { sendTo(ws, { type: 'error', error: 'invalid_note' }); return; }
+      broadcastPerformers(session, { type: 'session/host-note', data: { note, on, velocity: Math.max(0, Math.min(127, Math.round(Number(msg?.data?.velocity) || 100))) }, ts_server: nowMs() });
       return;
     }
 
@@ -2614,6 +2675,13 @@ wss.on('connection', (ws, req) => {
       }
 
       // Pass-through any other server/* command
+	  if (t === 'server/performer-config') {
+	    const performerConfig = sanitizePerformerConfig(msg?.data || {});
+	    session.performerConfigs.set(toId, performerConfig);
+	    sendTo(dest.ws, { type: t, data: performerConfig, ts_server: nowMs() });
+	    notifyHost(session, 'server/performer-config', { participant_id: toId, ...performerConfig });
+	    return;
+	  }
       sendTo(dest.ws, { type: t, data: msg?.data || {}, ts_server: nowMs() });
       return;
     }
