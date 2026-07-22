@@ -2,6 +2,7 @@
   'use strict';
 
   const FIREBASE_VERSION = '10.12.5';
+  const FIREBASE_AUTH_DOMAIN = 'auth.midimyface.com';
   const USER_PROFILE_COLLECTION = 'users';
   const ANONYMOUS_TRIAL_DURATION_MS = 60_000;
   const ANONYMOUS_TRIAL_STORAGE_KEY = 'mmf_homepage_anonymous_trial_v1';
@@ -14,6 +15,10 @@
       .every((key) => typeof firebase[key] === 'string' && firebase[key].trim());
   }
 
+  function getFirebaseConfigForInitialization(publicConfig) {
+    return { ...(publicConfig?.firebase || {}), authDomain: FIREBASE_AUTH_DOMAIN };
+  }
+
   async function getFirebaseContext(publicConfig) {
     if (!hasValidFirebaseConfig(publicConfig)) throw new Error('auth_config_incomplete');
     if (firebaseContextPromise) return firebaseContextPromise;
@@ -24,7 +29,8 @@
         import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
         import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`),
       ]);
-      const app = appSdk.getApps().length ? appSdk.getApp() : appSdk.initializeApp(publicConfig.firebase);
+      const firebaseConfig = getFirebaseConfigForInitialization(publicConfig);
+      const app = appSdk.getApps().length ? appSdk.getApp() : appSdk.initializeApp(firebaseConfig);
       const auth = authSdk.getAuth(app);
       await authSdk.setPersistence(auth, authSdk.browserLocalPersistence);
       const context = { app, auth, authSdk, firestore: firestoreSdk.getFirestore(app), firestoreSdk };
@@ -271,10 +277,12 @@
 
   globalScope.MMFAuthGate = Object.freeze({
     ANONYMOUS_TRIAL_DURATION_MS,
+    FIREBASE_AUTH_DOMAIN,
     createAnonymousTrialController,
     ensureUserProfile,
     getAccessLevel,
     getCurrentIdToken,
+    getFirebaseConfigForInitialization,
     getFirebaseContext,
     hasValidFirebaseConfig,
     observe,

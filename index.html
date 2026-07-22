@@ -51,6 +51,7 @@
         border: 2px solid lime;
         overflow: hidden;
         position: relative;
+        isolation: isolate;
         margin: 10px auto;
     }
 
@@ -160,11 +161,11 @@
         to { transform: rotate(360deg); }
     }
 
-    canvas {
+    #videoContainer > canvas.mmf-landmark-canvas {
         position: absolute;
         z-index: 100;
-        top: 0;
-        left: 0;
+        inset: 0;
+        display: block;
         width: 100%;
         height: 100%;
     }
@@ -882,7 +883,7 @@
     }
 
     .presentation-active #videoContainer,
-    .presentation-active canvas {
+    .presentation-active #videoContainer > canvas.mmf-landmark-canvas {
         width: 100vw;
         height: 100vh;
     }
@@ -2492,7 +2493,6 @@
                 REGISTER FREE
             </button>
             <button id="homepageSignInButton" class="toggle-button homepage-auth-button" type="button" disabled>SIGN IN</button>
-            <p class="homepage-auth-alt">Use the same Google account across MIDImyFACE and Live Mode.</p>
             <p id="homepageAuthMessage" aria-live="polite">Connecting to secure registration…</p>
         </div>
     </section>
