@@ -235,6 +235,17 @@
         color: black;
     }
 
+    .mouth-vibrato-indicator {
+        min-width: 42px;
+        font-size: 22px;
+        line-height: 1;
+        cursor: default;
+    }
+
+    .mouth-vibrato-indicator.active {
+        box-shadow: 0 0 14px rgba(185, 255, 106, 0.85);
+    }
+
     .dropdown {
         background-color: black;
         color: lime;
@@ -3271,7 +3282,7 @@
     <!-- Opciones de Theremin -->
     <div id="thereminModeOptions" class="theremin-mode">
         <div class="performance-options-row">
-            <button id="thereminVibratoToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="mouthVibrato" title="Mouth movement controls vibrato depth after a note starts">Mouth Vibrato</button>
+            <button id="thereminVibratoToggle" class="toggle-button mouth-vibrato-indicator" type="button" aria-disabled="true" aria-label="Motion vibrato" title="Subtle repeated mouth movement adds vibrato; stopping the movement stops vibrato">〰</button>
         </div>
         <div class="theremin-option">
             <input type="radio" id="thereminSynthOption" name="thereminOption" value="synth">
@@ -3279,25 +3290,14 @@
             <!-- Subopciones de Synth -->
             <div id="thereminSynthOptions" class="theremin-suboptions">
                 <div class="synth-routing-controls">
-                    <label for="waveformSelect" data-i18n="synthOscillatorA">Osc A</label>
+                    <label for="waveformSelect" data-i18n="synthOscillatorA">Waveform</label>
                     <select id="waveformSelect" class="dropdown" title="Oscillator A waveform">
                         <option value="sine" data-i18n="waveformSelect.sine">Sinusoidal</option>
                         <option value="square" data-i18n="waveformSelect.square">Cuadrada</option>
                         <option value="sawtooth" data-i18n="waveformSelect.sawtooth">Sierra</option>
                         <option value="triangle" data-i18n="waveformSelect.triangle">Triangular</option>
                     </select>
-                    <label for="waveformBSelect" data-i18n="synthOscillatorB">Osc B</label>
-                    <select id="waveformBSelect" class="dropdown" title="Oscillator B waveform">
-                        <option value="sine" data-i18n="waveformSelect.sine">Sinusoidal</option>
-                        <option value="square" data-i18n="waveformSelect.square">Cuadrada</option>
-                        <option value="sawtooth" data-i18n="waveformSelect.sawtooth">Sierra</option>
-                        <option value="triangle" data-i18n="waveformSelect.triangle">Triangular</option>
-                    </select>
-                    <label for="synthTopologySelect" data-i18n="synthTopology">Topology</label>
-                    <select id="synthTopologySelect" class="dropdown" aria-label="Synth topology">
-                        <option value="blend" data-i18n="synthBlend" title="Blend">A+B</option>
-                        <option value="fm" data-i18n="synthFm" title="FM">A←B</option>
-                    </select>
+                    <button id="synthFmToggle" class="toggle-button" type="button" aria-pressed="false" aria-label="Frequency modulation" title="FM: mouth controls the carrier and Nose Y controls the modulator">FM</button>
                     <span id="synthFmDepthGroup" hidden>
                         <label for="synthFmDepth" data-i18n="synthFmDepth">FM Depth</label>
                         <input id="synthFmDepth" type="range" min="0" max="400" step="5" value="90" aria-label="FM modulation depth" />
@@ -3389,7 +3389,7 @@
             </span>
             <span id="performanceChordStatus" class="performance-capture-status" role="status" aria-live="polite"></span>
             <button id="performancePatternToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="performancePatternToggle">Pattern</button>
-            <button id="performanceVibratoToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="mouthVibrato" title="Mouth movement controls vibrato depth while the gate is open">Mouth Vibrato</button>
+            <button id="performanceVibratoToggle" class="toggle-button mouth-vibrato-indicator" type="button" aria-disabled="true" aria-label="Motion vibrato" title="Subtle repeated mouth movement adds vibrato; stopping the movement stops vibrato">〰</button>
         </div>
 
         <div id="performancePatternPanel" class="performance-pattern-panel" hidden>
@@ -3453,7 +3453,12 @@
             <div class="performance-options-row">
                 <span class="performance-segmented-control" role="group" aria-label="Harmonic Wheel note set">
                     <button id="performanceWheelDiatonic" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceWheelDiatonic" title="Seven chords from the selected key and scale">Diatonic</button>
-                    <button id="performanceWheelChromatic" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceWheelChromatic" title="Twelve circle-of-fifths regions for modulation">Chromatic</button>
+                    <button id="performanceWheelChromatic" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceWheelChromatic" title="Connected major, secondary-dominant, and relative-minor targets">Chromatic</button>
+                </span>
+                <span id="performanceWheelCycleControls" class="performance-segmented-control" role="group" aria-label="Chromatic harmonic path" hidden>
+                    <button id="performanceWheelFifths" class="toggle-button active" type="button" aria-pressed="true" title="Move through the circle of fifths">5ths</button>
+                    <button id="performanceWheelFourths" class="toggle-button" type="button" aria-pressed="false" title="Move through the circle of fourths">4ths</button>
+                    <button id="performanceWheelThirds" class="toggle-button" type="button" aria-pressed="false" title="Move through closely related thirds">3rds</button>
                 </span>
                 <span class="performance-segmented-control" role="group" aria-label="Harmonic Wheel labels">
                     <button id="performanceWheelDegrees" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceWheelDegrees">Degrees</button>
