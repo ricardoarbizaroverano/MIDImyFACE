@@ -590,76 +590,15 @@
     }
 
     .performance-wheel-panel {
-        width: min(100%, 680px);
+        width: min(100%, 800px);
         margin: 8px auto 0;
-        padding: 8px;
-        border: 1px solid rgba(140, 255, 200, 0.45);
-        background: rgba(5, 14, 10, 0.78);
+        padding: 0;
     }
 
     .performance-wheel-panel[hidden],
     .performance-grid-only[hidden],
     #performanceWheelPromote[hidden],
     #performancePathCancel[hidden] { display: none; }
-
-    .performance-wheel-stage {
-        position: relative;
-        width: min(100%, 600px);
-        aspect-ratio: 1;
-        margin: 8px auto;
-        overflow: hidden;
-        border: 1px solid rgba(54, 246, 178, 0.45);
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(85, 72, 200, 0.14), rgba(3, 10, 6, 0.92) 68%);
-    }
-
-    .performance-wheel-ring {
-        position: absolute;
-        inset: 50%;
-        border: 1px solid rgba(185, 255, 106, 0.13);
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-    }
-
-    .performance-wheel-ring.inner { width: 48%; height: 48%; }
-    .performance-wheel-ring.middle { width: 72%; height: 72%; }
-    .performance-wheel-ring.outer { width: 94%; height: 94%; }
-
-    .performance-wheel-path,
-    .performance-wheel-nodes { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .performance-wheel-path { pointer-events: none; overflow: visible; }
-    .performance-wheel-path polyline { fill: none; stroke: rgba(54, 246, 178, 0.58); stroke-width: 0.8; vector-effect: non-scaling-stroke; }
-
-    .performance-wheel-node {
-        position: absolute;
-        min-width: 42px;
-        min-height: 30px;
-        padding: 3px 5px;
-        transform: translate(-50%, -50%);
-        border: 1px solid rgba(185, 255, 106, 0.54);
-        background: rgba(8, 17, 12, 0.94);
-        color: #dfffc8;
-        font: inherit;
-        font-size: 10px;
-        line-height: 1;
-        box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.7);
-    }
-
-    .performance-wheel-node[data-layer="center"] { min-width: 58px; border-color: #ffb44c; color: #fff; }
-    .performance-wheel-node[data-layer="outer"] { min-width: 34px; min-height: 25px; opacity: var(--wheel-emphasis, 0.45); }
-    .performance-wheel-node[data-family="tonic"] { border-color: #b9ff6a; }
-    .performance-wheel-node[data-family="predominant"] { border-color: #36f6b2; }
-    .performance-wheel-node[data-family="dominant"],
-    .performance-wheel-node[data-kind="secondary"] { border-color: #ffb44c; }
-    .performance-wheel-node.active,
-    .performance-wheel-node.targeted { background: #5548c8; border-color: #fff; color: #fff; box-shadow: 0 0 12px rgba(169, 156, 255, 0.7); }
-    .performance-wheel-node.path-node::after { content: attr(data-path-order); position: absolute; top: -7px; right: -7px; color: #ffb44c; font-size: 9px; }
-
-    @media (max-width: 520px) {
-        .performance-wheel-node { min-width: 38px; min-height: 36px; padding: 2px 3px; font-size: 8px; }
-        .performance-wheel-node[data-layer="outer"] { min-width: 36px; min-height: 36px; }
-    }
 
     .performance-range-piano-wrap {
         width: min(100%, 800px);
@@ -3331,6 +3270,9 @@
 
     <!-- Opciones de Theremin -->
     <div id="thereminModeOptions" class="theremin-mode">
+        <div class="performance-options-row">
+            <button id="thereminVibratoToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="mouthVibrato" title="Mouth movement controls vibrato depth after a note starts">Mouth Vibrato</button>
+        </div>
         <div class="theremin-option">
             <input type="radio" id="thereminSynthOption" name="thereminOption" value="synth">
             <label for="thereminSynthOption" data-i18n="thereminSynthOption">Synth</label>
@@ -3447,6 +3389,7 @@
             </span>
             <span id="performanceChordStatus" class="performance-capture-status" role="status" aria-live="polite"></span>
             <button id="performancePatternToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="performancePatternToggle">Pattern</button>
+            <button id="performanceVibratoToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="mouthVibrato" title="Mouth movement controls vibrato depth while the gate is open">Mouth Vibrato</button>
         </div>
 
         <div id="performancePatternPanel" class="performance-pattern-panel" hidden>
@@ -3508,25 +3451,23 @@
 
         <div id="performanceWheelPanel" class="performance-wheel-panel" hidden>
             <div class="performance-options-row">
+                <span class="performance-segmented-control" role="group" aria-label="Harmonic Wheel note set">
+                    <button id="performanceWheelDiatonic" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceWheelDiatonic" title="Seven chords from the selected key and scale">Diatonic</button>
+                    <button id="performanceWheelChromatic" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceWheelChromatic" title="Twelve circle-of-fifths regions for modulation">Chromatic</button>
+                </span>
                 <span class="performance-segmented-control" role="group" aria-label="Harmonic Wheel labels">
                     <button id="performanceWheelDegrees" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceWheelDegrees">Degrees</button>
                     <button id="performanceWheelPitches" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceWheelPitches">Pitches</button>
                 </span>
                 <button id="performanceWheelPromote" class="toggle-button" type="button" hidden data-i18n="performanceWheelPromote">MOD</button>
-                <button id="performanceWheelGesture" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceWheelGesture">Gesture Nav</button>
-            </div>
-            <div id="performanceWheelStage" class="performance-wheel-stage" aria-label="Harmonic Wheel performance map">
-                <span class="performance-wheel-ring inner"></span><span class="performance-wheel-ring middle"></span><span class="performance-wheel-ring outer"></span>
-                <svg id="performanceWheelPath" class="performance-wheel-path" viewBox="0 0 100 100" aria-hidden="true"></svg>
-                <div id="performanceWheelNodes" class="performance-wheel-nodes"></div>
             </div>
             <div class="performance-options-row">
-                <button id="performancePathRecord" class="toggle-button" type="button" aria-pressed="false" data-i18n="performancePathRecord">REC</button>
+                <button id="performancePathRecord" class="toggle-button" type="button" aria-pressed="false" data-i18n="performancePathRecord" title="Record each chord you trigger into a reusable progression">REC PATH</button>
                 <button id="performancePathCancel" class="toggle-button" type="button" hidden data-i18n="performancePathCancel">Cancel</button>
-                <button id="performancePathRemove" class="toggle-button" type="button" data-i18n="performancePathRemove">− Step</button>
-                <button id="performancePathClear" class="toggle-button" type="button" data-i18n="performancePathClear">Clear</button>
+                <button id="performancePathRemove" class="toggle-button" type="button" data-i18n="performancePathRemove" title="Remove the selected chord from the saved progression">− Step</button>
+                <button id="performancePathClear" class="toggle-button" type="button" data-i18n="performancePathClear" title="Delete the saved progression">Clear</button>
                 <label for="performancePathMode" data-i18n="performancePathMode">Path</label>
-                <select id="performancePathMode" class="dropdown">
+                <select id="performancePathMode" class="dropdown" title="Direct triggers the pointed chord; Step advances the saved path; Ping-pong advances forward then backward">
                     <option value="direct" data-i18n="performancePathDirect">Direct</option>
                     <option value="step" data-i18n="performancePathStep">Step</option>
                     <option value="ping-pong" data-i18n="performancePathPingPong">Ping-pong</option>
