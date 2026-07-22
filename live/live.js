@@ -69,6 +69,7 @@ const state = {
   firestore: null,
   firestoreSdk: null,
   authReady: false,
+  authSessionResolved: false,
   notifyInstallationOnline: false,
   previewClient: null,
   previewStartPromise: null,
@@ -436,6 +437,11 @@ function setAvailabilityState(nextState, reason = '') {
 }
 
 function updateAuthPanelCopy() {
+  if (!state.authSessionResolved) {
+    elements.registrationTitle.textContent = 'RESTORING YOUR SESSION…';
+    elements.registrationLead.textContent = 'Please wait while we check this browser.';
+    return;
+  }
   if (state.availabilityState === 'offline') {
     elements.registrationTitle.textContent = 'INSTALLATION OFFLINE';
     elements.registrationLead.textContent = 'Come back later.';
@@ -683,8 +689,10 @@ function clearQueue() {
 
 function setRegistrationGate(user = null) {
   const registered = Boolean(user);
-  const showGate = !registered && (state.availabilityState === 'online' || state.availabilityState === 'offline');
+  const resolvingSession = !state.authSessionResolved;
+  const showGate = resolvingSession || (!registered && (state.availabilityState === 'online' || state.availabilityState === 'offline'));
   document.body.classList.toggle('auth-required', showGate);
+  document.body.classList.toggle('auth-loading', resolvingSession);
   setHidden(elements.authPanel, !showGate);
   updateAuthPanelCopy();
   if (state.availabilityState !== 'online') elements.startSessionBtn.disabled = true;
@@ -697,6 +705,7 @@ async function setupGoogleRegistration(publicConfig) {
   const validConfig = requiredConfig.every((key) => typeof firebaseConfig[key] === 'string' && firebaseConfig[key].trim());
   if (!validConfig) {
     state.authReady = false;
+    state.authSessionResolved = true;
     elements.googleAuthBtn.disabled = true;
     elements.googleSignInBtn.disabled = true;
     elements.authMessage.textContent = 'Secure registration is temporarily unavailable. Please try again later.';
@@ -745,10 +754,12 @@ async function setupGoogleRegistration(publicConfig) {
         ? 'Account recognized on this device.'
         : (state.authNotice || 'Create an account to save your place and future sessions.');
       state.authNotice = '';
+      state.authSessionResolved = true;
       setRegistrationGate(user);
     });
   } catch {
     state.authReady = false;
+    state.authSessionResolved = true;
     elements.googleAuthBtn.disabled = true;
     elements.googleSignInBtn.disabled = true;
     elements.authMessage.textContent = 'Secure registration is temporarily unavailable. Please try again later.';

@@ -317,6 +317,7 @@
       border:0;
       background:radial-gradient(circle at 50% 25%,rgba(85,72,200,.32),transparent 34%),rgba(2,3,4,.98);
     }
+    body.auth-loading .auth-gate-card > :not(#registrationTitle):not(#registrationLead) { display:none; }
     .auth-gate-card { width:min(100%,460px); margin:auto; display:grid; gap:14px; padding:clamp(20px,6vw,30px); border:4px solid var(--green); background:linear-gradient(180deg,var(--panel),#050705); box-shadow:0 0 0 4px #000,8px 8px 0 rgba(0,0,0,.72); }
     .auth-gate-card h2 { margin:0; color:var(--green-bright); font-size:clamp(27px,8vw,40px); line-height:1.05; text-align:center; letter-spacing:.05em; }
     .auth-gate-card > p { margin:0; color:#e4e7e5; font-size:15px; line-height:1.45; text-align:center; }
@@ -449,7 +450,7 @@
     }
   </style>
 </head>
-<body class="auth-required no-program-feed">
+<body class="auth-required auth-loading no-program-feed">
   <header id="header">
     <h1 id="title">MIDImyFACE Live</h1>
   </header>
@@ -476,8 +477,8 @@
       <form id="identityForm" class="intro-panel">
         <div id="authPanel" class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="registrationTitle">
           <div class="auth-gate-card">
-            <h2 id="registrationTitle">REGISTER TO JOIN</h2>
-            <p id="registrationLead">Create a free account before entering the instrument queue.</p>
+            <h2 id="registrationTitle">RESTORING YOUR SESSION…</h2>
+            <p id="registrationLead">Please wait while we check this browser.</p>
             <label class="terms-check">
               <input id="termsConsent" type="checkbox">
               <span>I accept the <a class="terms-link" href="./terms.html" target="_blank" rel="noopener">Terms and Conditions</a>.</span>
