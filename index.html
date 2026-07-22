@@ -443,7 +443,13 @@
     }
 
     .performance-options {
-        margin-top: 10px;
+        flex: 1 0 100%;
+        grid-column: 1 / -1;
+        width: min(100%, 800px);
+        min-width: 0;
+        max-width: 800px;
+        margin: 10px auto 0;
+        box-sizing: border-box;
     }
 
     .performance-options-row {
@@ -457,6 +463,202 @@
 
     .performance-options label {
         font-size: 12px;
+    }
+
+    .shared-instrument-control,
+    .performance-segmented-control,
+    .performance-keyboard-map {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .performance-segmented-control {
+        padding: 2px;
+        border: 1px solid rgba(140, 255, 200, 0.45);
+        background: rgba(4, 12, 8, 0.72);
+    }
+
+    .performance-segmented-control .toggle-button {
+        min-width: 72px;
+    }
+
+    .performance-context[hidden],
+    .performance-range-only[hidden] {
+        display: none;
+    }
+
+    .performance-keyboard-map kbd {
+        min-width: 25px;
+        padding: 5px 4px;
+        border: 1px solid rgba(185, 255, 106, 0.72);
+        background: #101612;
+        color: #eaffd4;
+        text-align: center;
+        box-shadow: 2px 2px 0 #000;
+    }
+
+    .performance-keyboard-map kbd.accidental {
+        background: #322b65;
+        border-color: #a99cff;
+    }
+
+    .performance-capture-status {
+        min-height: 16px;
+        color: #c9ffe8;
+        font-size: 11px;
+        text-align: center;
+    }
+
+    .performance-pattern-panel {
+        width: min(100%, 800px);
+        padding: 7px 9px;
+        border: 1px solid rgba(140, 255, 200, 0.45);
+        background: rgba(10, 25, 18, 0.5);
+    }
+
+    .performance-pattern-panel[hidden],
+    #performanceChordVoicing[hidden] {
+        display: none;
+    }
+
+    .performance-pattern-lane {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(28px, 1fr));
+        gap: 5px;
+        width: 100%;
+        min-height: 88px;
+        margin: 7px 0;
+    }
+
+    .performance-pattern-step {
+        position: relative;
+        min-width: 0;
+        min-height: 84px;
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid rgba(185, 255, 106, 0.58);
+        background: linear-gradient(180deg, rgba(39, 32, 82, 0.7), rgba(7, 16, 11, 0.92));
+        color: #eaffd4;
+        cursor: ns-resize;
+        touch-action: none;
+    }
+
+    .performance-pattern-step::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: var(--pattern-step-y, 88%);
+        width: 10px;
+        height: 10px;
+        border: 2px solid #36f6b2;
+        background: #b9ff6a;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 8px rgba(54, 246, 178, 0.45);
+    }
+
+    .performance-pattern-step[data-tone="rest"]::before {
+        opacity: 0.14;
+        background: transparent;
+    }
+
+    .performance-pattern-step span {
+        position: absolute;
+        left: 2px;
+        bottom: 2px;
+        right: 2px;
+        font-size: 9px;
+        line-height: 1;
+        pointer-events: none;
+    }
+
+    .performance-pattern-step.playing {
+        border-color: #ffb44c;
+        box-shadow: 0 0 12px rgba(255, 180, 76, 0.42);
+    }
+
+    .performance-preset-button {
+        min-width: 34px;
+        font-size: 18px;
+        line-height: 1;
+    }
+
+    #performanceTempo {
+        width: 74px;
+    }
+
+    .performance-wheel-panel {
+        width: min(100%, 680px);
+        margin: 8px auto 0;
+        padding: 8px;
+        border: 1px solid rgba(140, 255, 200, 0.45);
+        background: rgba(5, 14, 10, 0.78);
+    }
+
+    .performance-wheel-panel[hidden],
+    .performance-grid-only[hidden],
+    #performanceWheelPromote[hidden],
+    #performancePathCancel[hidden] { display: none; }
+
+    .performance-wheel-stage {
+        position: relative;
+        width: min(100%, 600px);
+        aspect-ratio: 1;
+        margin: 8px auto;
+        overflow: hidden;
+        border: 1px solid rgba(54, 246, 178, 0.45);
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(85, 72, 200, 0.14), rgba(3, 10, 6, 0.92) 68%);
+    }
+
+    .performance-wheel-ring {
+        position: absolute;
+        inset: 50%;
+        border: 1px solid rgba(185, 255, 106, 0.13);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+    }
+
+    .performance-wheel-ring.inner { width: 48%; height: 48%; }
+    .performance-wheel-ring.middle { width: 72%; height: 72%; }
+    .performance-wheel-ring.outer { width: 94%; height: 94%; }
+
+    .performance-wheel-path,
+    .performance-wheel-nodes { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .performance-wheel-path { pointer-events: none; overflow: visible; }
+    .performance-wheel-path polyline { fill: none; stroke: rgba(54, 246, 178, 0.58); stroke-width: 0.8; vector-effect: non-scaling-stroke; }
+
+    .performance-wheel-node {
+        position: absolute;
+        min-width: 42px;
+        min-height: 30px;
+        padding: 3px 5px;
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(185, 255, 106, 0.54);
+        background: rgba(8, 17, 12, 0.94);
+        color: #dfffc8;
+        font: inherit;
+        font-size: 10px;
+        line-height: 1;
+        box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.7);
+    }
+
+    .performance-wheel-node[data-layer="center"] { min-width: 58px; border-color: #ffb44c; color: #fff; }
+    .performance-wheel-node[data-layer="outer"] { min-width: 34px; min-height: 25px; opacity: var(--wheel-emphasis, 0.45); }
+    .performance-wheel-node[data-family="tonic"] { border-color: #b9ff6a; }
+    .performance-wheel-node[data-family="predominant"] { border-color: #36f6b2; }
+    .performance-wheel-node[data-family="dominant"],
+    .performance-wheel-node[data-kind="secondary"] { border-color: #ffb44c; }
+    .performance-wheel-node.active,
+    .performance-wheel-node.targeted { background: #5548c8; border-color: #fff; color: #fff; box-shadow: 0 0 12px rgba(169, 156, 255, 0.7); }
+    .performance-wheel-node.path-node::after { content: attr(data-path-order); position: absolute; top: -7px; right: -7px; color: #ffb44c; font-size: 9px; }
+
+    @media (max-width: 520px) {
+        .performance-wheel-node { min-width: 38px; min-height: 36px; padding: 2px 3px; font-size: 8px; }
+        .performance-wheel-node[data-layer="outer"] { min-width: 36px; min-height: 36px; }
     }
 
     .performance-range-piano-wrap {
@@ -858,7 +1060,8 @@
     .gesture-summary-row[data-synth-role="dynamics"] {
         box-shadow: inset 0 0 0 1px rgba(185, 255, 106, 0.42);
     }
-    .gesture-summary-row[data-synth-role^="waveform-"] {
+    .gesture-summary-row[data-synth-role^="waveform-"],
+    .gesture-summary-row[data-synth-role^="oscillator-"] {
         box-shadow: inset 0 0 0 1px rgba(54, 246, 178, 0.34);
     }
     .gesture-summary-name {
@@ -1747,6 +1950,22 @@
         flex-basis: 100%;
         margin-left: 0;
         text-align: center;
+    }
+
+    .synth-routing-controls {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .synth-routing-controls label {
+        margin-left: 4px;
+    }
+
+    #synthFmDepthGroup[hidden] {
+        display: none;
     }
 
     .instrument-load-status {
@@ -3117,13 +3336,31 @@
             <label for="thereminSynthOption" data-i18n="thereminSynthOption">Synth</label>
             <!-- Subopciones de Synth -->
             <div id="thereminSynthOptions" class="theremin-suboptions">
-                <label for="waveformSelect" data-i18n="waveformSelect.label">Forma de Onda:</label>
-                <select id="waveformSelect" class="dropdown">
-                    <option value="sine" data-i18n="waveformSelect.sine">Sinusoidal</option>
-                    <option value="square" data-i18n="waveformSelect.square">Cuadrada</option>
-                    <option value="sawtooth" data-i18n="waveformSelect.sawtooth">Sierra</option>
-                    <option value="triangle" data-i18n="waveformSelect.triangle">Triangular</option>
-                </select>
+                <div class="synth-routing-controls">
+                    <label for="waveformSelect" data-i18n="synthOscillatorA">Osc A</label>
+                    <select id="waveformSelect" class="dropdown" title="Oscillator A waveform">
+                        <option value="sine" data-i18n="waveformSelect.sine">Sinusoidal</option>
+                        <option value="square" data-i18n="waveformSelect.square">Cuadrada</option>
+                        <option value="sawtooth" data-i18n="waveformSelect.sawtooth">Sierra</option>
+                        <option value="triangle" data-i18n="waveformSelect.triangle">Triangular</option>
+                    </select>
+                    <label for="waveformBSelect" data-i18n="synthOscillatorB">Osc B</label>
+                    <select id="waveformBSelect" class="dropdown" title="Oscillator B waveform">
+                        <option value="sine" data-i18n="waveformSelect.sine">Sinusoidal</option>
+                        <option value="square" data-i18n="waveformSelect.square">Cuadrada</option>
+                        <option value="sawtooth" data-i18n="waveformSelect.sawtooth">Sierra</option>
+                        <option value="triangle" data-i18n="waveformSelect.triangle">Triangular</option>
+                    </select>
+                    <label for="synthTopologySelect" data-i18n="synthTopology">Topology</label>
+                    <select id="synthTopologySelect" class="dropdown" aria-label="Synth topology">
+                        <option value="blend" data-i18n="synthBlend" title="Blend">A+B</option>
+                        <option value="fm" data-i18n="synthFm" title="FM">A←B</option>
+                    </select>
+                    <span id="synthFmDepthGroup" hidden>
+                        <label for="synthFmDepth" data-i18n="synthFmDepth">FM Depth</label>
+                        <input id="synthFmDepth" type="range" min="0" max="400" step="5" value="90" aria-label="FM modulation depth" />
+                    </span>
+                </div>
             </div>
         </div>
         <div class="theremin-option">
@@ -3131,39 +3368,186 @@
             <label for="thereminNotesOption" data-i18n="thereminNotesOption">Notas</label>
             <!-- Subopciones de Notas -->
             <div id="thereminNotesOptions" class="theremin-suboptions">
-                <label for="midiInstrumentSelect" data-i18n="midiInstrumentSelect.label">Instrumento MIDI:</label>
-                <select id="midiInstrumentSelect" class="dropdown">
-                    <option value="piano" data-i18n="midiInstrumentSelect.piano">Piano (Full C-1–G9)</option>
-                    <option value="guitar" data-i18n="midiInstrumentSelect.guitar">Guitarra (A3–A5)</option>
-                    <option value="strings" data-i18n="midiInstrumentSelect.strings">Strings (A3–A5)</option>
-                    <option value="stringSpicatto" data-i18n="midiInstrumentSelect.stringSpicatto">S. Spicatto (A#3–A#5)</option>
-                    <option value="musicBox" selected data-i18n="midiInstrumentSelect.musicBox">Caja de Música (D3–G4)</option>
-                    <option value="flauta" data-i18n="midiInstrumentSelect.flauta">Flauta (C3–C5)</option>
-                    <option value="pad" data-i18n="midiInstrumentSelect.pad">Pad (Full C-1–G9)</option>
-                    <option value="marimba" data-i18n="midiInstrumentSelect.marimba">Marimba (A3–A5)</option>
-                    <option value="trumpet" data-i18n="midiInstrumentSelect.trumpet">Trompeta (G#3–G#5)</option>
-                    <option value="bass" data-i18n="midiInstrumentSelect.bass">Bajo (C2–G3)</option>
-                    <option value="choir" data-i18n="midiInstrumentSelect.choir">Voz (A3–A5)</option>
-                    <option value="synthesizer" data-i18n="midiInstrumentSelect.synthesizer">Sintetizador (Full C-1–G9)</option>
-                    <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Armónico (B3–B5)</option>
-                </select>
-                <span id="instrumentLoadStatus" class="instrument-load-status" role="status" aria-live="polite" hidden></span>
+                <span id="thereminInstrumentHost">
+                    <span id="sharedInstrumentControl" class="shared-instrument-control">
+                        <label for="midiInstrumentSelect" data-i18n="midiInstrumentSelect.label">Instrumento MIDI:</label>
+                        <select id="midiInstrumentSelect" class="dropdown">
+                            <option value="piano" data-i18n="midiInstrumentSelect.piano">Piano (Full C-1–G9)</option>
+                            <option value="guitar" data-i18n="midiInstrumentSelect.guitar">Guitarra (A3–A5)</option>
+                            <option value="strings" data-i18n="midiInstrumentSelect.strings">Strings (A3–A5)</option>
+                            <option value="stringSpicatto" data-i18n="midiInstrumentSelect.stringSpicatto">S. Spicatto (A#3–A#5)</option>
+                            <option value="musicBox" selected data-i18n="midiInstrumentSelect.musicBox">Caja de Música (D3–G4)</option>
+                            <option value="flauta" data-i18n="midiInstrumentSelect.flauta">Flauta (C3–C5)</option>
+                            <option value="pad" data-i18n="midiInstrumentSelect.pad">Pad (Full C-1–G9)</option>
+                            <option value="marimba" data-i18n="midiInstrumentSelect.marimba">Marimba (A3–A5)</option>
+                            <option value="trumpet" data-i18n="midiInstrumentSelect.trumpet">Trompeta (G#3–G#5)</option>
+                            <option value="bass" data-i18n="midiInstrumentSelect.bass">Bajo (C2–G3)</option>
+                            <option value="choir" data-i18n="midiInstrumentSelect.choir">Voz (A3–A5)</option>
+                            <option value="synthesizer" data-i18n="midiInstrumentSelect.synthesizer">Sintetizador (Full C-1–G9)</option>
+                            <option value="harmonic" data-i18n="midiInstrumentSelect.harmonic">Harp (B3–B5)</option>
+                        </select>
+                        <span id="instrumentLoadStatus" class="instrument-load-status" role="status" aria-live="polite" hidden></span>
+                    </span>
+                </span>
             </div>
         </div>
     </div>
 
     <div id="performanceOptions" class="performance-options" aria-hidden="true">
+        <div id="performanceInstrumentHost"></div>
         <div class="performance-options-row">
-            <label for="performancePitchCount" data-i18n="performancePitchCount">Pitch Count</label>
-            <select id="performancePitchCount" class="dropdown">
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4" selected>4</option>
-                <option value="6">6</option>
-                <option value="8">8</option>
-                <option value="12">12</option>
-                <option value="16">16</option>
-            </select>
+            <span data-i18n="performanceInputSource">Input</span>
+            <span class="performance-segmented-control" role="group" aria-label="Performer input source">
+                <button id="performanceInputRange" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceInputRange" title="Use MIDI range">Range</button>
+                <button id="performanceInputComputer" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceInputComputer" title="Capture computer keyboard pitches">Computer</button>
+                <button id="performanceInputMidi" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceInputMidi" title="Capture MIDI keyboard pitches">MIDI</button>
+            </span>
+            <span data-i18n="performanceOutputDestination">Output</span>
+            <span class="performance-segmented-control" role="group" aria-label="Performer output destination">
+                <button id="performanceOutputBrowser" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceOutputBrowser" title="Selected browser instrument">Browser Audio</button>
+                <button id="performanceOutputMidi" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceOutputMidi" title="Selected MIDI output device">MIDI Out</button>
+            </span>
+        </div>
+
+        <div id="performanceComputerContext" class="performance-context" hidden>
+            <div class="performance-options-row">
+                <button id="performanceOctaveDown" class="toggle-button" type="button" title="Z — octave down">Z −</button>
+                <span id="performanceComputerOctave" class="duration-display">C4–C5</span>
+                <button id="performanceOctaveUp" class="toggle-button" type="button" title="X — octave up">X +</button>
+            </div>
+            <div class="performance-keyboard-map" aria-label="Computer keyboard chromatic map">
+                <kbd>A</kbd><kbd class="accidental">W</kbd><kbd>S</kbd><kbd class="accidental">E</kbd><kbd>D</kbd><kbd>F</kbd><kbd class="accidental">T</kbd><kbd>G</kbd><kbd class="accidental">Y</kbd><kbd>H</kbd><kbd class="accidental">U</kbd><kbd>J</kbd><kbd>K</kbd>
+            </div>
+        </div>
+
+        <div id="performanceMidiContext" class="performance-context" hidden>
+            <div class="performance-options-row">
+                <label for="performanceMidiInputSelect" data-i18n="performanceMidiInputDevice">MIDI Input</label>
+                <select id="performanceMidiInputSelect" class="dropdown" aria-label="Performer MIDI input device">
+                    <option value="" data-i18n="performanceMidiInputPlaceholder">Select MIDI input…</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="performanceCaptureStatus" class="performance-capture-status" role="status" aria-live="polite"></div>
+
+        <div class="performance-options-row">
+            <span data-i18n="performanceView">View</span>
+            <span class="performance-segmented-control" role="group" aria-label="Performer layout view">
+                <button id="performanceViewGrid" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceViewGrid">Grid</button>
+                <button id="performanceViewWheel" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceViewWheel">Wheel</button>
+            </span>
+        </div>
+
+        <div class="performance-options-row">
+            <button id="performanceChordToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceChord">Chord</button>
+            <span id="performanceChordVoicing" class="performance-segmented-control" role="group" aria-label="Chord size" hidden>
+                <button id="performanceChordTriad" class="toggle-button active" type="button" aria-pressed="true" title="Triad">3</button>
+                <button id="performanceChordSeventh" class="toggle-button" type="button" aria-pressed="false" title="Seventh chord">4</button>
+            </span>
+            <span id="performanceChordStatus" class="performance-capture-status" role="status" aria-live="polite"></span>
+            <button id="performancePatternToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="performancePatternToggle">Pattern</button>
+        </div>
+
+        <div id="performancePatternPanel" class="performance-pattern-panel" hidden>
+            <div class="performance-options-row">
+                <label for="performanceTempo" data-i18n="performanceTempo">BPM</label>
+                <input id="performanceTempo" class="dropdown" type="number" inputmode="numeric" min="40" max="240" step="1" value="120" />
+                <button id="performanceTapTempo" class="toggle-button" type="button" title="Tap tempo · M" data-i18n="performanceTap">TAP</button>
+                <button id="performanceTransportToggle" class="toggle-button" type="button" aria-pressed="false" title="Play / stop · Space">▶</button>
+                <label for="performanceSubdivision" data-i18n="performanceSubdivision">Rate</label>
+                <select id="performanceSubdivision" class="dropdown">
+                    <option value="4n">1/4</option>
+                    <option value="8n" selected>1/8</option>
+                    <option value="8t">1/8T</option>
+                    <option value="16n">1/16</option>
+                    <option value="16t">1/16T</option>
+                    <option value="32n">1/32</option>
+                </select>
+            </div>
+            <div class="performance-options-row" aria-label="Pattern presets">
+                <button id="performancePresetUp" class="toggle-button performance-preset-button active" type="button" aria-pressed="true" title="Up" aria-label="Up pattern">↗</button>
+                <button id="performancePresetDown" class="toggle-button performance-preset-button" type="button" aria-pressed="false" title="Down" aria-label="Down pattern">↘</button>
+                <button id="performancePresetUpDown" class="toggle-button performance-preset-button" type="button" aria-pressed="false" title="Up–Down" aria-label="Up–Down pattern">⌃</button>
+                <button id="performancePresetRandom" class="toggle-button performance-preset-button" type="button" aria-pressed="false" title="Random" aria-label="Random pattern">⌁</button>
+                <button id="performancePresetCustom" class="toggle-button performance-preset-button" type="button" aria-pressed="false" title="Custom" aria-label="Custom pattern">✎</button>
+            </div>
+            <div id="performancePatternLane" class="performance-pattern-lane" aria-label="Eight-step pattern editor">
+                <button class="performance-pattern-step" type="button" data-step-index="0" data-tone="root" aria-label="Step 1 root"><span>R</span></button>
+                <button class="performance-pattern-step" type="button" data-step-index="1" data-tone="third" aria-label="Step 2 third"><span>3</span></button>
+                <button class="performance-pattern-step" type="button" data-step-index="2" data-tone="fifth" aria-label="Step 3 fifth"><span>5</span></button>
+                <button class="performance-pattern-step" type="button" data-step-index="3" data-tone="root" aria-label="Step 4 root"><span>R</span></button>
+                <button class="performance-pattern-step" type="button" data-step-index="4" data-tone="third" aria-label="Step 5 third"><span>3</span></button>
+                <button class="performance-pattern-step" type="button" data-step-index="5" data-tone="fifth" aria-label="Step 6 fifth"><span>5</span></button>
+                <button class="performance-pattern-step" type="button" data-step-index="6" data-tone="octave" aria-label="Step 7 octave"><span>8</span></button>
+                <button class="performance-pattern-step" type="button" data-step-index="7" data-tone="rest" aria-label="Step 8 rest"><span>–</span></button>
+            </div>
+            <div class="performance-options-row">
+                <label for="performanceArticulation" data-i18n="performanceGate">Gate</label>
+                <select id="performanceArticulation" class="dropdown">
+                    <option value="short" data-i18n="performanceGateShort">Short</option>
+                    <option value="normal" selected data-i18n="performanceGateNormal">Normal</option>
+                    <option value="legato" data-i18n="performanceGateLegato">Legato</option>
+                </select>
+                <label for="performanceTriggerMode" data-i18n="performanceTriggerMode">Trigger</label>
+                <select id="performanceTriggerMode" class="dropdown">
+                    <option value="restart" data-i18n="performanceTriggerRestart">Restart</option>
+                    <option value="continue" data-i18n="performanceTriggerContinue">Continue</option>
+                    <option value="one-shot" data-i18n="performanceTriggerOneShot">One-shot</option>
+                    <option value="latch" data-i18n="performanceTriggerLatch">Latch</option>
+                </select>
+                <label for="performanceQuantization" data-i18n="performanceQuantization">Change</label>
+                <select id="performanceQuantization" class="dropdown">
+                    <option value="now" data-i18n="performanceQuantizeNow">Now</option>
+                    <option value="step" data-i18n="performanceQuantizeStep">Step</option>
+                    <option value="beat" data-i18n="performanceQuantizeBeat">Beat</option>
+                    <option value="bar" data-i18n="performanceQuantizeBar">Bar</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="performanceWheelPanel" class="performance-wheel-panel" hidden>
+            <div class="performance-options-row">
+                <span class="performance-segmented-control" role="group" aria-label="Harmonic Wheel labels">
+                    <button id="performanceWheelDegrees" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceWheelDegrees">Degrees</button>
+                    <button id="performanceWheelPitches" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceWheelPitches">Pitches</button>
+                </span>
+                <button id="performanceWheelPromote" class="toggle-button" type="button" hidden data-i18n="performanceWheelPromote">MOD</button>
+                <button id="performanceWheelGesture" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceWheelGesture">Gesture Nav</button>
+            </div>
+            <div id="performanceWheelStage" class="performance-wheel-stage" aria-label="Harmonic Wheel performance map">
+                <span class="performance-wheel-ring inner"></span><span class="performance-wheel-ring middle"></span><span class="performance-wheel-ring outer"></span>
+                <svg id="performanceWheelPath" class="performance-wheel-path" viewBox="0 0 100 100" aria-hidden="true"></svg>
+                <div id="performanceWheelNodes" class="performance-wheel-nodes"></div>
+            </div>
+            <div class="performance-options-row">
+                <button id="performancePathRecord" class="toggle-button" type="button" aria-pressed="false" data-i18n="performancePathRecord">REC</button>
+                <button id="performancePathCancel" class="toggle-button" type="button" hidden data-i18n="performancePathCancel">Cancel</button>
+                <button id="performancePathRemove" class="toggle-button" type="button" data-i18n="performancePathRemove">− Step</button>
+                <button id="performancePathClear" class="toggle-button" type="button" data-i18n="performancePathClear">Clear</button>
+                <label for="performancePathMode" data-i18n="performancePathMode">Path</label>
+                <select id="performancePathMode" class="dropdown">
+                    <option value="direct" data-i18n="performancePathDirect">Direct</option>
+                    <option value="step" data-i18n="performancePathStep">Step</option>
+                    <option value="ping-pong" data-i18n="performancePathPingPong">Ping-pong</option>
+                </select>
+                <span id="performancePathStatus" class="performance-capture-status" role="status" aria-live="polite"></span>
+            </div>
+        </div>
+
+        <div class="performance-options-row performance-grid-only">
+            <span id="performanceRangePitchCount" class="performance-range-only">
+                <label for="performancePitchCount" data-i18n="performancePitchCount">Pitch Count</label>
+                <select id="performancePitchCount" class="dropdown">
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4" selected>4</option>
+                    <option value="6">6</option>
+                    <option value="8">8</option>
+                    <option value="12">12</option>
+                    <option value="16">16</option>
+                </select>
+            </span>
 
             <label for="performanceCoverage" data-i18n="performanceCoverage">Grid Size</label>
             <select id="performanceCoverage" class="dropdown">
@@ -3174,7 +3558,7 @@
             </select>
         </div>
 
-        <div class="performance-options-row">
+        <div class="performance-options-row performance-grid-only">
             <label for="performanceLayout" data-i18n="performanceLayout">Layout</label>
             <select id="performanceLayout" class="dropdown">
                 <option value="grid" data-i18n="performanceLayoutGrid">Grid</option>
@@ -3201,7 +3585,7 @@
             <input id="performanceTriggerSensitivity" class="slider" type="range" min="0" max="10" step="1" value="5" />
         </div>
 
-        <div class="performance-range-piano-wrap">
+        <div id="performanceRangeContext" class="performance-range-piano-wrap performance-context performance-grid-only">
             <div class="performance-options-row">
                 <label data-i18n="performanceRangeReference">Select range</label>
             </div>
