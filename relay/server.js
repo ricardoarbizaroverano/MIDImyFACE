@@ -130,6 +130,19 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '*')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
+function normalizedOrigin(value) {
+  try {
+    return new URL(String(value || '')).origin;
+  } catch {
+    return '';
+  }
+}
+const ALLOWED_ORIGIN_SET = new Set(
+  ALLOWED_ORIGINS
+    .filter((origin) => origin !== '*')
+    .map(normalizedOrigin)
+    .filter(Boolean)
+);
 
 const NODE_ENV = String(process.env.NODE_ENV || 'development').toLowerCase();
 const LIVE_INSTAGRAM_HANDLE = LIVE_INSTAGRAM_HANDLE_RAW.startsWith('@')
@@ -210,10 +223,9 @@ function verifySignedToken(token, secret) {
 }
 
 function originAllowed(origin) {
-  // Allow if Origin missing (health checks, curl) or '*' present.
-  if (!origin || ALLOWED_ORIGINS.includes('*')) return true;
-  // Starts-with match so scheme+host (and optional port) are enough.
-  return ALLOWED_ORIGINS.some(o => o && origin.startsWith(o));
+  if (!origin) return true;
+  const normalized = normalizedOrigin(origin);
+  return Boolean(normalized && ALLOWED_ORIGIN_SET.has(normalized));
 }
 
 function isPlainObject(value) {
@@ -235,6 +247,14 @@ function deepMerge(baseValue, overrideValue) {
 function cleanString(value, maxLength = 240) {
   if (value === null || value === undefined) return '';
   return String(value).trim().slice(0, maxLength);
+}
+
+function normalizeNetworkParticipantName(value, maxLength = 40) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u0000-\u001F\u007F-\u009F\u061C\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
+    .trim()
+    .slice(0, maxLength);
 }
 
 function normalizeLiveNickname(value) {
@@ -1441,17 +1461,16 @@ const CONSOLE_CORS_ORIGINS = [
   'https://midimyface.com',
   'https://www.midimyface.com',
 ];
+const CONSOLE_CORS_ORIGIN_SET = new Set(CONSOLE_CORS_ORIGINS.map(normalizedOrigin).filter(Boolean));
 function apiCors(origin) {
   const headers = {
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Vary': 'Origin',
   };
-  if (ALLOWED_ORIGINS.includes('*') || !origin) {
-    return { ...headers, 'Access-Control-Allow-Origin': '*' };
-  }
-  if (ALLOWED_ORIGINS.some(o => origin.startsWith(o)) || CONSOLE_CORS_ORIGINS.some(o => origin.startsWith(o))) {
-    return { ...headers, 'Access-Control-Allow-Origin': origin };
+  const normalized = normalizedOrigin(origin);
+  if (normalized && (ALLOWED_ORIGIN_SET.has(normalized) || CONSOLE_CORS_ORIGIN_SET.has(normalized))) {
+    return { ...headers, 'Access-Control-Allow-Origin': normalized };
   }
   return headers;
 }
@@ -1646,11 +1665,10 @@ const server = http.createServer(async (req, res) => {
   const origin = req.headers.origin || '';
   const isLiveApiRequest = parsed.pathname.startsWith('/api/live/');
 
-  // CORS headers (reflect allowed origin, or * if configured)
-  const allowStar = ALLOWED_ORIGINS.includes('*');
-  const cors = allowStar
-    ? { 'Access-Control-Allow-Origin': '*' }
-    : (originAllowed(origin) ? { 'Access-Control-Allow-Origin': origin } : {});
+  const requestOrigin = normalizedOrigin(origin);
+  const cors = origin && originAllowed(origin)
+    ? { 'Access-Control-Allow-Origin': requestOrigin }
+    : {};
   const base = {
     'Vary': 'Origin',
     'Access-Control-Allow-Methods': 'GET,OPTIONS',
@@ -1682,20 +1700,21 @@ const server = http.createServer(async (req, res) => {
 
   /* ─── Boot key endpoint — serves AES key to legitimate origins only ─── */
   if (req.method === 'GET' && parsed.pathname === '/api/boot') {
-    const bootAllowed = [
+    const bootAllowed = new Set([
       'https://www.midimyface.com',
       'https://midimyface.com',
-    ];
+    ].map(normalizedOrigin));
+    const bootOrigin = normalizedOrigin(origin);
     const MMF_SECRET_KEY = process.env.MMF_SECRET_KEY || '';
-    if (!bootAllowed.includes(origin)) {
-      return sendJson(res, 403, { error: 'forbidden' }, { ...base, 'Access-Control-Allow-Origin': origin || '*' });
+    if (!bootAllowed.has(bootOrigin)) {
+      return sendJson(res, 403, { error: 'forbidden' }, base);
     }
     if (!MMF_SECRET_KEY || MMF_SECRET_KEY.length !== 64) {
-      return sendJson(res, 503, { error: 'server misconfigured' }, { ...base, 'Access-Control-Allow-Origin': origin });
+      return sendJson(res, 503, { error: 'server misconfigured' }, { ...base, 'Access-Control-Allow-Origin': bootOrigin });
     }
     return sendJson(res, 200, { key: MMF_SECRET_KEY }, {
       ...base,
-      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Origin': bootOrigin,
       'Cache-Control': 'no-store, no-cache, must-revalidate',
       'Pragma': 'no-cache',
     });
@@ -2249,7 +2268,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           : NETWORK_CONSOLE_MAX_PARTICIPANTS;
         const sid  = randomSid();
         const pwd  = String(body.session_password || '').trim() || randomPassword();
-        const hostName = cleanString(firebaseIdentity.email || firebaseIdentity.uid, 40);
+        const hostName = normalizeNetworkParticipantName(firebaseIdentity.email || firebaseIdentity.uid, 40);
         consoleSessions.set(sid, { sessionId: sid, passwordHash: sha256(pwd), maxParticipants: maxp, createdByUid: firebaseIdentity.uid, createdAt: Date.now() });
         const invToken      = createInviteToken({ sessionId: sid, maxParticipants: maxp });
         const hostJoinToken = createRelayJoinToken({ sessionId: sid, role: 'host', name: `Host:${hostName}`, maxParticipants: maxp, firebaseUid: firebaseIdentity.uid });
@@ -2273,7 +2292,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
           throw liveAuthError('registration_required', 401);
         }
         const body     = await readBody(req);
-        const name     = String(body.name || '').trim().slice(0, 40);
+        const name     = normalizeNetworkParticipantName(body.name, 40);
         const cUuid    = String(body.client_uuid || '').trim() || null;
         const invToken = String(body.invite_token || '').trim();
         let   sid      = String(body.session_id || '').trim();
@@ -2312,7 +2331,7 @@ Allowed origins: ${ALLOWED_ORIGINS.join(', ') || '(none)'}
         const session = consoleSessions.get(String(body.session_id || ''));
         if (!session) return sendJson(res, 404, { ok: false, error: 'session_not_found' }, c);
         if (session.createdByUid !== firebaseIdentity.uid) return sendJson(res, 403, { ok: false, error: 'forbidden' }, c);
-        const hostName = cleanString(firebaseIdentity.email || firebaseIdentity.uid, 40);
+        const hostName = normalizeNetworkParticipantName(firebaseIdentity.email || firebaseIdentity.uid, 40);
         return sendJson(res, 200, { ok: true, host_join_token: createRelayJoinToken({ sessionId: session.sessionId, role: 'host', name: `Host:${hostName}`, maxParticipants: session.maxParticipants, firebaseUid: firebaseIdentity.uid }), host_name: `Host:${hostName}` }, c);
       } catch (error) {
         if (error?.code === 'firebase_admin_unconfigured' || error?.code === 'invalid_firebase_token' || error?.code === 'registration_required') {
@@ -2433,8 +2452,9 @@ wss.on('connection', (ws, req) => {
         client_uuid,
         join_token,
       } = msg || {};
+      const normalizedName = normalizeNetworkParticipantName(name, 32);
 
-      if (!session_id || !name) {
+      if (!session_id || !normalizedName) {
         sendTo(ws, { type: 'error', error: 'missing_fields' });
         return;
       }
@@ -2453,7 +2473,8 @@ wss.on('connection', (ws, req) => {
           sendTo(ws, { type: 'error', error: 'invalid_join_token_scope' });
           return;
         }
-        if (tokenPayload.name && String(tokenPayload.name).slice(0, 32) !== String(name).slice(0, 32)) {
+        if (tokenPayload.name
+          && normalizeNetworkParticipantName(tokenPayload.name, 32) !== normalizedName) {
           sendTo(ws, { type: 'error', error: 'join_token_name_mismatch' });
           return;
         }
@@ -2527,7 +2548,7 @@ wss.on('connection', (ws, req) => {
       const participant = {
         id: participantId,
         role,
-        name: String(name).slice(0, 32),
+        name: normalizedName,
         client_uuid: client_uuid || null,
         ws,
         connectedAt: nowMs(),

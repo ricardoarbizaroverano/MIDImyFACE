@@ -249,9 +249,24 @@ select,input{background:#061c3b}
 /* ===== Relay URL (hard-coded, not shown in UI) ===== */
 const RELAY_URL_DEFAULT = "wss://midimyface-relay.onrender.com/ws";
 const qs = new URLSearchParams(location.search);
-const RELAY_URL = qs.get('ws') || localStorage.getItem('relayURL') || RELAY_URL_DEFAULT;
 const CONSOLE_API_BASE_DEFAULT = "https://midimyface-relay.onrender.com";
-const CONSOLE_API_BASE = qs.get('console_api') || localStorage.getItem('consoleAPI') || CONSOLE_API_BASE_DEFAULT;
+const LOCAL_DEVELOPMENT_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
+function localEndpointOverride(queryKey, storageKey, allowedProtocols, originOnly = false){
+  if(!LOCAL_DEVELOPMENT_HOSTNAMES.has(location.hostname)) return "";
+  let rawValue = (qs.get(queryKey) || "").trim();
+  if(!rawValue){
+    try{ rawValue = (localStorage.getItem(storageKey) || "").trim(); }catch{}
+  }
+  try{
+    const endpoint = new URL(rawValue);
+    if(!allowedProtocols.has(endpoint.protocol) || !LOCAL_DEVELOPMENT_HOSTNAMES.has(endpoint.hostname)) return "";
+    return originOnly ? endpoint.origin : endpoint.href;
+  }catch{
+    return "";
+  }
+}
+const RELAY_URL = localEndpointOverride('ws', 'relayURL', new Set(['ws:', 'wss:'])) || RELAY_URL_DEFAULT;
+const CONSOLE_API_BASE = localEndpointOverride('console_api', 'consoleAPI', new Set(['http:', 'https:']), true) || CONSOLE_API_BASE_DEFAULT;
 
 /* ===== Instruments for local monitor (very light) ===== */
 const INSTRUMENTS = {
@@ -957,7 +972,9 @@ function makePerformer(id, name){
 }
 function ensurePerf(id, name){
   if(!participants.has(id)){ const p=makePerformer(id,name||("P-"+id)); participants.set(id,p); renderCard(p,true); updateCount(); }
-  return participants.get(id);
+  const performer = participants.get(id);
+  if(name) performer.name = name;
+  return performer;
 }
 function anySolo(){
   for(const p of participants.values()){
@@ -1109,7 +1126,7 @@ function renderCard(p, fresh=false){
     card.innerHTML = `
       <div class="ct">
         <span class="led ${p.connected?'ok':''}" data-led></span>
-        <span class="nm">${p.name||p.id}</span>
+        <span class="nm" data-participant-name></span>
         <span class="badge mini" style="margin-left:8px">Last</span>
         <span class="badge mini" data-lastg>—</span>
         <span class="grow"></span>
@@ -1230,6 +1247,8 @@ function renderCard(p, fresh=false){
       gs.onclick = ()=>{ p.gestures[g].solo=!p.gestures[g].solo; gs.classList.toggle('active',p.gestures[g].solo); };
     });
   }
+  const participantName = card.querySelector('[data-participant-name]');
+  if(participantName) participantName.textContent = p.name || p.id;
   card.querySelector('[data-led]').className = 'led ' + (p.connected?'ok':'');
   const last = card.querySelector('[data-lastg]'); if(last) last.textContent = p.lastGesture || '—';
   const role=card.querySelector('[data-role]'), gesture=card.querySelector('[data-gesture-map]'), display=card.querySelector('[data-chord-display]');

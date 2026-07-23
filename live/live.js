@@ -1,6 +1,8 @@
 import { BUILD_COMMIT as LIVE_BUILD_COMMIT } from './build-info.js?v=20260721-media-9';
 
 const DEFAULT_RELAY_ORIGIN = 'https://midimyface-relay.onrender.com';
+const LOCAL_DEVELOPMENT_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
+const LOCAL_HTTP_PROTOCOLS = new Set(['http:', 'https:']);
 const STATUS_POLL_MS = 10_000;
 const DEFAULT_PAYPAL_URL = 'https://www.paypal.com/qrcodes/managed/ebc92ae1-6b2e-4d36-93f0-ce2e0b4fbd2d?utm_source=consapp_download';
 const DEFAULT_VENMO_URL = 'https://venmo.com/code?user_id=2982237150642176372&created=1784274093';
@@ -327,9 +329,21 @@ function finishMobileOrientationGuidance() {
 }
 
 function resolveRelayOrigin() {
+  if (!LOCAL_DEVELOPMENT_HOSTNAMES.has(window.location.hostname)) {
+    return DEFAULT_RELAY_ORIGIN;
+  }
   const params = new URLSearchParams(window.location.search);
   const queryValue = (params.get('relay') || '').trim();
-  return String(queryValue || DEFAULT_RELAY_ORIGIN).replace(/\/+$/, '');
+  try {
+    const endpoint = new URL(queryValue);
+    if (!LOCAL_HTTP_PROTOCOLS.has(endpoint.protocol)
+      || !LOCAL_DEVELOPMENT_HOSTNAMES.has(endpoint.hostname)) {
+      return DEFAULT_RELAY_ORIGIN;
+    }
+    return endpoint.origin;
+  } catch {
+    return DEFAULT_RELAY_ORIGIN;
+  }
 }
 
 async function api(pathname, options = {}) {

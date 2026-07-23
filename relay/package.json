@@ -10,7 +10,8 @@
     "test:live-preview": "node test-live-preview.js",
     "test:live": "node test-live-session.js",
     "test:live-auth": "node test-live-auth.js",
-    "test": "npm run test:live-auth && npm run test:live-preview && npm run test:live"
+    "test:security": "node test-security-regressions.js",
+    "test": "npm run test:security && npm run test:live-auth && npm run test:live-preview && npm run test:live"
   },
   "dependencies": {
     "firebase-admin": "^13.10.0",
