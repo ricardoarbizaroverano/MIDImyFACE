@@ -127,6 +127,135 @@ globalThis.__requestPromise = apiPost('/api/sessions/create', {}, true);`,
   return request;
 }
 
+function homepageBridgeEndpoints(hostname, search, cfg = {}, stored = {}) {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'ws-bridge.js'), 'utf8');
+  const start = source.indexOf('const RELAY_WS_DEFAULT');
+  const end = source.indexOf('async function requestJoinToken(', start);
+  assert.ok(start >= 0 && end > start, 'homepage bridge endpoint resolver source must be available');
+  const context = {
+    URL,
+    URLSearchParams,
+    Set,
+    window: { location: { hostname, search } },
+    localStorage: {
+      getItem: (key) => stored[key] || null,
+      setItem(key, value) {
+        stored[key] = value;
+      },
+    },
+  };
+  vm.runInNewContext(
+    `${source.slice(start, end)}
+globalThis.__endpoints = {
+  api: buildConsoleApiBase(${JSON.stringify(cfg)}),
+  ws: buildWsUrl(${JSON.stringify(cfg.relay_url || '')})
+};`,
+    context
+  );
+  return {
+    api: String(context.__endpoints.api),
+    ws: String(context.__endpoints.ws),
+  };
+}
+
+async function homepageBridgeSessionFlow(hostname, search, stored, detail) {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'ws-bridge.js'), 'utf8');
+  const listeners = new Map();
+  const requests = [];
+  const sockets = [];
+  let timerId = 0;
+
+  class TestCustomEvent {
+    constructor(type, options = {}) {
+      this.type = type;
+      this.detail = options.detail;
+    }
+  }
+  class TestWebSocket {
+    static OPEN = 1;
+    constructor(target) {
+      this.url = String(target);
+      this.readyState = TestWebSocket.OPEN;
+      this.sent = [];
+      sockets.push(this);
+      queueMicrotask(() => this.onopen?.());
+    }
+    send(payload) {
+      this.sent.push(String(payload));
+    }
+    close() {
+      this.readyState = 3;
+    }
+  }
+
+  const window = {
+    location: { hostname, search },
+    MMFAuthGate: {
+      async getCurrentIdToken() {
+        return 'firebase-test-token';
+      },
+    },
+    addEventListener(type, listener) {
+      if (!listeners.has(type)) listeners.set(type, []);
+      listeners.get(type).push(listener);
+    },
+    dispatchEvent(event) {
+      for (const listener of listeners.get(event.type) || []) listener(event);
+      return true;
+    },
+  };
+  const context = {
+    AbortController,
+    CustomEvent: TestCustomEvent,
+    Error,
+    Set,
+    URL,
+    URLSearchParams,
+    WebSocket: TestWebSocket,
+    clearInterval() {},
+    clearTimeout() {},
+    console: { debug() {}, log() {}, warn() {} },
+    crypto: { randomUUID: () => 'security-test-client-uuid' },
+    document: { body: null },
+    localStorage: {
+      getItem: (key) => stored[key] || null,
+      setItem(key, value) {
+        stored[key] = value;
+      },
+    },
+    queueMicrotask,
+    setInterval() {
+      timerId += 1;
+      return timerId;
+    },
+    setTimeout() {
+      timerId += 1;
+      return timerId;
+    },
+    window,
+    async fetch(target, options = {}) {
+      const request = { target: String(target), headers: { ...(options.headers || {}) } };
+      requests.push(request);
+      const isJoinTokenRequest = request.target.endsWith('/api/sessions/join-token');
+      return {
+        ok: true,
+        status: 200,
+        async json() {
+          return isJoinTokenRequest
+            ? { ok: true, join_token: 'security-test-join-token' }
+            : { ok: true };
+        },
+      };
+    },
+  };
+  vm.runInNewContext(source, context);
+  window.dispatchEvent(new TestCustomEvent('session:connect', { detail }));
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  return { requests, sockets };
+}
+
 async function assertClientEndpointSecurity() {
   const productionRelay = 'https://midimyface-relay.onrender.com';
   const productionWs = 'wss://midimyface-relay.onrender.com/ws';
@@ -169,6 +298,68 @@ async function assertClientEndpointSecurity() {
   );
   assert.equal(new URL(consoleRequest.target).origin, productionRelay);
   assert.equal(consoleRequest.headers.Authorization, 'Bearer firebase-test-token');
+
+  const productionBridge = { api: productionRelay, ws: productionWs };
+  assert.deepEqual(
+    homepageBridgeEndpoints('midimyface.com', '?console_api=https%3A%2F%2Fevil.example'),
+    productionBridge
+  );
+  assert.deepEqual(
+    homepageBridgeEndpoints('midimyface.com', '', { console_api: 'https://evil.example' }),
+    productionBridge
+  );
+  assert.deepEqual(
+    homepageBridgeEndpoints('midimyface.com', '', {}, { mmf_console_api: 'https://evil.example' }),
+    productionBridge
+  );
+  assert.deepEqual(
+    homepageBridgeEndpoints('www.midimyface.com', '', { relay_url: 'wss://evil.example/ws' }),
+    productionBridge
+  );
+  assert.deepEqual(
+    homepageBridgeEndpoints(
+      'localhost',
+      '?console_api=http%3A%2F%2F127.0.0.1%3A8787',
+      { relay_url: 'ws://localhost:8787/ws' }
+    ),
+    { api: 'http://127.0.0.1:8787', ws: 'ws://localhost:8787/ws' }
+  );
+  assert.deepEqual(
+    homepageBridgeEndpoints(
+      'localhost',
+      '?console_api=https%3A%2F%2Fevil.example',
+      { relay_url: 'wss://evil.example/ws' },
+      { mmf_console_api: 'http://localhost:8787' }
+    ),
+    productionBridge
+  );
+
+  const productionFlow = await homepageBridgeSessionFlow(
+    'midimyface.com',
+    '?console_api=https%3A%2F%2Fevil.example&invite_token=security-test-invite',
+    { mmf_console_api: 'https://evil.example' },
+    { session_id: 'SECURE', password: 'test', name: 'Performer', relay_url: 'wss://evil.example/ws' }
+  );
+  const productionJoinRequest = productionFlow.requests.find((request) => request.headers.Authorization);
+  assert.equal(productionJoinRequest.target, `${productionRelay}/api/sessions/join-token`);
+  assert.equal(productionJoinRequest.headers.Authorization, 'Bearer firebase-test-token');
+  assert.equal(productionFlow.sockets.length, 1);
+  assert.equal(productionFlow.sockets[0].url, productionWs);
+  const productionHello = productionFlow.sockets[0].sent.map(JSON.parse).find((message) => message.type === 'hello');
+  assert.equal(productionHello.join_token, 'security-test-join-token');
+
+  const localFlow = await homepageBridgeSessionFlow(
+    'localhost',
+    '?console_api=http%3A%2F%2Flocalhost%3A8787',
+    {},
+    { session_id: 'LOCAL', password: 'test', name: 'Performer', relay_url: 'ws://127.0.0.1:8787/ws' }
+  );
+  const localJoinRequest = localFlow.requests.find((request) => request.headers.Authorization);
+  assert.equal(localJoinRequest.target, 'http://localhost:8787/api/sessions/join-token');
+  assert.equal(localFlow.sockets.length, 1);
+  assert.equal(localFlow.sockets[0].url, 'ws://127.0.0.1:8787/ws');
+  const localHello = localFlow.sockets[0].sent.map(JSON.parse).find((message) => message.type === 'hello');
+  assert.equal(localHello.join_token, 'security-test-join-token');
 }
 
 function assertConsoleNameRendering() {

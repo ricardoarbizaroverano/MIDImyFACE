@@ -13,9 +13,12 @@
     window.wsConnectionState = window.wsConnectionState || 'disconnected';
     window.sessionConfig     = window.sessionConfig     || { session_id: '', password: '', name: '', relay_url: '', console_api: '', invite_token: '' };
   
-    const RELAY_HOST_DEFAULT = 'wss://midimyface-relay.onrender.com';
+    const RELAY_WS_DEFAULT   = 'wss://midimyface-relay.onrender.com/ws';
     const WS_PATH            = '/ws';
-    const CONSOLE_API_DEFAULT = 'https://console.midimyface.com';
+    const CONSOLE_API_DEFAULT = 'https://midimyface-relay.onrender.com';
+    const LOCAL_DEVELOPMENT_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
+    const LOCAL_API_PROTOCOLS = new Set(['http:', 'https:']);
+    const LOCAL_WS_PROTOCOLS = new Set(['ws:', 'wss:']);
   
     let socket = null;
     let heartbeatTimer = null;
@@ -42,68 +45,42 @@
     function computeBackoff(n) {
       return Math.round(Math.min(1000 * Math.pow(1.6, n), MAX_BACKOFF));
     }
-    function buildWsUrl(relayBase) {
-      const base = (relayBase && relayBase.trim()) || RELAY_HOST_DEFAULT;
-    
+    function localEndpointOverride(value, allowedProtocols) {
+      if (!LOCAL_DEVELOPMENT_HOSTNAMES.has(window.location.hostname)) return null;
       try {
-        const u = new URL(base);
-    
-        // Decide protocol
-        const proto =
-          u.protocol === 'http:'  ? 'ws:'  :
-          u.protocol === 'https:' ? 'wss:' : u.protocol;
-    
-        // If the user already provided a non-root path, don't append WS_PATH
-        const hasPath = u.pathname && u.pathname !== '/' && u.pathname !== '';
-        if (hasPath) {
-          // Normalize no trailing slash (render/ws vs render/ws/)
-          const normalizedPath = u.pathname.endsWith('/') ? u.pathname.slice(0, -1) : u.pathname;
-          return `${proto}//${u.host}${normalizedPath}`;
+        const endpoint = new URL(String(value || '').trim());
+        if (!allowedProtocols.has(endpoint.protocol)
+          || !LOCAL_DEVELOPMENT_HOSTNAMES.has(endpoint.hostname)) {
+          return null;
         }
-    
-        // Otherwise use our default WS_PATH
-        return `${proto}//${u.host}${WS_PATH}`;
+        return endpoint;
       } catch {
-        // base isn't a full URL, treat as host
-        if (base.startsWith('ws://') || base.startsWith('wss://')) {
-          // If it already ends with /ws or has any path, use as-is
-          try {
-            const u2 = new URL(base);
-            const hasPath = u2.pathname && u2.pathname !== '/' && u2.pathname !== '';
-            if (hasPath) return base;
-          } catch {}
-          return `${base}${WS_PATH}`;
-        }
-        // bare host
-        return `wss://${base}${WS_PATH}`;
+        return null;
       }
-    }    
+    }
+    function buildWsUrl(relayBase) {
+      const endpoint = localEndpointOverride(relayBase, LOCAL_WS_PROTOCOLS);
+      if (!endpoint) return RELAY_WS_DEFAULT;
+      const hasPath = endpoint.pathname && endpoint.pathname !== '/';
+      const path = hasPath
+        ? (endpoint.pathname.endsWith('/') ? endpoint.pathname.slice(0, -1) : endpoint.pathname)
+        : WS_PATH;
+      return `${endpoint.protocol}//${endpoint.host}${path}`;
+    }
     function buildConsoleApiBase(cfg) {
+      if (!LOCAL_DEVELOPMENT_HOSTNAMES.has(window.location.hostname)) return CONSOLE_API_DEFAULT;
       const q = new URLSearchParams(window.location.search);
       const fromQuery = q.get('console_api');
       const fromCfg = cfg?.console_api || '';
-      const fromStorage = localStorage.getItem('mmf_console_api') || '';
-      const fromRelay = (() => {
-        const relayBase = (cfg?.relay_url || '').trim();
-        if (!relayBase) return '';
-        try {
-          const u = new URL(relayBase);
-          const host = u.host.replace('midimyface-relay', 'midimyface-console');
-          const proto = u.protocol === 'wss:' ? 'https:' : (u.protocol === 'ws:' ? 'http:' : u.protocol);
-          return `${proto}//${host}`;
-        } catch {
-          return '';
-        }
-      })();
-
-      const base = fromQuery || fromCfg || fromStorage || fromRelay || CONSOLE_API_DEFAULT;
-      try {
-        const normalized = new URL(base);
-        localStorage.setItem('mmf_console_api', normalized.origin);
-        return normalized.origin;
-      } catch {
-        return CONSOLE_API_DEFAULT;
-      }
+      let fromStorage = '';
+      try { fromStorage = localStorage.getItem('mmf_console_api') || ''; } catch {}
+      const endpoint = localEndpointOverride(
+        fromQuery || fromCfg || fromStorage,
+        LOCAL_API_PROTOCOLS
+      );
+      if (!endpoint) return CONSOLE_API_DEFAULT;
+      try { localStorage.setItem('mmf_console_api', endpoint.origin); } catch {}
+      return endpoint.origin;
     }
 
     async function requestJoinToken(cfg) {
@@ -348,11 +325,12 @@
     window.addEventListener('session:connect', (e) => {
       const { session_id, password, name, relay_url } = e.detail || {};
       const q = new URLSearchParams(window.location.search);
+      const localDevelopment = LOCAL_DEVELOPMENT_HOSTNAMES.has(window.location.hostname);
       window.sessionConfig.session_id = session_id || '';
       window.sessionConfig.password   = password   || '';
       window.sessionConfig.name       = name       || '';
-      window.sessionConfig.relay_url  = relay_url  || '';
-      window.sessionConfig.console_api = q.get('console_api') || '';
+      window.sessionConfig.relay_url  = localDevelopment ? (relay_url || '') : '';
+      window.sessionConfig.console_api = localDevelopment ? (q.get('console_api') || '') : '';
       window.sessionConfig.invite_token = q.get('invite_token') || '';
   
       // Wake Render service with a timeout, then try WS regardless
