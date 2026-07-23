@@ -557,11 +557,13 @@
 
     .performance-pattern-lane {
         display: grid;
-        grid-template-columns: repeat(8, minmax(28px, 1fr));
+        grid-template-columns: repeat(var(--pattern-step-count, 8), minmax(28px, 1fr));
         gap: 5px;
         width: 100%;
         min-height: 88px;
         margin: 7px 0;
+        overflow-x: auto;
+        padding-bottom: 3px;
     }
 
     .performance-pattern-step {
@@ -620,6 +622,88 @@
         width: 74px;
     }
 
+    .performance-transport-row {
+        padding: 4px;
+        border: 1px solid rgba(140, 255, 200, 0.32);
+        background: rgba(4, 12, 8, 0.68);
+    }
+
+    .performance-control-icon {
+        width: 34px;
+        min-width: 34px;
+        min-height: 34px;
+        padding: 4px;
+        font-size: 18px;
+        line-height: 1;
+    }
+
+    .performance-control-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .performance-compact-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .performance-control-symbol {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        color: #b9ff6a;
+        font-size: 17px;
+        line-height: 1;
+    }
+
+    .performance-compact-select {
+        width: auto;
+        min-width: 62px;
+    }
+
+    .performance-pattern-settings {
+        justify-content: center;
+    }
+
+    .performance-pattern-settings .dropdown {
+        width: auto;
+        min-width: 96px;
+    }
+
+    .performance-beat-marker {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        min-width: 62px;
+        min-height: 24px;
+        padding: 4px 7px;
+        border: 1px solid rgba(120, 206, 255, 0.45);
+        background: #030706;
+    }
+
+    .performance-beat-dot {
+        width: 7px;
+        height: 7px;
+        border: 1px solid rgba(120, 206, 255, 0.72);
+        background: rgba(120, 206, 255, 0.12);
+        transition: transform 70ms linear, background-color 70ms linear, box-shadow 70ms linear;
+    }
+
+    .performance-beat-dot.active {
+        background: #b9ff6a;
+        transform: scale(1.35);
+        box-shadow: 0 0 8px rgba(185, 255, 106, 0.72);
+    }
+
+    .performance-beat-dot.downbeat {
+        background: #789dff;
+        border-color: #d8ddff;
+        box-shadow: 0 0 10px rgba(85, 72, 200, 0.95);
+    }
+
     .performance-wheel-panel {
         width: min(100%, 800px);
         margin: 8px auto 0;
@@ -628,6 +712,7 @@
 
     .performance-wheel-panel[hidden],
     .performance-grid-only[hidden],
+    #performanceWheelMapControls[hidden],
     #performanceWheelPromote[hidden],
     #performancePathCancel[hidden] { display: none; }
 
@@ -777,20 +862,30 @@
 
     .scale-controls {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         align-items: center;
-        gap: 10px;
-        margin-top: 20px;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 8px;
         flex-wrap: wrap;
         width: 100%;
         max-width: 800px;
-        padding: 0 10px;
+        padding: 7px 10px;
+        border: 1px solid rgba(140, 255, 200, 0.38);
+        background: rgba(5, 14, 9, 0.72);
+    }
+
+    .tonality-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
     }
 
     .scale-label {
-        font-size: 16px;
+        font-size: 12px;
         color: lime;
-        margin-bottom: 5px;
+        margin: 0;
     }
 
     .slider-container {
@@ -3303,6 +3398,46 @@
         </div>
     </div>
 
+    <!-- Global Tonality -->
+    <div class="scale-controls tonality-strip" aria-label="Global key and scale">
+        <label class="tonality-control">
+            <span class="scale-label" data-i18n="fundamental">Fundamental:</span>
+            <select id="rootNoteSelect" class="dropdown">
+                <option value="C" data-i18n="rootNoteOptions.C">Do</option>
+                <option value="C#" data-i18n="rootNoteOptions.C_sharp">Do#</option>
+                <option value="D" data-i18n="rootNoteOptions.D">Re</option>
+                <option value="D#" data-i18n="rootNoteOptions.D_sharp">Re#</option>
+                <option value="E" data-i18n="rootNoteOptions.E">Mi</option>
+                <option value="F" data-i18n="rootNoteOptions.F">Fa</option>
+                <option value="F#" data-i18n="rootNoteOptions.F_sharp">Fa#</option>
+                <option value="G" data-i18n="rootNoteOptions.G">Sol</option>
+                <option value="G#" data-i18n="rootNoteOptions.G_sharp">Sol#</option>
+                <option value="A" data-i18n="rootNoteOptions.A">La</option>
+                <option value="A#" data-i18n="rootNoteOptions.A_sharp">La#</option>
+                <option value="B" data-i18n="rootNoteOptions.B">Si</option>
+            </select>
+        </label>
+        <label class="tonality-control">
+            <span class="scale-label" data-i18n="scale">Escala:</span>
+            <select id="scaleSelect" class="dropdown">
+                <option value="major" selected data-i18n="scaleOptions.major">Mayor</option>
+                <option value="minor" data-i18n="scaleOptions.minor">Menor</option>
+                <option value="dorian" data-i18n="scaleOptions.dorian">Dórico</option>
+                <option value="phrygian" data-i18n="scaleOptions.phrygian">Frigio</option>
+                <option value="lydian" data-i18n="scaleOptions.lydian">Lidio</option>
+                <option value="mixolydian" data-i18n="scaleOptions.mixolydian">Mixolidio</option>
+                <option value="aeolian" data-i18n="scaleOptions.aeolian">Eólico</option>
+                <option value="locrian" data-i18n="scaleOptions.locrian">Locrio</option>
+                <option value="pentatonic" data-i18n="scaleOptions.pentatonic">Pentatónica</option>
+                <option value="blues" data-i18n="scaleOptions.blues">Blues</option>
+                <option value="bebop" data-i18n="scaleOptions.bebop">Bebop</option>
+                <option value="harmonic_minor" data-i18n="scaleOptions.harmonic_minor">Menor Armónica</option>
+                <option value="melodic_minor" data-i18n="scaleOptions.melodic_minor">Menor Melódica</option>
+                <option value="chromatic" data-i18n="scaleOptions.chromatic">Cromática</option>
+            </select>
+        </label>
+    </div>
+
     <!-- Controles de Modo -->
     <div class="mode-controls">
         <button id="percussionToggle" class="mode-button" data-i18n="percussionToggle">Percussion</button>
@@ -3424,24 +3559,40 @@
                 <button id="performanceChordSeventh" class="toggle-button" type="button" aria-pressed="false" title="Seventh chord">4</button>
             </span>
             <span id="performanceChordStatus" class="performance-capture-status" role="status" aria-live="polite"></span>
-            <button id="performancePatternToggle" class="toggle-button" type="button" aria-pressed="false" data-i18n="performancePatternToggle">Pattern</button>
+            <button id="performancePatternToggle" class="toggle-button performance-control-icon" type="button" aria-pressed="false" aria-label="Pattern sequencer" title="Pattern sequencer">▦</button>
             <button id="performanceVibratoToggle" class="toggle-button mouth-vibrato-indicator" type="button" aria-pressed="false" aria-label="Mouth-motion vibrato" title="Mouth-motion vibrato: movement amplitude controls depth and movement speed controls rate">〰</button>
         </div>
 
         <div id="performancePatternPanel" class="performance-pattern-panel" hidden>
-            <div class="performance-options-row">
-                <label for="performanceTempo" data-i18n="performanceTempo">BPM</label>
-                <input id="performanceTempo" class="dropdown" type="number" inputmode="numeric" min="40" max="240" step="1" value="120" />
-                <button id="performanceTapTempo" class="toggle-button" type="button" title="Tap tempo · M" data-i18n="performanceTap">TAP</button>
-                <button id="performanceTransportToggle" class="toggle-button" type="button" aria-pressed="false" title="Play / stop · Space">▶</button>
-                <label for="performanceSubdivision" data-i18n="performanceSubdivision">Rate</label>
-                <select id="performanceSubdivision" class="dropdown">
+            <div class="performance-options-row performance-transport-row">
+                <span class="performance-compact-control" title="Tempo">
+                    <span class="performance-control-symbol" aria-hidden="true">♩</span>
+                    <input id="performanceTempo" class="dropdown" type="number" inputmode="numeric" min="40" max="240" step="1" value="120" aria-label="Tempo in BPM" title="Tempo in BPM" />
+                </span>
+                <button id="performanceTapTempo" class="toggle-button performance-control-icon" type="button" aria-label="Tap tempo" title="Tap tempo · M">●</button>
+                <button id="performanceTransportToggle" class="toggle-button performance-control-icon" type="button" aria-pressed="false" aria-label="Play pattern" title="Play / stop · Space">▶</button>
+                <select id="performanceMeter" class="dropdown performance-compact-select" aria-label="Time signature" title="Time signature">
+                    <option value="2/4">2/4</option>
+                    <option value="3/4">3/4</option>
+                    <option value="4/4" selected>4/4</option>
+                    <option value="5/4">5/4</option>
+                    <option value="6/8">6/8</option>
+                    <option value="7/8">7/8</option>
+                </select>
+                <span id="performanceBeatMarker" class="performance-beat-marker" role="status" aria-label="Bar beat marker"></span>
+                <select id="performanceSubdivision" class="dropdown performance-compact-select" aria-label="Pattern rate" title="Pattern rate">
                     <option value="4n">1/4</option>
                     <option value="8n" selected>1/8</option>
                     <option value="8t">1/8T</option>
                     <option value="16n">1/16</option>
                     <option value="16t">1/16T</option>
                     <option value="32n">1/32</option>
+                </select>
+                <select id="performanceStepCount" class="dropdown performance-compact-select" aria-label="Pattern steps" title="Pattern steps">
+                    <option value="4">4×</option>
+                    <option value="8" selected>8×</option>
+                    <option value="12">12×</option>
+                    <option value="16">16×</option>
                 </select>
             </div>
             <div class="performance-options-row" aria-label="Pattern presets">
@@ -3451,7 +3602,7 @@
                 <button id="performancePresetRandom" class="toggle-button performance-preset-button" type="button" aria-pressed="false" title="Random" aria-label="Random pattern">⌁</button>
                 <button id="performancePresetCustom" class="toggle-button performance-preset-button" type="button" aria-pressed="false" title="Custom" aria-label="Custom pattern">✎</button>
             </div>
-            <div id="performancePatternLane" class="performance-pattern-lane" aria-label="Eight-step pattern editor">
+            <div id="performancePatternLane" class="performance-pattern-lane" aria-label="8-step pattern editor">
                 <button class="performance-pattern-step" type="button" data-step-index="0" data-tone="root" aria-label="Step 1 root"><span>R</span></button>
                 <button class="performance-pattern-step" type="button" data-step-index="1" data-tone="third" aria-label="Step 2 third"><span>3</span></button>
                 <button class="performance-pattern-step" type="button" data-step-index="2" data-tone="fifth" aria-label="Step 3 fifth"><span>5</span></button>
@@ -3461,22 +3612,22 @@
                 <button class="performance-pattern-step" type="button" data-step-index="6" data-tone="octave" aria-label="Step 7 octave"><span>8</span></button>
                 <button class="performance-pattern-step" type="button" data-step-index="7" data-tone="rest" aria-label="Step 8 rest"><span>–</span></button>
             </div>
-            <div class="performance-options-row">
-                <label for="performanceArticulation" data-i18n="performanceGate">Gate</label>
-                <select id="performanceArticulation" class="dropdown">
+            <div class="performance-options-row performance-pattern-settings">
+                <span class="performance-control-symbol" aria-hidden="true" title="Gate">⌁</span>
+                <select id="performanceArticulation" class="dropdown" aria-label="Note gate" title="Note gate">
                     <option value="short" data-i18n="performanceGateShort">Short</option>
                     <option value="normal" selected data-i18n="performanceGateNormal">Normal</option>
                     <option value="legato" data-i18n="performanceGateLegato">Legato</option>
                 </select>
-                <label for="performanceTriggerMode" data-i18n="performanceTriggerMode">Trigger</label>
-                <select id="performanceTriggerMode" class="dropdown">
+                <span class="performance-control-symbol" aria-hidden="true" title="Trigger behavior">↺</span>
+                <select id="performanceTriggerMode" class="dropdown" aria-label="Trigger behavior" title="Trigger behavior">
                     <option value="restart" data-i18n="performanceTriggerRestart">Restart</option>
                     <option value="continue" data-i18n="performanceTriggerContinue">Continue</option>
                     <option value="one-shot" data-i18n="performanceTriggerOneShot">One-shot</option>
                     <option value="latch" data-i18n="performanceTriggerLatch">Latch</option>
                 </select>
-                <label for="performanceQuantization" data-i18n="performanceQuantization">Change</label>
-                <select id="performanceQuantization" class="dropdown">
+                <span class="performance-control-symbol" aria-hidden="true" title="Change quantization">⌗</span>
+                <select id="performanceQuantization" class="dropdown" aria-label="Change quantization" title="Change quantization">
                     <option value="now" data-i18n="performanceQuantizeNow">Now</option>
                     <option value="step" data-i18n="performanceQuantizeStep">Step</option>
                     <option value="beat" data-i18n="performanceQuantizeBeat">Beat</option>
@@ -3491,11 +3642,17 @@
                     <button id="performanceWheelDiatonic" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceWheelDiatonic" title="Seven chords from the selected key and scale">Diatonic</button>
                     <button id="performanceWheelChromatic" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceWheelChromatic" title="Connected major, secondary-dominant, and relative-minor targets">Chromatic</button>
                 </span>
-                <span id="performanceWheelCycleControls" class="performance-segmented-control" role="group" aria-label="Chromatic harmonic path" hidden>
-                    <button id="performanceWheelFifths" class="toggle-button active" type="button" aria-pressed="true" title="Move through the circle of fifths">5ths</button>
-                    <button id="performanceWheelFourths" class="toggle-button" type="button" aria-pressed="false" title="Move through the circle of fourths">4ths</button>
-                    <button id="performanceWheelThirds" class="toggle-button" type="button" aria-pressed="false" title="Move through closely related thirds">3rds</button>
+                <span id="performanceWheelMapControls" class="performance-segmented-control" role="group" aria-label="Chromatic harmonic map" hidden>
+                    <button id="performanceWheelCircle" class="toggle-button performance-control-icon active" type="button" aria-pressed="true" aria-label="Circle map" title="Circle: fourths to the left, fifths to the right">○</button>
+                    <button id="performanceWheelMediants" class="toggle-button performance-control-icon" type="button" aria-pressed="false" aria-label="Mediant map" title="Mediants: move by major and minor thirds">△</button>
+                    <button id="performanceWheelModulation" class="toggle-button performance-control-icon" type="button" aria-pressed="false" aria-label="Modulation map" title="Modulation: pivots, relatives, parallels, and dominants">↗</button>
                 </span>
+                <select id="performanceWheelCoverage" class="dropdown performance-compact-select" aria-label="Wheel size" title="Wheel size">
+                    <option value="1" selected>100%</option>
+                    <option value="0.75">75%</option>
+                    <option value="0.5">50%</option>
+                    <option value="0.25">25%</option>
+                </select>
                 <span class="performance-segmented-control" role="group" aria-label="Harmonic Wheel labels">
                     <button id="performanceWheelDegrees" class="toggle-button active" type="button" aria-pressed="true" data-i18n="performanceWheelDegrees">Degrees</button>
                     <button id="performanceWheelPitches" class="toggle-button" type="button" aria-pressed="false" data-i18n="performanceWheelPitches">Pitches</button>
@@ -3717,42 +3874,6 @@
             <button class="toggle-button" id="noseYDisparador" data-i18n="trigger">Disparador</button>
         </div>
 
-    </div>
-
-    <!-- Scale Controls -->
-    <div class="scale-controls">
-        <div class="scale-label" data-i18n="scale">Escala:</div>
-        <select id="scaleSelect" class="dropdown">
-            <option value="major" selected data-i18n="scaleOptions.major">Mayor</option>
-            <option value="minor" data-i18n="scaleOptions.minor">Menor</option>
-            <option value="dorian" data-i18n="scaleOptions.dorian">Dórico</option>
-            <option value="phrygian" data-i18n="scaleOptions.phrygian">Frigio</option>
-            <option value="lydian" data-i18n="scaleOptions.lydian">Lidio</option>
-            <option value="mixolydian" data-i18n="scaleOptions.mixolydian">Mixolidio</option>
-            <option value="aeolian" data-i18n="scaleOptions.aeolian">Eólico</option>
-            <option value="locrian" data-i18n="scaleOptions.locrian">Locrio</option>
-            <option value="pentatonic" data-i18n="scaleOptions.pentatonic">Pentatónica</option>
-            <option value="blues" data-i18n="scaleOptions.blues">Blues</option>
-            <option value="bebop" data-i18n="scaleOptions.bebop">Bebop</option>
-            <option value="harmonic_minor" data-i18n="scaleOptions.harmonic_minor">Menor Armónica</option>
-            <option value="melodic_minor" data-i18n="scaleOptions.melodic_minor">Menor Melódica</option>
-            <option value="chromatic" data-i18n="scaleOptions.chromatic">Cromática</option>
-        </select>
-        <div class="scale-label" data-i18n="fundamental">Fundamental:</div>
-        <select id="rootNoteSelect" class="dropdown">
-            <option value="C" data-i18n="rootNoteOptions.C">Do</option>
-            <option value="C#" data-i18n="rootNoteOptions.C_sharp">Do#</option>
-            <option value="D" data-i18n="rootNoteOptions.D">Re</option>
-            <option value="D#" data-i18n="rootNoteOptions.D_sharp">Re#</option>
-            <option value="E" data-i18n="rootNoteOptions.E">Mi</option>
-            <option value="F" data-i18n="rootNoteOptions.F">Fa</option>
-            <option value="F#" data-i18n="rootNoteOptions.F_sharp">Fa#</option>
-            <option value="G" data-i18n="rootNoteOptions.G">Sol</option>
-            <option value="G#" data-i18n="rootNoteOptions.G_sharp">Sol#</option>
-            <option value="A" data-i18n="rootNoteOptions.A">La</option>
-            <option value="A#" data-i18n="rootNoteOptions.A_sharp">La#</option>
-            <option value="B" data-i18n="rootNoteOptions.B">Si</option>
-        </select>
     </div>
 
     <!-- MIDI Output Selector -->
